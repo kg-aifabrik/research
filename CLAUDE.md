@@ -12,6 +12,8 @@ When the user asks for new research, the first thing to determine is which area 
 
 If the named area folder already exists, add new topics into it rather than creating a new one.
 
+Before producing the full report on a new topic, **draft the Requirements and Assumptions Made sections first** (see Report structure) and present them to the user for sign-off. Wait for confirmation before doing the research and full write-up — unless the user has explicitly told you to just run with your interpretation.
+
 ## Committing
 
 Commit after every completed unit of work in this repo without waiting to be asked, then push to `origin` on the current branch. The only exception is when the user explicitly says to hold off or wait for a follow-up prompt. Use short, specific commit messages that name what changed.
@@ -30,21 +32,35 @@ Commit after every completed unit of work in this repo without waiting to be ask
 
 Each topic produces a paired `.md` and `.html` with matching base names. Both files must convey the same content. The HTML is for browser review and must be **fully self-contained** — inline CSS, no external JS, no external font or image fetches. The only external references allowed are citation links in the prose.
 
+## Report structure
+
+Each topic report uses this section order:
+
+1. **Title** — short, descriptive.
+2. **Table of contents** — only when the report is long or complex enough that a reader benefits from jumping between sections. Use judgment; skip it for short reports. When present, link to the report's main sections.
+3. **Executive Summary** — this is the lede. State the conclusion up front:
+   - **Comparison topics:** lead with the comparison table (see *Comparisons* in Writing style) immediately followed by "Prefer X over Y because (1)…, (2)…, (3)…".
+   - **Single-subject topics:** lead with the headline finding (e.g. "Service X handles N requests/sec by way of A, B, C").
+   A reader who stops here should already have the takeaway.
+4. **Requirements** — bullet list of all requirements as understood for this research. Should have been confirmed with the user before the report was written.
+5. **Assumptions Made** — bullet list of every explicit assumption you made. Should also have been confirmed with the user beforehand; flag any that weren't.
+6. **Report body** — supporting detail in decreasing order of importance.
+
 ## Writing style
 
 Reports are written for a reader proficient in the topic. Optimize for their time and attention, not for completeness.
 
-- **Inverted pyramid.** Open with a one-line headline and a lede paragraph that delivers the essence. A reader who stops after the lede should already have the takeaway. Layer supporting detail below in decreasing order of importance.
+- **Inverted pyramid.** The Executive Summary (see Report structure) carries the essence — it is the lede. The report body layers supporting detail below in decreasing order of importance.
 - **Terse.** No throat-clearing, no restating the question, no "in conclusion." Cut adjectives. Prefer concrete numbers, named systems, and specific claims over abstractions.
 - **Acronyms.** On first occurrence, expand the term — e.g. "Kubernetes (K8s)", "Container Network Interface (CNI)". Subsequent uses can be the acronym alone. Applies per report, not per session.
 - **Length budget.** Keep each report under 4 printed pages. If a topic genuinely cannot fit, produce the long version and **ask the user which sections to trim** before finalizing.
 - **Citations.** Important — cite primary sources where possible. Use inline anchor links embedded in the prose: `<a href="...">phrase</a>` in HTML, `[phrase](url)` in Markdown. No trailing reference list — keep the link details out of the reading flow.
 - **Visuals.** Mermaid diagrams, inline SVG, KaTeX, comparison tables, etc. are all fair game when they convey more than prose would. Pick the right tool for the topic.
-- **Comparisons.** When the report compares options, lead with a table:
+- **Comparisons.** When the report compares options, the Executive Summary leads with a table:
   - **Columns = the choices** being compared (A, B, C…).
   - **Rows = the dimensions** of comparison (cost, latency, operational burden, etc.).
-  - Immediately below the table, state the **conclusion** — "Prefer A over B because (1)…, (2)…, (3)…" — before any deeper analysis.
-  - Per-dimension detail and caveats follow below the conclusion, not above it.
+  - Immediately below the table, state the **conclusion** — "Prefer A over B because (1)…, (2)…, (3)…".
+  - Per-dimension caveats and deeper analysis live in the report body, not the Exec Summary.
 - **Style.** No fixed template — choose typography and layout that suit the content. A landscape comparison will look different from a deep-dive on one protocol.
 
 ## Area README
