@@ -14,7 +14,7 @@ If the named area folder already exists, add new topics into it rather than crea
 
 ## Committing
 
-Commit after every completed unit of work in this repo without waiting to be asked. The only exception is when the user explicitly says to hold off or wait for a follow-up prompt. Use short, specific commit messages that name what changed.
+Commit after every completed unit of work in this repo without waiting to be asked, then push to `origin` on the current branch. The only exception is when the user explicitly says to hold off or wait for a follow-up prompt. Use short, specific commit messages that name what changed.
 
 ## Folder layout
 
