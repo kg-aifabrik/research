@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Open Source Kubernetes Federation: Survey for a 50+ Edge Inference Platform</title>
+<style>
+  :root {
+    --fg: #1a1a1a;
+    --muted: #5a5a5a;
+    --bg: #ffffff;
+    --accent: #1f5fa8;
+    --border: #d5d5d5;
+    --code-bg: #f5f5f5;
+    --table-stripe: #fafafa;
+    --warn-bg: #fff7e6;
+    --good-bg: #eef7ee;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 40px 28px 80px;
+  }
+  h1 {
+    font-size: 1.9rem;
+    line-height: 1.25;
+    margin: 0 0 0.6em;
+    border-bottom: 2px solid var(--fg);
+    padding-bottom: 0.3em;
+  }
+  h2 {
+    font-size: 1.35rem;
+    margin-top: 2em;
+    margin-bottom: 0.5em;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.2em;
+  }
+  h3 {
+    font-size: 1.1rem;
+    margin-top: 1.6em;
+    margin-bottom: 0.4em;
+  }
+  p { margin: 0 0 0.9em; }
+  ul, ol { margin: 0 0 0.9em; padding-left: 1.4em; }
+  li { margin-bottom: 0.3em; }
+  a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(31, 95, 168, 0.25);
+  }
+  a:hover { border-bottom-color: var(--accent); }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 0.92em;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    font-size: inherit;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0 1.4em;
+    font-size: 0.9rem;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #f0f0f0;
+    font-weight: 600;
+  }
+  tbody tr:nth-child(even) { background: var(--table-stripe); }
+  .toc {
+    background: #f9f9f9;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 18px 12px 32px;
+    margin: 0 0 1.8em;
+  }
+  .toc ul { margin: 0; }
+  .toc > ul > li { font-weight: 500; }
+  .toc ul ul { margin-top: 0.25em; }
+  .toc ul ul li { font-weight: 400; }
+  .verdict {
+    background: var(--good-bg);
+    border-left: 4px solid #4a8a4a;
+    padding: 12px 16px;
+    margin: 1em 0 1.4em;
+    border-radius: 0 4px 4px 0;
+  }
+  .verdict ol { margin-top: 0.3em; margin-bottom: 0; }
+  .ascii-diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    white-space: pre;
+    margin: 1em 0 1.4em;
+  }
+  .watch-outs {
+    background: var(--warn-bg);
+    border-left: 4px solid #c08a2c;
+    padding: 10px 14px;
+    margin: 0.6em 0 1.2em;
+    border-radius: 0 4px 4px 0;
+  }
+  .watch-outs strong { display: block; margin-bottom: 0.2em; }
+  hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 2em 0;
+  }
+  .footer-note {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 2em;
+  }
+  @media (max-width: 640px) {
+    main { padding: 24px 16px 60px; }
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.2rem; }
+    table { font-size: 0.82rem; }
+    th, td { padding: 6px 7px; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Open Source Kubernetes Federation: Survey for a 50+ Edge Inference Platform</h1>
+
+<nav class="toc">
+  <strong>Table of contents</strong>
+  <ul>
+    <li><a href="#executive-summary">Executive Summary</a></li>
+    <li><a href="#requirements">Requirements</a></li>
+    <li><a href="#assumptions-made">Assumptions Made</a></li>
+    <li><a href="#landscape">Landscape: two layers, not one</a></li>
+    <li><a href="#kubefed-out">Why KubeFed v2 is out</a></li>
+    <li><a href="#push-vs-pull">Push vs Pull: which control flow</a></li>
+    <li>
+      <a href="#engines">Federation engines</a>
+      <ul>
+        <li><a href="#karmada">Karmada</a></li>
+        <li><a href="#ocm">Open Cluster Management (OCM)</a></li>
+        <li><a href="#clusternet">Clusternet</a></li>
+        <li><a href="#liqo">Liqo &mdash; wrong shape, brief mention</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#gitops">GitOps delivery layers</a>
+      <ul>
+        <li><a href="#argocd">Argo CD ApplicationSets</a></li>
+        <li><a href="#flux">Flux + multi-tenancy / &ldquo;fleet&rdquo; pattern</a></li>
+        <li><a href="#fleet">Rancher Fleet</a></li>
+      </ul>
+    </li>
+    <li><a href="#non-k8s">The non-k8s master question</a></li>
+    <li><a href="#recommended">Recommended architectures</a></li>
+  </ul>
+</nav>
+
+<h2 id="executive-summary">Executive Summary</h2>
+
+<p>For a 50+ edge cluster, GitOps-first, k8s-API-conformant federation stack with per-tenant RBAC, the strongest combination today is <strong><a href="https://karmada.io">Karmada</a> as the federation engine on the master, fronted by <a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/">Argo CD ApplicationSets</a> for declarative delivery</strong>. Karmada preserves the master as a real Kubernetes (K8s) API surface &mdash; end users <code>kubectl apply</code> to the master and Karmada propagates to selected edges with full Custom Resource Definition (CRD) and StatefulSet support. Argo CD adds the GitOps pipeline, an Identity Provider (IdP)-friendly RBAC layer via <a href="https://dexidp.io/">Dex</a>, and a mature multi-tenant UI. <a href="https://open-cluster-management.io/">Open Cluster Management (OCM)</a> is the credible alternative when a pull-only network policy or Red Hat alignment is required.</p>
+
+<h3>Comparison table</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Dimension</th>
+      <th>Karmada</th>
+      <th>OCM</th>
+      <th>Argo CD ApplicationSets</th>
+      <th>Flux (multi-cluster)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Project layer</td><td>Federation engine</td><td>Federation engine</td><td>GitOps delivery</td><td>GitOps delivery</td></tr>
+    <tr><td>Control flow</td><td>Push (default), pull supported</td><td>Pull (hub-and-spoke)</td><td>Push from hub</td><td>Pull (agent per cluster)</td></tr>
+    <tr><td>Master = real K8s API</td><td>Yes, full K8s + CRDs</td><td>Partial (ManifestWork wraps manifests)</td><td>No (end users push to git)</td><td>No (end users push to git)</td></tr>
+    <tr><td>CRD / StatefulSet propagation</td><td>Yes (Resource Template + PropagationPolicy)</td><td>Yes (raw ManifestWork)</td><td>Native (same as single cluster)</td><td>Native (same as single cluster)</td></tr>
+    <tr><td>Per-attribute overrides</td><td>OverridePolicy with label selectors</td><td>Placement + transformer addon</td><td>ApplicationSet generators + Helm/Kustomize values</td><td>Kustomize overlays per cluster</td></tr>
+    <tr><td>Multi-tenant RBAC</td><td>K8s RBAC scoped on master + propagation</td><td>K8s RBAC + ManagedClusterSet + Placement</td><td>AppProject scoping + SSO</td><td>Tenant CRD + multi-tenancy lockdown</td></tr>
+    <tr><td>IdP integration</td><td>K8s OIDC at master API</td><td>K8s OIDC + Hub</td><td>Dex (OIDC / SAML / LDAP / GitHub) built in</td><td>Git provider + K8s OIDC</td></tr>
+    <tr><td>GitOps fit</td><td>Pair with Argo CD/Flux at the master</td><td>Pair with the Argo CD or app-manager addon</td><td>Native</td><td>Native</td></tr>
+    <tr><td>CNCF status (Jan 2026)</td><td>Incubating</td><td>Sandbox</td><td>Graduated (Argo)</td><td>Graduated</td></tr>
+    <tr><td>Primary backers</td><td>Huawei, Red Hat, Intel, FedEx</td><td>Red Hat, IBM, Microsoft, Alibaba</td><td>Intuit, Red Hat, Akuity</td><td>CNCF community, Microsoft, GitHub</td></tr>
+    <tr><td>Public production references</td><td>ICBC, Vipshop, Xiaohongshu, China Mobile</td><td>RHACM customers, IBM Cloud</td><td>Intuit, Tesla, Adobe, BlackRock</td><td>Mercedes-Benz, State Farm, Microsoft</td></tr>
+    <tr><td>Edge-cluster footprint</td><td>~80 MB agent in pull mode; none in push</td><td>~50 MB klusterlet</td><td>None (hub-only)</td><td>~30 MB flux-system per cluster</td></tr>
+  </tbody>
+</table>
+
+<div class="verdict">
+  <strong>Verdict &mdash; prefer Karmada + Argo CD ApplicationSets over the alternatives because:</strong>
+  <ol>
+    <li><strong>K8s-API parity on the master.</strong> Karmada is the only mature engine that lets end users keep using vanilla <code>kubectl</code>, native RBAC, and CRDs against the master &mdash; exactly what the platform contract you described requires.</li>
+    <li><strong>Strongest combined production track record.</strong> <a href="https://www.cncf.io/case-studies/icbc/">Karmada at ICBC</a> (100+ clusters, financial-grade workloads) plus <a href="https://www.cncf.io/case-studies/intuit/">Argo CD at Intuit</a> (the project's birthplace, thousands of apps) is the best-documented pair in the OSS space.</li>
+    <li><strong>No clickbait-OSS risk.</strong> Both are Apache 2.0 with multi-vendor governance; no core feature is paywalled.</li>
+  </ol>
+</div>
+
+<p><a href="https://open-cluster-management.io/">OCM</a> is the recommended fallback for a pull-only network posture or where a Red Hat ecosystem alignment is preferred. <a href="#argocd">Pure Argo CD ApplicationSets</a> without a federation engine is a viable simpler alternative if you can give up the &ldquo;master is a K8s cluster&rdquo; contract at the end-user surface.</p>
+
+<h2 id="requirements">Requirements</h2>
+
+<ul>
+  <li>One master K8s cluster in a hyperscaler plus 50+ share-nothing edge clusters, each an independent failure domain.</li>
+  <li>GPU inference workloads, mix of stateless and stateful, full K8s object conformance including CRDs and StatefulSets.</li>
+  <li>Survey covers both push and pull control flows with explicit tradeoffs.</li>
+  <li>Master is itself a K8s cluster; report whether a non-K8s control plane offers a material advantage.</li>
+  <li>GitOps, declarative delivery model. End users do not need an imperative API.</li>
+  <li>Per-attribute overrides (GPU SKU, model variant, replica count); location is not an override dimension.</li>
+  <li>Stable master-to-edge connectivity assumed.</li>
+  <li>Multi-tenant RBAC: end users see only their own namespaces/resources across the fleet. IdP integration required (specific IdP to be determined).</li>
+  <li>Federation surfaces native K8s object status. Metrics / GPU utilization handled by a separate observability stack.</li>
+  <li>Workload/config federation only. Cross-cluster networking and identity (Submariner, Cilium ClusterMesh, SPIFFE) are out of scope.</li>
+  <li>Inclusion bar: OSI-licensed core, at least one documented production-grade deployment at scale, healthy multi-vendor community.</li>
+</ul>
+
+<h2 id="assumptions-made">Assumptions Made</h2>
+
+<ul>
+  <li>Greenfield &mdash; no existing federation, GitOps, mesh, or identity broker.</li>
+  <li>Hyperscaler-agnostic master (AWS / GCP / Azure); candidates tightly coupled to one cloud will be flagged.</li>
+  <li>IdP integration via OpenID Connect (OIDC) + K8s RBAC is the assumed integration shape.</li>
+  <li>Each edge cluster is small-to-medium (single-digit to low-double-digit GPU nodes); edge control-plane footprint matters and is in scope of the evaluation.</li>
+  <li>Stateful workloads are inference-side (model caches, vector stores backed by PersistentVolumeClaims (PVCs)); cross-cluster data replication is <strong>not</strong> an expectation of the federation layer.</li>
+  <li>&ldquo;Production grade&rdquo; evidence = &ge;1 of: KubeCon talk by an operator (not vendor), engineering blog from a named end-user at scale, or public case study with concrete numbers.</li>
+  <li>KubeFed v2 is excluded from the recommendation set on grounds of project dormancy but is contextualized.</li>
+</ul>
+
+<h2 id="landscape">Landscape: two layers, not one</h2>
+
+<p>A common conflation is to treat &ldquo;K8s federation&rdquo; as one decision. It is two:</p>
+
+<ol>
+  <li><strong>Federation engine</strong> &mdash; what makes a <em>fleet</em> of clusters addressable through a single API or hub. Examples: Karmada, OCM, Clusternet, the archived KubeFed v2.</li>
+  <li><strong>GitOps delivery</strong> &mdash; what turns a git repository into reconciled state on N clusters. Examples: Argo CD ApplicationSets, Flux multi-cluster patterns, Rancher Fleet.</li>
+</ol>
+
+<p>The two layers can stand alone or compose. Argo CD ApplicationSets used directly against many edges <em>is</em> a form of federation &mdash; push-from-hub, no master K8s API surface for end users. Karmada by itself can be driven imperatively without GitOps. The most production-proven shape is to stack them: Karmada (or OCM) as the API surface, Argo CD (or Flux) as the pipeline that fills it.</p>
+
+<p>Two patterns we will explicitly <em>not</em> recommend:</p>
+
+<ul>
+  <li><strong>DIY multi-context kubectl scripts</strong> &mdash; does not pass the RBAC, status-aggregation, or override requirements.</li>
+  <li><strong>Service mesh as federation</strong> &mdash; Cilium ClusterMesh, Submariner, and Skupper solve cross-cluster networking, not workload propagation. Out of scope by your direction.</li>
+</ul>
+
+<h2 id="kubefed-out">Why KubeFed v2 is out</h2>
+
+<p><a href="https://github.com/kubernetes-sigs/kubefed">KubeFed v2</a> was the SIG-Multicluster reference implementation of K8s federation. The repo has had no functional releases since 2023, the project README warns it is in maintenance-only mode, and SIG-Multicluster has redirected effort toward the <a href="https://github.com/kubernetes-sigs/mcs-api">Multi-Cluster Services (MCS)</a> API and the <a href="https://github.com/kubernetes-sigs/work-api">Work API</a> &mdash; the latter is in fact the lineage of OCM's ManifestWork. <strong>Treat KubeFed v2 as historical.</strong> The work has not been abandoned; it has <em>forked</em> into Karmada (which started as a Huawei rework of KubeFed v2 internals) and into OCM's Work API.</p>
+
+<h2 id="push-vs-pull">Push vs Pull: which control flow</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Push</th>
+      <th>Pull</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Where credentials live</td><td>Master holds N kubeconfigs for edges</td><td>Each edge holds one kubeconfig / bootstrap token for the hub</td></tr>
+    <tr><td>Network direction</td><td>Master &rarr; edge (master must reach each edge's API server)</td><td>Edge &rarr; master (edges dial out)</td></tr>
+    <tr><td>NAT / firewall friendliness</td><td>Poor &mdash; every edge needs ingress</td><td>Excellent &mdash; edges only need egress</td></tr>
+    <tr><td>Blast radius on master compromise</td><td>High &mdash; attacker has direct API to every edge</td><td>Lower &mdash; attacker controls hub state but cannot bypass agent policies</td></tr>
+    <tr><td>Latency to apply changes</td><td>Lower (master decides, applies directly)</td><td>Higher (depends on agent polling / watch reconnect)</td></tr>
+    <tr><td>Behavior during partition</td><td>Edge stops receiving updates; existing workloads keep running</td><td>Edge stops receiving updates; existing workloads keep running</td></tr>
+    <tr><td>Status aggregation</td><td>Master watches edge API directly</td><td>Agent reports up; centralizes naturally</td></tr>
+    <tr><td>Best-known engine</td><td>Karmada (default), KubeFed v2</td><td>OCM, Clusternet, Flux, Rancher Fleet</td></tr>
+  </tbody>
+</table>
+
+<p>With connectivity stable and the master in a hyperscaler, <strong>push is the cleaner default</strong> for this use case: lower latency, simpler debugging, and Karmada is mature in this mode. Pull becomes attractive if edges sit behind unpredictable network policies (NAT, customer firewalls), or if you want strong per-edge agent-side admission control as a defense-in-depth against a compromised master. Karmada actually supports both modes, and you can mix per cluster &mdash; a useful hedge.</p>
+
+<h2 id="engines">Federation engines</h2>
+
+<h3 id="karmada">Karmada</h3>
+
+<p><a href="https://karmada.io">Karmada</a> (&ldquo;Kubernetes Armada&rdquo;) originated at Huawei as a from-scratch rework of KubeFed v2 internals and joined CNCF Incubation in December 2023. Architecturally, a Karmada control plane runs <em>as</em> a K8s API server (with its own etcd) on the master cluster. End users apply standard K8s objects to it; Karmada controllers convert them into <strong>ResourceTemplates</strong>, attach a <strong>PropagationPolicy</strong> (which selects member clusters) and optional <strong>OverridePolicy</strong> (which mutates per-target), and either <em>push</em> via the karmada-controller-manager directly or have a <em>pull-mode agent</em> on the member cluster reconcile.</p>
+
+<p>What makes Karmada the right shape for the stated problem:</p>
+
+<ul>
+  <li><strong>K8s-native UX on the master.</strong> <code>kubectl get deployment -A</code> on Karmada returns the union of all member-cluster deployments with cluster names attached. RBAC at the master uses standard K8s primitives &mdash; no custom permission model to learn.</li>
+  <li><strong>Full CRD propagation.</strong> A <code>ClusterPropagationPolicy</code> with a <code>resourceSelectors</code> clause matches arbitrary GroupVersionKinds, including KServe <code>InferenceService</code>, vLLM operators, and GPU Operator configs. This is exactly the &ldquo;full K8s conformance&rdquo; requirement.</li>
+  <li><strong>Per-attribute overrides without per-location code.</strong> <code>OverridePolicy</code> uses <code>clusterAffinity</code> with label selectors. Edges labelled <code>gpu-sku=H100</code> get one override; <code>model-variant=llama-3-70b</code> gets another. No location ever appears as an override key.</li>
+  <li><strong>Pull mode is first-class.</strong> Same Resource Template + PropagationPolicy model; only the data path changes. Lets you mix push and pull per-cluster, which matters if even a few edges sit behind awkward network policies.</li>
+  <li><strong>IdP via standard K8s OIDC.</strong> The Karmada API server accepts the same <code>--oidc-*</code> flags as kube-apiserver. Any OIDC-compliant IdP works; no project-specific integration is required.</li>
+  <li><strong>Production references.</strong> <a href="https://www.cncf.io/case-studies/icbc/">ICBC's Karmada deployment</a> (100+ clusters in financial-grade production), Vipshop, Xiaohongshu, FedEx, and others have presented at KubeCon. Adopters list is publicly maintained at <a href="https://karmada.io/docs/adopters/">karmada.io/adopters</a>.</li>
+  <li><strong>GitOps composition.</strong> The recommended composition is to run Argo CD or Flux on the master, with Karmada PropagationPolicy CRs as the GitOps target &mdash; Argo CD does not need to know about edges at all, only the Karmada API.</li>
+</ul>
+
+<div class="watch-outs">
+  <strong>Watch-outs</strong>
+  <ul>
+    <li><strong>Single backer concentration.</strong> Huawei still produces the bulk of commits; multi-vendor governance is real but the project would feel a Huawei withdrawal.</li>
+    <li><strong>Status reporting depth.</strong> Karmada surfaces aggregated <code>Resource.Status</code> reasonably for built-in workload types; for CRDs you may need to declare a <code>ResourceInterpreterCustomization</code> to teach Karmada how to merge status across edges.</li>
+    <li><strong>Stateful workloads.</strong> StatefulSet and PVC propagation works, but cross-cluster data replication is <em>not</em> in scope &mdash; that is your model-cache / vector-store choice, not Karmada's job.</li>
+  </ul>
+</div>
+
+<h3 id="ocm">Open Cluster Management (OCM)</h3>
+
+<p><a href="https://open-cluster-management.io/">OCM</a> is the upstream of <a href="https://www.redhat.com/en/technologies/management/advanced-cluster-management">Red Hat Advanced Cluster Management (RHACM)</a>, donated to CNCF Sandbox in 2021 and currently working toward Incubation. The architecture is pull-only: a <strong>klusterlet</strong> runs on each managed cluster, registers with the hub, and reconciles <strong>ManifestWork</strong> resources that the hub writes to a per-cluster namespace.</p>
+
+<p>Strengths:</p>
+
+<ul>
+  <li><strong>Mature multi-tenancy primitives.</strong> <code>ManagedClusterSet</code> groups clusters, <code>Placement</code> selects from a set, <code>ManifestWork</code> delivers to the selected. Tenant boundaries align cleanly with namespaces on the hub.</li>
+  <li><strong>Defense-in-depth pull model.</strong> Edges never accept inbound traffic from the hub. Compromise of the hub gives an attacker the ability to alter ManifestWork specs but the klusterlet's local admission policies still apply.</li>
+  <li><strong>Strong backer set.</strong> Red Hat, IBM, Microsoft, Alibaba contribute; RHACM ships OCM as its kernel, so there is a paid-product downstream that funds engineering, while the OSS layer remains fully usable.</li>
+  <li><strong>Production references.</strong> RHACM is in widespread enterprise use; OCM itself underpins IBM Cloud Satellite and is presented regularly at KubeCon by <a href="https://www.youtube.com/results?search_query=open+cluster+management+kubecon">Red Hat</a> and Microsoft.</li>
+</ul>
+
+<div class="watch-outs">
+  <strong>Watch-outs</strong>
+  <ul>
+    <li><strong>Master is not a transparent K8s API.</strong> End users do not <code>kubectl apply -n my-ns my-deployment.yaml</code> to OCM and get propagation. They author ManifestWork (or use an addon like Argo CD that does it for them). The platform-owner side absorbs that abstraction, but it is not the same UX as Karmada.</li>
+    <li><strong>More opinionated.</strong> Multi-cluster scheduling decisions live in Placement, not in standard K8s scheduling. Useful, but a new model to learn.</li>
+    <li><strong>CNCF level.</strong> Sandbox as of January 2026 &mdash; lower maturity stamp than Karmada's Incubation, despite arguably comparable production usage via RHACM.</li>
+  </ul>
+</div>
+
+<h3 id="clusternet">Clusternet</h3>
+
+<p><a href="https://clusternet.io">Clusternet</a> is an open-source multi-cluster management project originating at Tencent, CNCF Sandbox. It supports pull-mode child clusters dialing home over a tunnel, which is genuinely useful for clusters behind NAT or carrier-grade firewalls.</p>
+
+<p>It does not clear the inclusion bar for the recommendation set. Documented production deployments outside Tencent are sparse; community KubeCon presence is thinner than Karmada or OCM; the contributor base is narrow. Worth knowing about as a niche option if NAT-traversal becomes a hard requirement and OCM / Karmada pull-mode are insufficient &mdash; not as a primary choice.</p>
+
+<h3 id="liqo">Liqo &mdash; wrong shape, brief mention</h3>
+
+<p><a href="https://liqo.io">Liqo</a> does cross-cluster <em>resource offloading</em>: a remote cluster appears in the local cluster as a virtual kubelet, and pods scheduled to it actually run there. Useful for cloud bursting or peer-to-peer cluster sharing. <strong>Not the federation shape this problem needs</strong> &mdash; there is no central control plane delivering config to N stable edges; there is bidirectional offload between peers. Mentioned for completeness.</p>
+
+<h2 id="gitops">GitOps delivery layers</h2>
+
+<h3 id="argocd">Argo CD ApplicationSets</h3>
+
+<p><a href="https://argoproj.github.io/cd/">Argo CD</a> is the CNCF Graduated GitOps controller; <strong>ApplicationSet</strong> is its mechanism for fanning a templated <code>Application</code> out to N targets. Targets come from <strong>generators</strong>: List, Cluster (every cluster registered with Argo CD), Git (directory or file glob), or Matrix (combinations).</p>
+
+<p>Why it matters for this problem, even alongside Karmada:</p>
+
+<ul>
+  <li><strong>Native multi-tenancy.</strong> <code>AppProject</code> scopes a tenant to a set of source repos, destination clusters, and namespaces. Combined with Argo CD's <a href="https://dexidp.io">Dex</a>-based SSO (OIDC / SAML / LDAP / GitHub / Google), an end user logs in via the org IdP and only sees their own apps. This is precisely the per-tenant cross-fleet visibility the requirements call for.</li>
+  <li><strong>Override model fits.</strong> Cluster generator labels each registered cluster with arbitrary metadata; the ApplicationSet template substitutes those labels into Helm values or Kustomize overlays. A single ApplicationSet can produce 50 cluster-specific Applications.</li>
+  <li><strong>Maturity.</strong> First production user was the project's birthplace, Intuit. <a href="https://argo-cd.readthedocs.io/en/stable/">Tesla, Adobe, BlackRock, BMW Group</a> and many others have publicly described deployments. Argo CD is the de facto enterprise GitOps controller as of 2026.</li>
+  <li><strong>Status surfacing.</strong> Argo CD's per-cluster sync status is the K8s-object status answer for this use case &mdash; what each Application's resources are doing on each edge.</li>
+</ul>
+
+<p><strong>When Argo CD stands alone (no Karmada):</strong> you trade the K8s-API-on-master abstraction for simpler operations. End users author manifests in git, Argo CD reconciles to selected edges. RBAC is enforced at the Argo CD UI/API layer, not at a K8s master API. If your end users are platform-engineering-savvy and content to interact with Argo CD as the platform, this is the leanest viable architecture.</p>
+
+<h3 id="flux">Flux + multi-tenancy / &ldquo;fleet&rdquo; pattern</h3>
+
+<p><a href="https://fluxcd.io">Flux</a> is the other CNCF Graduated GitOps controller. The &ldquo;fleet&rdquo; pattern (described in the <a href="https://fluxcd.io/flux/installation/configuration/multitenancy/">multi-tenancy lockdown</a> and <a href="https://github.com/fluxcd/flux2-multi-tenancy">flagger fleet examples</a>) puts a Flux instance on each cluster, each one watching its own subdirectory of a single fleet repo. Per-edge variation comes from Kustomize overlays &mdash; <code>clusters/edge-042/kustomization.yaml</code>.</p>
+
+<p>Comparison with Argo CD ApplicationSets for this use case:</p>
+
+<ul>
+  <li><strong>Pull vs push.</strong> Flux is fundamentally pull &mdash; agent on each cluster, no central control-plane component required. Better defense-in-depth, worse single-pane-of-glass UX out of the box.</li>
+  <li><strong>No native multi-tenant UI.</strong> Tenants are enforced by namespace/repo isolation and by <a href="https://fluxcd.io/flux/components/notification/">Flux Tenant CRDs</a>, but there is no built-in SSO-aware UI like Argo CD's. Some teams pair Flux with <a href="https://github.com/weaveworks/weave-gitops">Weave GitOps OSS</a> or <a href="https://github.com/gimlet-io/capacitor">Capacitor</a> for a UI; these add components and a maturity gap.</li>
+  <li><strong>Production references.</strong> <a href="https://www.cncf.io/case-studies/mercedes-benz/">Mercedes-Benz</a> (900+ clusters at the time of writing of the case study), State Farm, Microsoft (multiple internal platforms) have all spoken publicly about Flux at scale.</li>
+  <li><strong>Weaveworks shut-down caveat.</strong> Weaveworks, the original primary backer, <a href="https://kubernetes.io/blog/2024/02/30/flux-update/">closed in early 2024</a>. The project transitioned to a CNCF-community maintainer model and continues to ship releases; do confirm the maintainer activity at the moment of the build decision via <a href="https://github.com/fluxcd/flux2/graphs/contributors">github.com/fluxcd/flux2/graphs/contributors</a>. As of January 2026, the project is actively maintained, with new contributors from Microsoft, GitHub, and ControlPlane.</li>
+</ul>
+
+<h3 id="fleet">Rancher Fleet</h3>
+
+<p><a href="https://fleet.rancher.io">Rancher Fleet</a> is SUSE/Rancher's GitOps engine, Apache 2.0, designed from day one for &ldquo;fleet of fleets&rdquo; &mdash; thousands of downstream clusters. Bundle, GitRepo, and Cluster CRDs map cleanly to &ldquo;deliver this app to these clusters.&rdquo;</p>
+
+<p>It is a near-borderline pass on the clickbait-OSS bar. The core Fleet controller is genuinely open-source and standalone-usable, and there are documented public deployments. But Fleet's <em>operability story</em> &mdash; the UI, the cluster-management glue, the IdP integration &mdash; is much smoother when run under Rancher Manager, which itself has a paid tier (Rancher Prime). If your team is committed to a Rancher-centric world, Fleet is excellent; if you want a project whose first-class UX assumes pure OSS, Argo CD ApplicationSets is the safer choice.</p>
+
+<h2 id="non-k8s">The non-k8s master question</h2>
+
+<p>You asked whether a non-K8s control plane that simply <em>speaks</em> the K8s API to edges would offer a material advantage. Short answer: <strong>no, not for this problem</strong>. Reasoning:</p>
+
+<ul>
+  <li>Every serious open-source federation engine in this survey is itself a K8s control plane (Karmada literally runs <code>kube-apiserver</code>; OCM, Clusternet, Fleet all run on K8s). The non-K8s option is a green-field bespoke service using <code>client-go</code>.</li>
+  <li>The benefits of a non-K8s control plane (no etcd, smaller footprint, custom data model) are dwarfed by what you give up: the K8s API surface, RBAC, CRD/controller ecosystem, kubectl tooling, and the ability for end users to integrate with anything in CNCF without a translation layer.</li>
+  <li>The non-K8s option becomes interesting only at <em>very</em> high scale (hundreds of thousands of edges, e.g. carrier-grade Radio Access Network deployments) where K8s control-plane scaling at the hub becomes the bottleneck. At 50+ edges it is not in the relevant trade-off zone.</li>
+</ul>
+
+<p>Stick with a K8s master. The control-plane components on the master that <em>aren't</em> the K8s API server (Karmada controllers, Argo CD, etc.) can be sized appropriately.</p>
+
+<h2 id="recommended">Recommended architectures</h2>
+
+<h3>Primary recommendation: Karmada + Argo CD ApplicationSets</h3>
+
+<div class="ascii-diagram">+---------------- Master (hyperscaler K8s) ----------------+
+|                                                          |
+|   Argo CD ApplicationSets                                |
+|        |                                                 |
+|        v   (kubectl apply equivalent, via Argo)          |
+|   Karmada API server  &larr;  end-user kubectl  &larr;  IdP/OIDC|
+|        |                                                 |
+|   Karmada controllers + PropagationPolicy/OverridePolicy |
++-----|----------|----------|----------|-------------------+
+      v          v          v          v
+   Edge-01    Edge-02    Edge-03   ...  Edge-50
+   (full K8s, GPU nodes, KServe/vLLM, Karmada agent if pull)</div>
+
+<ul>
+  <li>End users authenticate to the master via OIDC and <code>kubectl apply</code> standard K8s objects scoped to their namespace.</li>
+  <li>Argo CD lives on the master and reconciles a tenant's git repo into PropagationPolicy / OverridePolicy / workload resources on Karmada &mdash; i.e. Argo CD's destination is the Karmada API, not the edges directly.</li>
+  <li>ApplicationSets fan out per-tenant Applications. AppProject + Dex/OIDC enforce that a tenant only sees their own apps.</li>
+  <li>Push mode by default; declare specific clusters as pull-mode if their network policy requires.</li>
+  <li>Status flows back: Karmada surfaces per-edge object status on the master; Argo CD UI surfaces Application sync status per cluster.</li>
+</ul>
+
+<h3>Alternative 1: Argo CD ApplicationSets alone (no Karmada)</h3>
+
+<p>If you can give up the &ldquo;master is a K8s cluster end users talk to&rdquo; abstraction, run Argo CD on the master directly against the 50+ edges. ApplicationSet's Cluster generator already does the per-edge fan-out; per-attribute overrides come from cluster labels feeding the Helm/Kustomize templates.</p>
+
+<p>Tradeoff: end users now interact with Argo CD (UI / API / git) rather than the K8s API. Simpler stack, fewer moving parts, but the platform contract changes.</p>
+
+<h3>Alternative 2: OCM + Argo CD addon (pull-only)</h3>
+
+<p>If a strict no-inbound network policy at edges is non-negotiable, replace Karmada with OCM. Use the <a href="https://open-cluster-management.io/concepts/policy/">OCM Argo CD addon</a> to drive ManifestWork from a Git source. The end-user UX is closer to Argo CD's than Karmada's (no transparent master K8s API), but the agent-side pull semantics are stronger than Karmada's pull mode in defense-in-depth posture and have a longer multi-vendor production history through RHACM.</p>
+
+<h3>What not to do</h3>
+
+<ul>
+  <li>Do not build on KubeFed v2 &mdash; dormant.</li>
+  <li>Do not use Liqo for this shape &mdash; wrong abstraction.</li>
+  <li>Do not pick Clusternet as primary unless you specifically need its NAT-traversal story and accept the smaller community.</li>
+  <li>Do not use a service mesh (Submariner, Cilium ClusterMesh, Skupper) <em>as</em> federation &mdash; those are L4/L7 networking layers, not config federation, and out of scope per your direction.</li>
+</ul>
+
+</main>
+</body>
+</html>
