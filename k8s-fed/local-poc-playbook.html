@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Local POC Playbook: k8s Federation + Virtualization on macOS</title>
+<style>
+  :root {
+    --fg: #1a1a1a;
+    --muted: #5a5a5a;
+    --bg: #ffffff;
+    --accent: #1f5fa8;
+    --border: #d5d5d5;
+    --code-bg: #f5f5f5;
+    --table-stripe: #fafafa;
+    --warn-bg: #fff7e6;
+    --good-bg: #eef7ee;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px; line-height: 1.55;
+  }
+  main { max-width: 920px; margin: 0 auto; padding: 40px 28px 80px; }
+  h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 0.6em; border-bottom: 2px solid var(--fg); padding-bottom: 0.3em; }
+  h2 { font-size: 1.35rem; margin-top: 2em; margin-bottom: 0.5em; border-bottom: 1px solid var(--border); padding-bottom: 0.2em; }
+  h3 { font-size: 1.1rem; margin-top: 1.6em; margin-bottom: 0.4em; }
+  p { margin: 0 0 0.9em; }
+  ul, ol { margin: 0 0 0.9em; padding-left: 1.4em; }
+  li { margin-bottom: 0.3em; }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(31, 95, 168, 0.25); }
+  a:hover { border-bottom-color: var(--accent); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 0.92em; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: 14px 16px; overflow-x: auto; font-size: 0.82rem; line-height: 1.45; }
+  pre code { background: transparent; padding: 0; font-size: inherit; }
+  table { width: 100%; border-collapse: collapse; margin: 1em 0 1.4em; font-size: 0.9rem; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0f0f0; font-weight: 600; }
+  tbody tr:nth-child(even) { background: var(--table-stripe); }
+  .toc { background: #f9f9f9; border: 1px solid var(--border); border-radius: 6px; padding: 12px 18px 12px 32px; margin: 0 0 1.8em; }
+  .ms { background: #f4f7fb; border-left: 4px solid var(--accent); padding: 10px 14px; margin: 0.6em 0 1.2em; border-radius: 0 4px 4px 0; }
+  .ms strong { display: block; margin-bottom: 0.2em; }
+  .warn { background: var(--warn-bg); border-left: 4px solid #c08a2c; padding: 10px 14px; margin: 0.6em 0 1.2em; border-radius: 0 4px 4px 0; }
+  .good { background: var(--good-bg); border-left: 4px solid #4a8a4a; padding: 10px 14px; margin: 0.6em 0 1.2em; border-radius: 0 4px 4px 0; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
+  @media (max-width: 640px) {
+    main { padding: 24px 16px 60px; }
+    h1 { font-size: 1.5rem; } h2 { font-size: 1.2rem; }
+    pre { font-size: 0.75rem; }
+    table { font-size: 0.82rem; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Local POC Playbook: k8s Federation + Virtualization on macOS</h1>
+
+<p>Stitch the recommended stack end-to-end on a single macOS laptop. Validates the architectural flow from <a href="oss-federation-survey.html">oss-federation-survey</a> and <a href="vk8s-survey.html">vk8s-survey</a> without GPUs, without real edge networking, and without scale.</p>
+
+<h2>Scope</h2>
+
+<p><strong>In scope:</strong></p>
+<ul>
+  <li>1 master Kubernetes cluster + 2 site clusters + 2 tenant vClusters, all on one laptop, on Colima (no Docker Desktop).</li>
+  <li>Karmada federation in push mode, master &rarr; sites.</li>
+  <li>Argo CD on the master (used to bootstrap Karmada policies and tenant vClusters from manifests).</li>
+  <li>A minimal placement controller (Python, ~80 LOC) that turns <code>platform.example.com/sites</code> annotations on tenant resources into Karmada <code>PropagationPolicy</code> objects on the master.</li>
+  <li>End-to-end test: tenant authors a Deployment in their vCluster with a placement annotation; Pod lands on the right site(s), in the right per-tenant namespace, pinned to a labeled &ldquo;node pool.&rdquo;</li>
+</ul>
+
+<p><strong>Out of scope (per your direction):</strong></p>
+<ul>
+  <li>GPU scheduling, fake-GPU operators.</li>
+  <li>Network latency, partition simulation, pull-mode federation.</li>
+  <li>Real IdP integration, real SSO. Tenant authentication uses the vCluster's auto-generated kubeconfig.</li>
+  <li>Production hardening of the placement controller (no caching, no retries beyond what kopf provides).</li>
+</ul>
+
+<h2>Tool inventory (installed during M0)</h2>
+
+<table>
+  <thead><tr><th>Tool</th><th>Why</th><th>Install</th></tr></thead>
+  <tbody>
+    <tr><td>Colima</td><td>Docker-compatible runtime (no Docker Desktop)</td><td><code>brew install colima</code></td></tr>
+    <tr><td>kind</td><td>Three K8s clusters in containers</td><td><code>brew install kind</code></td></tr>
+    <tr><td>kubectl</td><td>K8s CLI</td><td><code>brew install kubectl</code></td></tr>
+    <tr><td>helm</td><td>Argo CD / Karmada Helm charts (optional)</td><td><code>brew install helm</code></td></tr>
+    <tr><td>karmadactl</td><td>Karmada install + cluster registration</td><td><code>brew install karmada-io/tap/karmadactl</code></td></tr>
+    <tr><td>vcluster</td><td>vCluster CLI</td><td><code>brew install vcluster</code></td></tr>
+    <tr><td>Python 3 + kopf</td><td>Placement controller</td><td><code>pip3 install kopf kubernetes</code></td></tr>
+  </tbody>
+</table>
+
+<p>Expected end-state RAM usage: ~5 GB. Configure Colima with at least 12 GB RAM and 4 CPUs.</p>
+
+<h2>Milestones overview</h2>
+
+<table>
+  <thead><tr><th>#</th><th>Milestone</th><th>Time</th></tr></thead>
+  <tbody>
+    <tr><td>M0</td><td>Prerequisites: Colima + CLI tools</td><td>~10 min</td></tr>
+    <tr><td>M1</td><td>Three kind clusters (<code>master</code>, <code>site-1</code>, <code>site-2</code>) on the kind Docker network</td><td>~10 min</td></tr>
+    <tr><td>M2</td><td>Karmada control plane on the master</td><td>~10 min</td></tr>
+    <tr><td>M3</td><td>Register <code>site-1</code> and <code>site-2</code> with Karmada (push mode)</td><td>~5 min</td></tr>
+    <tr><td>M4</td><td>Argo CD on the master</td><td>~5 min</td></tr>
+    <tr><td>M5</td><td>vCluster operator + two tenant vClusters (<code>tenant-a</code>, <code>tenant-b</code>)</td><td>~10 min</td></tr>
+    <tr><td>M6</td><td>Per-tenant namespaces + &ldquo;node pool&rdquo; labels on each site cluster</td><td>~5 min</td></tr>
+    <tr><td>M7</td><td>Default <code>ClusterPropagationPolicy</code> + <code>OverridePolicy</code> per tenant</td><td>~10 min</td></tr>
+    <tr><td>M8</td><td>Placement controller (Python/kopf)</td><td>~30 min</td></tr>
+    <tr><td>M9</td><td>End-to-end validation: deploy from tenant vCluster, verify on sites</td><td>~15 min</td></tr>
+    <tr><td>M10</td><td>Teardown</td><td>~5 min</td></tr>
+  </tbody>
+</table>
+
+<p>Total: ~2 hours hands-on if everything goes smoothly. The full per-milestone commands (Colima setup, kind configs, Karmada init, vCluster create, default propagation YAML, placement-controller Python source, end-to-end verification) are in the <a href="local-poc-playbook.md">markdown version</a> of this playbook — execute that, with this HTML as a friendlier overview.</p>
+
+<div class="good">
+  <strong>What the POC proves</strong>
+  <ul>
+    <li>Tenant uses their vCluster API, never touches the Karmada apiserver.</li>
+    <li>Default propagation hits all sites, override pins workloads to a tenant-specific node label, per-tenant namespaces are honored.</li>
+    <li>Placement annotation on tenant resource overrides the default to a subset of sites, dynamically, with no tenant-visible federation construct.</li>
+  </ul>
+</div>
+
+<div class="warn">
+  <strong>What the POC does <em>not</em> prove</strong>
+  <ul>
+    <li>Real GPU scheduling, real GPU drivers, real GPU isolation.</li>
+    <li>Partition handling, network latency, pull-mode federation.</li>
+    <li>Scale (Karmada's per-site controllers, vCluster density on master, etcd write rates at 100+ tenants).</li>
+    <li>IdP integration.</li>
+    <li>Persistent storage choices.</li>
+    <li>Status surfacing back to the tenant (the &ldquo;SiteStatus CR in each vcluster&rdquo; piece from the survey is not implemented here).</li>
+  </ul>
+  <p>Validate those separately on real infrastructure before any production commitment.</p>
+</div>
+
+</main>
+</body>
+</html>
