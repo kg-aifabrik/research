@@ -1,0 +1,1262 @@
+NVIDIA NVL72 AI Factory
+NVIDIA Enterprise Reference Architecture with NVIDIA GB300 NVL72 and NVIDIA
+Spectrum-X Networking Platform
+
+
+
+
+                                                                       2026-March
+NVIDIA Enterprise Reference Architecture Notice & Disclaimers
+NVIDIA Enterprise Reference Architecture documentation is NVIDIA confidential information and embodies
+substantial intellectual property and engineering know-how. NVIDIA grants you limited permissions to use
+NVIDIA Enterprise Reference Architecture to create NVIDIA platform-enabled data center clusters with
+NVIDIA technologies. You may not use the NVIDIA Enterprise Reference Architecture to develop competing
+products or technologies or assisting a third party in such activities. Except as expressly stated in this Notice
+& Disclaimer statement, no other license or right is granted to you by implication, estoppel or otherwise.
+NVIDIA objects to and rejects any additional or different terms you may propose.
+NVIDIA Enterprise Reference Architecture is subject to change without notice. NVIDIA technologies may
+require enabled hardware, software, or service activation. Your costs and results may vary. This document is
+not a commitment to develop, release, or deliver any technology, code, or functionality. NVIDIA reserves the
+right to make corrections, modifications, enhancements, improvements, and any other changes to this
+document, at any time without notice. It is your sole responsibility to evaluate and determine the applicability
+of any information contained in this document and ensure that the product is suitable and fit for the
+application planned by you. Information published by NVIDIA regarding third-party products or services does
+not constitute a license from NVIDIA to use such products or services or a warranty or endorsement thereof.
+Use of such information may require a license from a third party or a license from NVIDIA.
+NVIDIA products or services are subject to the applicable NVIDIA product or sales terms and conditions that
+are provided in conjunction with the relevant NVIDIA product or service. NVIDIA’s provision of these resources
+does not expand or otherwise alter NVIDIA’s applicable warranties or warranty disclaimers for the NVIDIA
+products or services.
+You will not use the NVIDIA Enterprise Reference Architecture or NVIDIA’s confidential information to: (i)
+identify or support an assertion or potential assertion of any intellectual property rights (including patent,
+copyright, or trade secret); or (ii) prepare, file, amend, or prosecute any patent applications. You agree to grant
+NVIDIA a limited, worldwide, nonexclusive, perpetual, irrevocable, non-sublicensable, nontransferable, royalty-
+free, fully-paid license to any patent claim that you may file after accessing NVIDIA Enterprise Reference
+Architecture that covers the subject matter disclosed herein.
+Warranty Disclaimer. NVIDIA Enterprise Reference Architecture materials disclosed are provided “AS IS”.
+To the maximum extent permitted by applicable law, NVIDIA disclaims all warranties and representations
+of any kind, whether express, implied, or statutory, relating to or arising under this agreement, including,
+without limitation, the warranties of title, noninfringement, merchantability, fitness for a particular
+purpose, usage of trade, and course of dealing.
+Limitation of Liability. To the maximum extent permitted by applicable law, in no event will NVIDIA be liable for
+any (i) indirect, punitive, special, incidental, or consequential damages, or (ii) damages for the (a) cost of
+procuring substitute goods or (b) loss of profits, revenues, use, data, or goodwill arising out of or related to
+this document, whether based on breach of contract, tort (including negligence), strict liability, or otherwise,
+and even if NVIDIA has been advised of the possibility of such damages and even if a your remedies fail their
+essential purpose. Additionally, to the maximum extent permitted by applicable law, NVIDIA’s total cumulative
+aggregate liability for any and all liabilities, obligations, or claims arising out of or related to this document will
+not exceed one-hundred U.S. dollars (US$100).
+NVIDIA, NVIDIA HGX, NVIDIA DGX SuperPOD, NVIDIA DGX Cloud, NVIDIA ConnectX, NVIDIA BlueField, NVIDIA
+Spectrum, NVIDIA NVLink, NVIDIA Base Command, NVIDIA CUDA, NVIDIA Magnum IO, NVIDIA NetQ, and the
+NVIDIA logo are trademarks and/or registered trademarks of NVIDIA Corporation in the U.S. and other
+countries. Other company and product names may be trademarks of the respective companies with which
+they are associated.
+
+
+© 2025 NVIDIA Corporation & Affiliates. All rights reserved.
+Richard Hastie
+Shashank Sabhlok
+
+
+
+
+NVIDIA Enterprise RA                                                                                     2026 March | i
+Abstract
+The NVIDIA Enterprise Reference Architecture (Enterprise RA) with NVIDIA GB300
+NVL72 and NVIDIA Spectrum-X Networking powers enterprise data centers for AI
+training and inference at massive scale, enabling real-time applications and trillion-
+parameter models.
+
+This Enterprise RA is designed to solve the most challenging computational problems of
+today. Certified configurations based on this architecture can be deployed in enterprise
+data centers around the world.
+
+This Enterprise RA uses the following NVIDIA technologies:
+>   NVIDIA GB300 NVL7272
+>   NVIDIA BlueField®-3 DPUs
+>   NVIDIA ConnectX®-8 SuperNICs
+>   NVIDIA Spectrum™-X Ethernet Platforms
+>   NVIDIA AI Enterprise Software
+>   NVIDIA Mission Control
+>   NVIDIA NVLink and NVLink Switch
+
+This document discusses the components that define the scalable and modular
+architecture of the Enterprise RA, which is built upon the building blocks of scalable
+units (SU), each containing 18 compute nodes with 72 GPUs. This Enterprise RA includes
+details regarding the SU design and specifics of Ethernet fabric topologies, NVLink
+networking, and storage system specifications.
+
+The Enterprise RA is managed by NVIDIA solutions such as NVIDIA Mission Control,
+NVIDIA AI Enterprise, NVIDIA® CUDA®, and NVIDIA Magnum IO™. These technologies help
+keep the system running at the highest levels of availability and performance.
+
+
+
+
+NVIDIA Enterprise RA                                                             2026 March | ii
+Contents
+Overview ................................................................................................................................................................. 5
+System Hardware & Components ............................................................................................................... 6
+     NVIDIA GB300 NVL Compute Tray ........................................................................................................ 7
+     Control Plane/Management Nodes ....................................................................................................... 8
+     NVIDIA NVLink Fifth-Generation ............................................................................................................ 9
+     NVIDIA NVLink Fifth-Generation Switch Tray ................................................................................ 10
+     NVIDIA GB300 NVL72 Networking ..................................................................................................... 10
+         Compute (Node East/West) Ethernet Networking.................................................................. 11
+         Converged (Node North/South) Ethernet Networking .......................................................... 11
+Networking Hardware .................................................................................................................................... 13
+     NVIDIA BlueField-3 B3240 DPU............................................................................................................ 13
+     NVIDIA Mezzanine Network Board with ConnectX-8 ................................................................. 13
+     NVIDIA Ethernet Interconnects ........................................................................................................... 14
+     NVIDIA SN5610 Switch ............................................................................................................................ 14
+     NVIDIA SN2201 Switch ............................................................................................................................ 15
+Networking Physical Topologies ............................................................................................................... 16
+     Compute (Node East/West) Network ................................................................................................ 16
+         Multi-Plane Topology Approach ...................................................................................................... 16
+             Dual Plane Topology ......................................................................................................................... 17
+     Converged (Node North/South) Network ........................................................................................ 17
+     Out-of-Band Management (Node) Network ................................................................................... 18
+Network Logical Architecture..................................................................................................................... 19
+     Enterprise RA Scalable Unit (SU) ......................................................................................................... 20
+     Spine-Leaf Networking ............................................................................................................................ 22
+     Out-of-Band (OOB) Management Network .................................................................................... 22
+     Optimized Use Case .................................................................................................................................. 22
+         Architecture Details ............................................................................................................................. 22
+         Compute (Node East/West) Fabric Table .................................................................................... 24
+         Converged (Node North/South) Fabric Table ............................................................................ 24
+         2 Racks, 36 Trays with144 Blackwell Ultra GPUs ..................................................................... 25
+
+
+NVIDIA Enterprise RA                                                                                                                                  2026 March | iii
+         4 Racks, 72 Trays with 288 Blackwell Ultra GPUs .................................................................... 26
+         8 Racks, 144 Trays with 576 Blackwell Ultra GPUs ................................................................. 29
+Enterprise RA Software................................................................................................................................. 31
+     NVIDIA AI Enterprise ................................................................................................................................. 33
+         NVIDIA NGC .............................................................................................................................................. 33
+         NVIDIA AI Enterprise Licensing ........................................................................................................ 33
+     NVIDIA Mission Control ........................................................................................................................... 33
+         NVIDIA Mission Control Licensing .................................................................................................. 33
+     Kubernetes (K8s) and Slurm.................................................................................................................. 33
+     NVIDIA NetQ™ ............................................................................................................................................. 33
+Summary ............................................................................................................................................................. 33
+Appendix A – Terminology ............................................................................................................................ 34
+Appendix B – Node Configurations .......................................................................................................... 35
+     Compute Nodes .......................................................................................................................................... 35
+     Switches and Cables ................................................................................................................................. 36
+
+
+
+
+NVIDIA Enterprise RA                                                                                                                              2026 March | iv
+Overview
+The NVIDIA Enterprise RA using 2-4-5-800 (dual plane) node architecture with NVIDIA
+GB300 NVL72 and NVIDIA Spectrum-X Networking offers a fully integrated, rack-scale
+solution optimized for the most demanding AI workloads. It documents a modular
+architecture based on NVIDIA-Certified NVL72 GB300 systems, each with 72 NVIDIA
+Blackwell Ultra GPUs and 36 NVIDIA® Grace CPUs.
+
+
+With a liquid-cooled design, each Scalable Unit (a single NVL72 rack) integrates 18
+compute trays connected via the fifth generation of NVLink. While each tray (single
+server or node) can still operate independently as needed, the NVLink interconnect
+enables GPUs to be dynamically combined, allowing the system to function as a single
+multi-GPU unit of compute for larger workloads. The design minimizes system
+bottlenecks through tightly coupled configuration to provide the best performance and
+application scalability
+A fully tested system scales up to 8 SUs (Scalable Units). Larger clusters can be built
+based on customer requirements.
+The rack solution is delivered as a pre-configured system available through the
+fulfillment of OEM along with Hardware support. Software support from NVIDIA is based
+on a per GPU paid subscription of NVIDIA AI Enterprise. While this Enterprise RA
+document may make the solution look simple, it is highly recommended to utilize NVIDIA
+Mission Control for operation of the NVIDIA GB300 NVL72.
+
+
+The NVIDIA GB300 NVL72 and NVIDIA Spectrum-X Platform RA have been developed to
+support enterprise-grade AI deployments, with the following use cases:
+>   Inference on today’s largest AI models, in real-time
+>   Training and finetuning of trillion-parameter language models
+>   Data analytics that’s ultra-fast, at massive scale
+>   High-performance computing for single and mixed precision
+
+For all use cases, this architecture is ideal for multi-user, single tenant workloads.
+Specifically, the logical design and software is streamlined for deployment and
+maintenance ease by tailoring the configuration to one where users are all part of the
+same enterprise, and accounting and access control can be consolidated.
+
+This RA is architected to support deployment of Kubernetes, Slurm, and associated
+applications and tools for non‑virtualized workloads.
+
+
+
+
+NVIDIA Enterprise RA                                                            2026 March | 5
+System Hardware & Components
+
+This section describes the hardware elements of the Enterprise RA.
+NVIDIA GB300 NVL72The NVIDIA GB300 NVL72(Figure 1) delivers breakthrough AI
+performance and can deliver up to a 50x overall increase in AI factory output
+performance compared to NVIDIA Hopper-based platforms. The NVIDIA Blackwell Ultra
+GPU architecture provides the latest technologies that bring months of computational
+effort down to days and hours on some of the largest AI/ML workloads.
+
+
+Figure 1 NVIDIA GB300 NVL72
+
+
+
+
+To accommodate the massive compute power within a limited space, the GB300 NVL72
+rack is liquid cooled, based on the MGX architecture. Some key highlights of the GB300
+NVL72 compute rack include:
+
+
+
+NVIDIA Enterprise RA                                                        2026 March | 6
+>   9 NVSwitch trays for full non-blocking P2P connectivity of all 72 Blackwell Ultra
+    GPUs, with a total aggregated bandwidth of 130 TB/s
+>   2 SN2201 OOB switches for integrated management access of rack components.
+    The GB300 NVL72 in-rack switches use DC power since they are connected to the DC
+    busbar; all other SN2201 switches use AC power
+>   Integrated tray-level and rack-level liquid leakage detection
+>   8 power shelves of 33 kW, with each shelf having six 5.5 kW PSUs
+>   Full rack requiring up to 142 kW
+
+
+NVIDIA GB300 NVL Compute Tray
+The compute building block for the NVIDIA GB300 NVL72 is the GB300 NVL compute
+tray/node (Figure 2), with 4 Blackwell Ultra GPUs and 2 Grace CPUs per tray. A logical
+diagram is shown in Figure 3.
+
+
+Figure 2 NVIDIA GB300 NVL Compute Tray
+
+
+
+
+The compute tray is a fully integrated NVLink scale-out architecture, so that each GPU in
+the entire rack is directly connected to every other GPU via NVLink. For compute
+network connectivity, each compute tray includes 2 Mezzanine Network Boards with 2
+ConnectX-8 silicon chips in each, for a total of 4 ConnectX-8 Host Channel Adapters
+(HCA). Each tray also includes 1 M.2 NVMe device for Operating System (OS) storage and
+4 E1.S NVMe storage devices typically used as a fast, local cache.
+
+
+
+
+NVIDIA Enterprise RA                                                            2026 March | 7
+Figure 3 Sample logical design for the compute tray
+
+
+
+
+To ensure balanced compute performance with the GPUs, each CPU is paired with a
+NVIDIA ConnectX-8 Mezzanine Board. Additionally, to support advanced storage
+acceleration, each tray includes a NVIDIA Bluefield-3 DPU.
+
+
+Table 1 Compute Tray Components
+ Component                                                                            Quantity
+
+ NVIDIA Grace Processor, with a total of 72 ARM Neoverse V2 cores, connected via
+                                                                                         2
+ NVLink C2C, and 1TB aggregated LPDDR5 CPU main memory
+
+ NVIDIA B300 GPU, with 1,152 GB aggregated HBM3 memory                                   4
+
+ NVIDIA ConnectX-8 Mezzanine Boards, with 2 ConnectX-8 network adapters each             2
+
+ Dual-port QSFP112 NVIDIA BlueField-3 B3240 DPU                                          1
+
+
+
+
+Control Plane/Management Nodes
+The customer should have guidance from the OEM regarding an IaaS-managed control
+plane nodes. The High Availability (HA) features of the control plane nodes should be
+enabled to ensure reliability for the enterprise customer. In this Enterprise RA, we
+assume a control plane composed of 12 management nodes, providing sufficient
+capacity and HA for large enterprise deployments. Table 2 outlines the specifications of
+the x86 Management Nodes while Table 3 outlines the specifications of the ARM
+Management Nodes.
+Table 2 Management Node Components (x86 control node)
+ Component                                           Configuration
+
+ CPUs                                                Intel based x86 2x Socket, 32c
+
+ System Memory                                       512 GB (8x DDR5 64GB)
+
+
+
+
+NVIDIA Enterprise RA                                                                    2026 March | 8
+ Boot Drive                                  OS 2x960 GB M.2 or SATA/SAS SSD/ SW RAID1
+
+ Data Cache Drive                            2x 7.68 TB NVMe SSD
+
+ Storage/in-band Network Adapter             4x ConnectX-7 200G single-port
+
+ Platform Security                           TPM 2.0, SHA-256 and support for secure boot
+
+ Baseboard Management Controller (BMC)       Host BMC with discrete connection, supports
+                                             Redfish 1.4 or above, Serial-over-LAN via SSH, IPv6
+                                             support, support discovery of BMC IP in-band via
+                                             Redfish
+
+ Management Network                          2 x 1 Gb/s In-band port
+
+ Host UEFI                                   UEFI 2.6 compliant BIOS implementation for
+                                             HTTP(s) network boot
+
+
+
+Table 3 Management Node Components (ARM control node)
+ Component                                   Configuration
+
+ CPUs                                        2x NVIDIA Grace with 72 cores
+
+ System Memory                               480 GB (LPDDR5X on-module)
+
+ Boot Drive                                  OS 2x960 GB M.2 or SATA/SAS SSD/ SW RAID1
+
+ Data Cache Drive                            2x 7.68 TB NVMe SSD
+
+ Storage/in-band Network Adapter             4x ConnectX-7 200G single-port
+
+ Platform Security                           TPM 2.0, SHA-256 and support for secure boot
+
+ Baseboard Management Controller (BMC)       Host BMC with discrete connection, supports
+                                             Redfish 1.4 or above, Serial-over-LAN via SSH, IPv6
+                                             support, support discovery of BMC IP in-band via
+                                             Redfish
+
+ Management Network                          2 x 1 Gb/s In-band port
+
+ Host UEFI                                   UEFI 2.6 compliant BIOS implementation for
+                                             HTTP(s) network boot
+
+
+
+
+NVIDIA NVLink
+The NVIDIA Blackwell architecture introduces fifth-generation NVLink, delivering up to
+1800 GB/s per GPU – doubling the bandwidth of the previous generation. A new
+NVSwitch chip and NVLink switch have also been introduced to enable even larger
+NVLink domain sizes. Together, they enable high bandwidth communication between
+Blackwell GPUs and unlock significant benefits for real-time, cost-effective large model
+inferencing.
+
+
+
+
+NVIDIA Enterprise RA                                                                 2026 March | 9
+Since the GB300 NVL72 integrates 36 NVIDIA Grace CPUs with 72 NVIDIA Blackwell
+Ultra GPUs in a rack-scale design, the fifth-generation NVLink enables all 72 GPUs to
+function as a single multi-GPU unit of compute enabling 30x faster real-time trillion-
+parameter inference compared to prior generations.
+
+
+NVIDIA NVLink Switch Tray
+Each GB300 NVL72 rack includes 9 NVLink Fifth-Generation switch trays, with 2
+NVSwitch ASICs per tray. Each GPU has 18 NVLink Fifth-Generation links, one per in-rack
+NVSwitch via the copper backplane. This way a single rack may form a fully connected L1
+Domain with 72 GPUs. The NVLink Switch is a managed switch running the NVOS
+networking operating system.
+
+
+Figure 4 NVLink Switch
+
+
+
+
+NVIDIA GB300 NVL72 Networking
+The NVIDIA GB300 NVL72 platform networking configuration enables tremendous Al
+performance and scale. It leverages the NVIDIA expertise in Al cloud data centers and
+optimizes network traffic flow:
+    •    East/West East/West(Compute Network) traffic: This refers to traffic between
+         the compute nodes/trays within the GB300 NVL72 cluster, typically for multi-
+         node Al training, HPC collective operations, and other workloads.
+    •    North/South (Customer and Storage Network) traffic: This involves traffic
+         between the GB300 NVL72 and any external resources including cloud
+         management and orchestration systems, remote data storage nodes, and other
+         parts of the data center or the Internet.
+
+
+NVIDIA Enterprise RA                                                          2026 March | 10
+The GB300 NVL72 comes pre-integrated with a comprehensive networking stack design
+to optimize East/West and North/South traffic. Each compute tray is equipped with
+ConnectX-8 network interface cards (NICs) delivering 800 Gb/s and BlueField-3 data
+processing units, delivering up to 400 Gb/s. This configuration ensures high-bandwidth,
+low-latency communication across the 18 compute trays and during data ingress and
+egress from the system. This architecture simplifies deployment and ensures consistent
+performance across the system.
+
+Compute (Node East/West) Ethernet Networking
+Each tray within the GB300 NVL72 rack has four dual-port ConnectX-8 SuperNICs for
+GPU to GPU (East/West) traffic. Each ConnectX-8 SuperNIC offers up to 800 Gb/s, low-
+latency network connectivity between GPUs in the AI cluster. ConnectX-8 SuperNIC
+offers up to 800 Gb/s, low-latency network connectivity between GPUs in the Al cluster,
+featuring RDMA and RoCE acceleration, with NVIDIA® GPUDirect® and GPUDirect
+Storage technologies. For data centers that deploy Ethernet, ConnectX-8 offers a range
+of advancements including RoCE optimizations and multi-tenancy, which are key to in Al
+cloud environments. Additionally, ConnectX-8 offers advanced hardware offloads for
+overlay networks such as VXLAN and NVGRE, which help reduce CPU load and improve
+network efficiency.
+Beyond raw speed, ConnectX-8 enhances network performance with features like
+advanced congestion control, telemetry-based routing, and quality of service (QoS)
+capabilities to meet diverse AI application and training requirements. Security is built in
+with hardware acceleration for cryptographic protocols like IPSec and MACSec, taking
+these tasks over from the CPU to maintain performance.
+Multi-node deployments with an NVIDIA B300 platform should adhere to the following
+total compute network bandwidth per GPU recommendations:
+The ConnectX-8 SuperNIC is integrated onto the baseboard, maintaining a 1:1 GPU-to-
+NIC ratio to ensure optimal bandwidth and direct connectivity for each GPU.
+
+
+Total Minimum Compute Network Bandwidth
+    •    400 GB/s (8x 400 Gb/s Ethernet NICs)
+Total Recommended Compute Network Bandwidth
+    •    800 GB/s (16x 400 Gb/s Ethernet NICs using breakout)
+
+
+
+Converged (Node North/South) Ethernet Networking
+This section describes the BlueField-3 role for the North/South (North/South) Ethernet
+network in the GB300 NVL72.Each tray within the GB300 NVL72 rack has one dual-port
+NVIDIA BlueField-3 B3240 DPUs for North/South traffic. The NVIDIA BlueField-3 B3240
+is a PCIe based data processing unit (DPU) that can handle an aggregate bandwidth of
+approximately 480 Gb/s. The BlueField-3 DPU is optimized for the North/South network
+
+
+NVIDIA Enterprise RA                                                            2026 March | 11
+such as storage, complementing the ConnectX-8 SuperNIC which is optimized for the
+East/West, Al compute fabric.
+The BlueField-3 B3240 DPU offers several essential capabilities and benefits within the
+NVIDIA GB300 NVL72 platform:
+    •    Out of Band Provisioning: BlueField-3 serves as an optimized compute platform
+         for the data center control-plane, enabling automated provisioning and elasticity.
+         This empowers GB300 NVL72 to scale resources dynamically based on
+         fluctuating demand, ensuring efficient allocation of computing resources for
+         transient Al workloads.
+    •    Storage Acceleration: BlueField-3 provides advanced storage acceleration
+         features that optimize data storage access. Its innovative BlueField SNAP
+         technology enables remote storage devices to function as local, improving Al
+         performance and streamlining cloud operations.
+    •    Secure Infrastructure: BlueField-3 operates in a highly secure zero-trust mode
+         and functions independently from the host, significantly enhancing the security
+         of the GB300 NVL72 platform. In addition, BlueField-3 enables a wide range of
+         accelerated security services, including next-generation firewall and micro-
+         segmentation, bolstering the overall security posture of the infrastructure.
+BlueField-3 B3240 DPU's integration in the NVIDIA GB300 NVL72 platform delivers
+crucial capabilities that enhance resource management, performance, security, and
+scalability, making the NVIDIA GB300 NVL72 platform an ideal choice for Al workloads in
+datacenter environments.
+The BlueField-3 DPU supports three modes of operation, with the Embedded Function
+(ECPF) or DPU mode used in this Enterprise RA. In this mode, the NIC resources and
+functionality are owned and controlled by the embedded Arm subsystem. All network
+communication to the host flows through a virtual switch control plane hosted on the
+DPU Arm cores, and only then proceeds to the host.
+To securely control and manage the NVIDIA GB300 NVL72 platform through the
+BlueField DPU, NVIDIA has integrated an onboard Baseboard Management Controller
+(BMC) into its BlueField products. The onboard BlueField BMC enables the provisioning
+and management of the BlueField and NVIDIA GB300 NVL72 using standard tools,
+including Redfish APIs. It includes an external root- of-trust to ensure that the BMC
+firmware is secured. The main interface of the BlueField BMC is a 1Gb/s out-of-band
+management port that connects to the data center and management network.
+
+
+
+
+NVIDIA Enterprise RA                                                           2026 March | 12
+Networking Hardware
+
+This section describes the networking hardware used to connect components of the
+Enterprise RA
+
+
+NVIDIA BlueField-3 B3240 DPU
+The NVIDIA BlueField-3 B3240 DPU with two 400 Gb/s ports (Figure 5) is used in the
+in--band management and storage fabric. Even though the B3240 DPU supports
+400Gb/s per port, the card only supports an aggregate bandwidth across both its ports
+of approximately 480Gb/s. The Enterprise RA recommends the use of dual ports for the
+best performance and flexibility. Each compute tray has one B3240 DPUs.
+
+
+
+Figure 5 NVIDIA Bluefield-3 B3240 DPU
+
+
+
+
+NVIDIA Mezzanine Network Board with
+ConnectX-8
+Each GB300 compute tray has a Mezzanine Network Board (Figure 6) that is used for
+Compute (East/West) network. The tray has two such boards, with two ConnectX-8
+devices on each board.
+
+
+
+
+NVIDIA Enterprise RA                                                      2026 March | 13
+Figure 6 NVIDIA Mezzanine Network Board with two ConnectX-8 ASICs
+
+
+
+
+NVIDIA Ethernet Interconnects
+The Enterprise RA configurations must be installed with NVIDIA Ethernet interconnects.
+NVIDIA Ethernet interconnects make extensive use of pluggable optical transceivers and
+detachable optical fibers for easier installation, inspection, and debugging.
+
+
+
+NVIDIA SN5610 Switch
+The NVIDIA SN5610 switch (Figure 7) both offer 64 total ports of 800 Gbps to provide
+connectivity for Compute (East/West), Customer and Storage (North/South), in-band
+management, and storage in the Enterprise RA.
+
+
+Figure 7. NVIDIA SN5610 Switch
+
+
+
+
+The NVIDIA SN5610 adds two SFP28 ports and makes switch testing easier since the
+ports are in pairs.
+
+
+
+
+NVIDIA Enterprise RA                                                      2026 March | 14
+NVIDIA SN2201 Switch
+The NVIDIA SN2201 switch (Figure 8) offers 48 ports to provide connectivity for out-of-
+band (OOB) management. OOB management provides consolidated management
+connectivity for all components in the Enterprise RA.
+
+Figure 8. NVIDIA SN2201 Ethernet switch
+
+
+
+
+NVIDIA Enterprise RA                                                        2026 March | 15
+Networking Physical Topologies
+
+The Enterprise RA configurations use three physical network fabrics:
+    •    GPU Compute (Node East/West) Network
+    •    CPU Converged (Node North/South) Network
+    •    Out-of-Band Management Network
+Each network is discussed in this section.
+
+
+GPU Compute (Node East/West) Network
+The compute fabric (East-West) is built using switches with NVIDIA Spectrum
+technology in a full non-blocking fat tree topology to provide the highest level of
+performance for applications running over the GB300 NVL72 cluster. The compute
+fabric is an RDMA-based fabric. It is designed to provide the shortest hops through the
+network for the application, in a leaf-spine manner, where the GPUs are connected using
+a rail-optimized network topology through their respective ConnectX-8 NICs. This design
+allows the most efficient communication for multi-GPU applications within and across
+the trays.
+The leaf and spine architecture allows for a scalable and reliable network that can fit
+varied sizes of clusters using the same architecture.
+The compute fabric is designed to facilitate redundancy, maximize bandwidth and
+minimize network latency required to connect GPUs within a server and within a rail.
+Models beyond 1920B parameters (assuming FP4 quantization) would require model
+parallelism and more than a single tray of the GB300 NVL72 rack, which are connected
+through NVLink and NVSwitch technology.
+
+Multi-Plane Topology Approach
+While each GPU is associated with a dedicated ConnectX-8 SuperNIC, the coupling of a
+single link from a NIC to a single point of failure (SPOF) in the fabric is a concern.
+Customers are opting for a load balanced multi-link approach which can satisfy both the
+full capacity of the GPU bandwidth as well as avoiding a SPOF. Each compute
+networking plane forms a separate fabric, where the resiliency and the load balancing
+between the two planes is handled by the NCCL on the host. Any failure to provide GPU
+to GPU connectivity via one plane will seclude traffic to the alternative plane, while if
+both are active, the traffic will be balanced between planes in a manner that utilizes the
+bandwidth of both links. Load balancing via NCCL is indicated as more efficient than
+other L2/L3 bonds like LAG that only have “local” awareness for traffic balancing and
+static hash-based distribution which is suboptimal for AI workloads due to low entropy.
+
+
+NVIDIA Enterprise RA                                                           2026 March | 16
+A second attribute for planes separation is the expansion of the fan-out of the NIC and
+switches. A higher radix of interfaces enables building a larger network with fewer
+network tiers in a Clos topology.
+
+Dual Plane Topology
+In this Enterprise RA we utilize a Dual Plane topology. A Dual Plane Topology involves
+building two identical planes that connect to each GPU interface. With each GPU
+generating 800 Gb/s bandwidth through the ConnectX-8 SuperNICs, dual plane topology
+involves breaking the interface to 2x400 Gb/s interfaces. Every such interface is then
+connected to a different leaf switch, and every such leaf switch is part of an
+independent fabric that scales to 1024 interfaces of 400 Gb/s as part of this reference
+architecture. The GPU is not aware of the two independent fabrics, each carrying 50% of
+the generated traffic, and is only aware that 100% of traffic is carried by the ConnectX-8
+SuperNIC. Tracking of each plane, load balancing, and failure handling is handled by the
+ConnectX-8 SuperNIC on the hardware level. A failing or degraded plane will carry an
+impact linearly associated with the dropped bandwidth.
+
+
+CPU Converged (Node North/South)
+Network
+A converged network for both storage and in-band management is used in the
+Enterprise RA. This provides Enterprises with flexible storage allocation and easy
+network management. The converged network has the following attributes:
+>   Provide high bandwidth to shared storage and connects the customer through the
+    converged network.
+>   It is independent of the compute fabric to maximize both storage and application
+    performance.
+>   Each compute tray connects to two separate switches using dual 400 Gb/s ports,
+    while each management connects to the same switches with four 200 Gb/s ports.
+    This design provides redundancy and enables per-node storage bandwidth of up to
+    40 GB/s.
+>   The fabric is built on Ethernet technology with RDMA over Converged Ethernet
+    (RoCE) support and utilizes NVIDIA BlueField-3 B3240 DPUs in each compute tray to
+    deliver existing and emerging cloud and storage services.
+>   It is flexible and can scale to meet specific capacity and bandwidth requirements.
+>   Hybrid storage fabric design with support for tenant isolation provides access to
+    both shared and dedicated storage per tenant.
+>   Used for node provisioning, data movement, Internet access, and other services that
+    must be accessible by the users.
+
+
+
+
+NVIDIA Enterprise RA                                                          2026 March | 17
+Out-of-Band Management (Node) Network
+The OOB management network connects all the base management controller (BMC)
+ports, as well as other devices that should be physically isolated from system users to
+allow the infrastructure management. This includes the 1 Gb/s switch management
+ports and the BlueField-3 DPU management ports.
+
+
+
+
+NVIDIA Enterprise RA                                                          2026 March | 18
+Network Logical Architecture
+
+This Enterprise RA uses a spine-leaf network providing physical fabrics for the use-cases
+and requirements shown in Table 4:
+
+Table 4 Fabric Roles and Usage Recommendations
+                                        AI Training,
+                       RDMA/RoCE                            Pure             Storage
+ Fabric Roles                           Fine tuning,
+                         Support                         Inference         connectivity
+                                        ML or HPC
+ GPU Compute           Recommended      Recommended    Optional        Not Recommended
+ (East/West)
+ CPU Converged         Optional         Recommended    Recommended     Recommended
+ (North/South)
+ Storage               Optional         Recommended    Recommended     Recommended
+ Customer              Not applicable   Recommended    Recommended     Optional
+ Support Servers       Optional         Recommended    Recommended     Optional
+ OOB Management        Not applicable   Recommended    Recommended     Not Applicable
+
+
+Deeper explanations of each of the fabric roles are below:
+
+    •    GPU Compute (East/West) Network
+
+    The GPU Compute (East/West) network is an RDMA based fabric in a leaf-spine
+    architecture where the GPUs are connected using a rail-optimized network topology
+    through their respective SuperNICs. This design allows the most efficient
+    communication for multi-GPU applications within and across the compute nodes.
+    In the architectures below for smaller design points the Compute Fabric has been
+    merged with the Converged Fabric. This is to lower cost and to simplify the network
+    architecture.
+    For larger network design points due to the high number of endpoints required the
+    Compute Fabric utilizes a super-spine, spine and leaf networking architecture. This is
+    principally to support the required design points but also to allow extensibility in the
+    architecture.
+
+    •    CPU Converged (North/South) Network
+
+    The CPU Converged (North/South) network connects the nodes using two 400 Gb/s
+    ports to two separate switches to provide redundancy and high storage throughput.
+    This network is used for node communications with compute, storage, in-band
+    management, and end-user connections.
+
+    •    Storage connectivity
+
+
+NVIDIA Enterprise RA                                                              2026 March | 19
+    This network specifically provides converged connectivity for storage infrastructure.
+    Principally storage is attached on this network and then can be provided to the
+    trays/nodes via the CPU Compute network as required.
+
+    •    Customer Network Connectivity
+
+    Typically, this is upstream connectivity to connect the cluster into the rest of an
+    Enterprise customers networking infrastructure. This is provisioned to provide ample
+    bandwidth for typical user communications.
+
+    •    Support Server Networking
+
+    This is dedicated networking for the respective support servers. These servers
+    generally provide management, provisioning, monitoring, and control services to the
+    rest of the cluster. High performance networking is used here due to requirements
+    such as cluster deployment and imaging.
+
+    •    Out-of-band Management Networking for the infrastructure
+
+    All infrastructure requires management. This network provides bulk management
+    1Gb RJ45 connectivity for all the nodes. This network uses low-cost bulk
+    management switches. These switches have upstream connections to the Core
+    networking infrastructure to allow flexibility and wider consolidation of services such
+    as management and monitoring.
+
+        Note: VLAN isolation would be used to provide logical separation of the networks over
+        the single physical fabric.
+
+
+The exception to the above architecture is for the smaller cluster layouts where a
+collapsed Spine-Leaf design has been used.
+
+
+
+
+Enterprise RA Scalable Unit (SU)
+The Enterprise RA is built on scalable units (SU) based on 1 rack of GB300 NVL72
+which contains 18 compute nodes (trays). Each SU is a discrete entity of computation
+that is tied to the port availability size of the network devices. SUs can be replicated to
+adjust the scale of the deployment with more ease.
+
+
+
+
+NVIDIA Enterprise RA                                                                2026 March | 20
+Figure 10 Example diagram of 18-Tray SU connected to 2 planes (4 rails each) of the
+compute fabric
+
+
+
+
+The single rack scalable unit provides the following connectivity building blocks:
+Within the rack: As shown in
+    •    Figure 10 all 72 GPUs are interconnected in a single NVLink domain, allowing
+         them to function as a single multi-GPU unit of compute with a bandwidth of
+         900GB/s (1800 GB/s bi-directional)
+    •    For the Compute (East/West) fabric: 18 trays, each with 4 x single-port NVIDIA
+         ConnectX-8 NICs and a total aggregate bandwidth of 3200 Gb/s
+    •    For the Converged (North/South) fabric: 18 trays, each with 1x B3240 DPU
+         providing 2x 400Gb/s connections and a total aggregate bandwidth of 800 Gb/s
+    •    For the Out-of-band Management fabric, 18 trays, each with 3x 1Gb/s
+         connections providing 54 x 1Gb/s for management
+
+
+
+
+NVIDIA Enterprise RA                                                           2026 March | 21
+Spine-Leaf Networking
+The network fabrics are built using switches with NVIDIA Spectrum-X Ethernet
+technology in a full nonblocking fat tree topology to provide the highest level of
+performance for the application running over the Enterprise RA configuration. The
+networks are RDMA compliant based fabrics in a leaf-spine architecture where the GPUs
+are connected using a rail-optimized network topology through their respective
+SuperNICs. This design allows the most efficient communication for multi-GPU
+applications within and across the nodes.
+
+The leaf and spine architecture allows for a scalable and reliable network that can fit
+varied sizes of clusters using the same architecture. The compute network is designed
+to maximize bandwidth and minimize network latency required to connect GPUs within a
+server and within a rail.
+
+In addition to the supported compute fabrics the converged spine-leaf network also
+supports the following attributes:
+    •      Provides high bandwidth to high performance storage and connects to the
+           data center network.
+    •      Each compute and management node are connected with two 400 Gb/s ports
+           to two separate switches to provide redundancy and high storage throughput.
+
+
+
+
+Out-of-Band (OOB) Management Network
+The OOB management network connects the following components:
+       •      Base management controller (BMC) ports of the server nodes
+       •      BMC ports of the Bluefield-3 DPU
+       •      OOB management ports of switches
+This OOB network can also connect other devices that should have management
+connectivity physically isolated for security purposes. The SN2201 is used to connect to
+the BMC/OOB 1 Gb/s ports of these components. Scale out this network using a 25 Gb/s
+or 100 Gb/s spine layer to connect the SN2201 uplink switches.
+
+
+
+
+Optimized Use Case
+This architecture is optimized for both inference and training use cases. Deployment of
+this single architecture will enable both types of workloads.
+
+Architecture Details
+The components of the Enterprise GB300 NVL72 Enterprise RA using Spectrum-X 800
+Gbps for the compute fabric are described in Table 5.
+
+
+
+NVIDIA Enterprise RA                                                        2026 March | 22
+Table 5 GB300 NVL72 Server Ethernet Components with Spectrum-X Fabric
+
+
+ Component                        Technology
+
+
+                                   Each GB300 NVL Compute Tray is configured with
+                                   •   One NVIDIA BlueField-3 B3240 dual port 400
+                                       Gb/s DPU.
+ Compute node servers (18)
+                                   •   Four NVIDIA ConnectX-8 SuperNICs dual-port
+                                       800 Gb/s. The adapters operate at 2x400 Gb/s
+                                       per port
+
+ Compute (East/West) Spine-Leaf   NVIDIA SN5600 128-port 400 Gb/s switches
+ Fabric
+
+ Converged (North/South) Spine-   NVIDIA SN5600 128-port 400 Gb/s switches
+ Leaf Fabric
+
+ OOB management fabric            NVIDIA SN2201 48-port 1 Gb plus 4-port 100 Gb/s
+
+
+
+
+NVIDIA Enterprise RA                                                          2026 March | 23
+Compute (Node East/West) Fabric Table
+Table 6 below shows the number of cables and switches required for the dual-plane
+Compute (Node East/West) Fabric for different SU sizes.
+
+
+Table 6 Compute Node (Node East/West) and Switch Component Count
+
+
+
+
+Converged (Node North/South) Fabric Table
+Table 7 below shows the number of cables and switches required for the Converged
+(Node North/South) Fabric for different SU sizes.
+
+Table 7 Converged (Node North/South) and Switch Component Count
+
+
+
+
+NVIDIA Enterprise RA                                                      2026 March | 24
+2 Racks, 36 Trays with144 Blackwell Ultra GPUs
+
+Figure 11 Two Rack GB300 NVL72 with SpectrumX Enterprise RA (144 GPUs)
+
+
+
+
+Architecture Overview
+    •    Two GB300 NVL72 scalable units (SUs) composed of 36 server nodes total (18
+         nodes per SU)
+    •    144 NVIDIA Blackwell GPUs connected through the Spectrum‑X compute fabric
+    •    Each rack requires 2x SN5600 switches for CPU and storage connectivity and up
+         to 12x SN5600 switches for the dual‑plane GPU network
+    •    Infrastructure supports scaling from one to two SUs; leaf switches are
+         intentionally underpopulated to align with GB300 NVL72 software design criteria
+
+
+Network Design
+    •    Cost‑optimized collapsed spine‑leaf architecture for all required fabrics
+    •    Spectrum fabric implemented as a rail‑optimized, non‑blocking 64‑port switch
+         design
+    •    Port breakout used to consolidate connections without reducing resiliency
+    •    Each leaf switch is capable of serving three racks but is configured for two to
+         maintain balance and performance
+Connectivity (Under Optimal Conditions)
+    •    144x 400G uplinks per SU for GPU Compute traffic
+    •    36x 400G uplinks per SU for CPU fabric
+    •    Up to 12 support server nodes, quad‑connected at 200G
+
+
+
+NVIDIA Enterprise RA                                                            2026 March | 25
+    •    36x 100G/200G connections to the customer network (minimum 25Gb bandwidth
+         per GPU)
+    •    18x 100G/200G storage connections (minimum 12.5Gb bandwidth per GPU)
+Compute Fabric Design
+    •    Dual‑plane Spectrum fabric ensures high availability, resiliency, and balanced load
+         distribution
+    •    Each plane uses 4 leaf switches, each assigned to the same GPU position across
+         all trays (for example, GPU 1 [Yellow], GPU 2 [Blue], GPU 3 [Pink], GPU 4 [Grey])
+    •    Plane 2 mirrors Plane 1 to provide redundancy and throughput stability
+    •    ConnectX‑8 800Gb ports are split into 2x 400Gb links; each GPU has two 400Gb
+         paths (one to each plane)
+    •    Dual‑ported optics are recommended to simplify breakout at the ConnectX‑8
+         OSFP port
+Management
+    •    100Gb/s management fabric with high availability using two 100Gb/s connections
+         per switch to the core network
+    •    All nodes connected to 1Gb management switches, which are uplinked into the
+         core management network
+    •    VLAN isolation is used to segregate the various north‑south and east‑west
+         fabrics within the collapsed physical infrastructure
+Additional Considerations
+    •    Rack layouts are assumed to provide power redundancy within each cabinet; if
+         not available, an alternative rack layout should be considered
+    •    Under‑populated port strategy and breakout usage preserve headroom for future
+         scalability while maintaining operational resilience
+
+
+
+4 Racks, 72 Trays with 288 Blackwell Ultra GPUs
+
+
+
+
+NVIDIA Enterprise RA                                                            2026 March | 26
+Figure 12 Four Rack GB300 NVL72 with Spectrum-X Enterprise RA (288 GPUs)
+
+
+
+
+Architecture Overview
+    •    Four GB300 NVL72 scalable units (SUs) with 72 trays/nodes and 288 Blackwell
+         Ultra GPUs interconnected via the Spectrum‑X compute fabric
+    •    Networking sized to scale between three and four SUs while keeping a consistent
+         per‑SU node count of 18 trays
+    •    Design references switch, transceiver, and cable requirements as summarized in
+         the associated bill‑of‑materials tables (Table 6 and Table 7)
+Network Design
+    •    Cost‑efficient collapsed spine‑leaf architecture for all fabrics except the GPU
+         Compute (E‑W) network
+    •    GPU Compute (E‑W) fabric implemented as a separate, isolated leaf‑spine
+         network to deliver high‑bandwidth, low‑latency node‑to‑node communication
+    •    Port breakout used wherever possible to consolidate ports without compromising
+         resiliency
+    •    Leaf switches can support up to three racks but are intentionally underpopulated
+         to serve only two racks to satisfy GB300 NVL72 software requirements
+Connectivity (Under Optimal Conditions)
+    •    144x 400G uplinks per SU for GPU Compute traffic
+    •    36x 400G uplinks per SU for CPU traffic
+    •    Up to 12 support server nodes, all quad‑connected at 200Gb
+    •    72x 100G/200G connections toward the customer network (minimum 25Gb
+         bandwidth per GPU)
+    •    36x 100G/200G storage connections (minimum 12.5Gb bandwidth per GPU)
+
+
+
+NVIDIA Enterprise RA                                                            2026 March | 27
+Compute Fabric Design
+    •    Spectrum compute fabric for the Node E‑W network is rail‑optimized and
+         non‑blocking using 64‑port switches in a full spine‑leaf topology
+    •    Dual‑plane Spectrum fabric provides high availability, resiliency, and
+         load‑balancing for GPU traffic
+    •    Each plane has 4 leaf switches; each leaf is wired to the same GPU position
+         across all trays (for example, GPU 1 [Yellow], GPU 2 [Blue], GPU 3 [Pink], GPU 4
+         [Grey])
+    •    Plane 2 mirrors Plane 1, and each ConnectX‑8 800Gb port is broken out into 2x
+         400Gb links so each GPU has a dedicated 400Gb connection to each plane
+    •    Dual‑ported optics at the ConnectX‑8 OSFP port are recommended to simplify
+         breakout, as detailed in NVIDIA’s optical module documentation
+Management
+    •    100Gb/s management fabric with high availability using two 100Gb/s connections
+         per management switch to the core network
+    •    All nodes connect to 1Gb management switches, which are then uplinked into the
+         core network
+    •    Per‑SU management uses two SN2201 switches; in a four‑rack design this yields
+         eight SN2201 switches, each uplinked to the core via 2x 100G links
+Additional Considerations
+    •    VLAN isolation is applied across the converged Node North‑South network
+         fabrics that share the underlying physical infrastructure
+    •    Rack layout is assumed to provide power supply redundancy within each rack; if
+         this cannot be met, an alternative rack layout should be considered
+
+
+
+
+NVIDIA Enterprise RA                                                              2026 March | 28
+8 Racks, 144 Trays with 576 Blackwell Ultra GPUs
+
+Figure 13 Eight Rack GB300 NVL72 with Spectrum-X Enterprise RA (576 GPUs)
+
+
+
+
+Architecture Overview
+    •    Eight GB300 NVL72 scalable units (SUs) with 144 trays/nodes and 576 Blackwell
+         GPUs interconnected via Spectrum‑X compute fabric.
+    •    Networking sized to scale between seven and eight SUs while keeping 18 trays
+         per SU.
+    •    Switch, transceiver, and cable requirements are defined in the associated
+         bill‑of‑materials tables (Table 6 and Table 7).
+Network Design
+    •    Cost‑efficient spine‑leaf architecture for all fabrics except the GPU Compute
+         (E‑W) fabric.
+    •    GPU Compute (E‑W) network implemented as a separate, isolated leaf‑spine
+         fabric to deliver high‑bandwidth, low‑latency node‑to‑node communication.
+    •    For very large deployments (around 1024 nodes and above), a super‑spine layer is
+         introduced to maintain non‑blocking point‑to‑point connectivity.
+    •    Port breakout is used wherever possible to consolidate ports while preserving
+         resiliency.
+    •    Each leaf switch can support up to three racks but is intentionally
+         underpopulated to serve only two racks to meet GB300 NVL72 software
+         requirements.
+Connectivity (Under Optimal Conditions)
+    •    144x 400G uplinks per SU for GPU Compute traffic.
+
+
+
+NVIDIA Enterprise RA                                                          2026 March | 29
+    •    36x 400G uplinks per SU for CPU traffic.
+    •    Up to 12 support server nodes, all quad‑connected at 200Gb.
+    •    144x 100G/200G connections toward the customer network (minimum 25Gb
+         bandwidth per GPU).
+    •    72x 100G/200G storage connections (minimum 12.5Gb bandwidth per GPU).
+Compute Fabric Design
+    •    Spectrum fabric for the Node E‑W network is rail‑optimized and non‑blocking
+         using 64‑port switches in a full super‑spine–spine‑leaf topology.
+    •    Dual‑plane Spectrum fabric provides high availability, resiliency, and
+         load‑balancing for GPU traffic.
+    •    Each plane uses 4 leaf switches; each leaf is wired to the same GPU position
+         across all trays (for example, GPU 1 [Yellow], GPU 2 [Blue], GPU 3 [Pink], GPU 4
+         [Grey]).
+    •    Plane 2 mirrors Plane 1, and each ConnectX‑8 800Gb port is broken out into 2x
+         400Gb connections, so each GPU has a dedicated 400Gb link to each plane.
+    •    NVIDIA recommends using a dual‑ported optic at the ConnectX‑8 OSFP port to
+         simplify breakout, as described in the referenced optic documentation.
+Management
+    •    100Gb/s management fabric with high availability using two 100Gb/s connections
+         per management switch to the core network.
+    •    All nodes are connected to 1Gb management switches, which are then uplinked
+         into the core network.
+    •    Per‑SU management uses two SN2201 switches; in an eight‑rack design this
+         yields 16 SN2201 switches, each uplinked to the core via 2x 100G links.
+Additional Considerations
+    •    VLAN isolation is used across the converged North‑South network fabrics that
+         share the underlying physical infrastructure.
+    •    Rack layout is assumed to provide power supply redundancy within each rack; if
+         this is not available, an alternative rack layout should be considered.
+
+
+
+
+NVIDIA Enterprise RA                                                              2026 March | 30
+Software
+
+Infrastructure software is a critical component of the NVIDIA Enterprise Reference
+Architecture, providing the foundation for deploying, managing, and orchestrating AI
+workloads at scale. The included software (Table 8) is optimized for AI from top to
+bottom, with every part of the stack designed to maximize the performance and value of
+Enterprise RA.
+
+
+Table 8 Enterprise RA Software Components
+ Component                Description
+
+                          A suite of AI and data analytics software optimized for the development and
+ NVIDIA AI Enterprise     deployment of AI. Provides best-in-class development tools, production-ready
+                          containers, and frameworks for rapid deployment of AI workloads
+
+                          NVIDIA Mission Control is a software solution that automates and manages
+                          every aspect of AI data center operations, from infrastructure provisioning to
+ NVIDIA Mission Control
+                          developer workloads. It streamlines workload deployment, orchestrates jobs,
+                          and monitors resources.
+
+                          NVIDIA Dynamo is an open-source inference software for efficiently
+                          orchestrating and coordinating AI inference requests across large fleets of
+ NVIDIA Dynamo
+                          GPUs, scaling reasoning models in AI Factories at the lowest cost and highest
+                          efficiency.
+
+                          An orchestration platform that accelerates AI operations with dynamic
+ NVIDIA Run:ai
+                          orchestration across the AI lifecycle.
+
+
+ NVIDIA NGC               A collection of GPU-optimized containers for AI and HPC.
+
+
+                          A highly scalable, modern network operations toolset that provides visibility,
+ NVIDIA NetQ™
+                          troubleshooting, and validation of network fabrics in real time
+
+
+
+        Note: Management software for storage is provided by storage partners and is not part
+        of the Enterprise RA software stack.
+
+
+
+
+NVIDIA Enterprise RA                                                                         2026 March | 31
+Services
+
+A successful deployment requires more than advanced infrastructure — it also requires
+comprehensive services that accelerate deployment, ensure reliability, and achieve
+optimal performance.
+
+NVIDIA works closely with its global partners to extend service reach, scale delivery, and
+provide deep industry expertise across all stages of implementation and operation.
+
+    •    Roadmap services – Conduct current infrastructure assessments, model future
+         capacity scenarios and develop phased plans to guide design, build, migration and
+         operations of data centers over time
+
+    •    First project implementation services – Execute the initial deployment (from
+         installation, configuration and commissioning to operational hand-over) of a first
+         data center build or module
+
+    •    Managed services – Operate the ongoing monitoring, maintenance, optimization
+         of the data center including 24/7 support, contract management and vendor
+         coordination.
+
+    •    Support Services – Minimize downtime by providing expert guidance and access
+         to NVIDIA specialists across compute, software and networking, ensuring optimal
+         performance and availability.
+
+    •    Education Services – Deliver online and hands-on training to customers and
+         partners, providing in-depth knowledge that enables customers to maximize the
+         value of their AI investments and partners to build deep AI expertise.
+
+
+For additional information about NVIDIA Enterprise Services, visit
+https://www.nvidia.com/en-us/support/enterprise/services/.
+
+
+
+
+NVIDIA Enterprise RA                                                            2026 March | 32
+Summary
+
+NVIDIA Enterprise RAs are the leading data center scale architecture designed to meet
+the demanding and growing needs of AI factories. This Enterprise RA represents the
+architecture used by NVIDIA for internal AI model training and HPC research and
+development. The 2-4-5-800 networking pattern outlined in this document is designed
+for the NVIDIA GB300 NVL72 rack solution. It is interconnected using Spectrum-X for
+compute and converged connectivity.
+This Enterprise RA represents a complete system of hardware and software necessary
+to implement data centers for high-performance AI functionality. The combination of all
+these elements keeps systems running reliably, with maximum performance, and
+enables users to push the bounds of state-of-the-art. The Enterprise RA includes
+guidance for both dual plane and single plane network topologies to suit a variety of
+deployment scenarios.
+
+
+
+
+NVIDIA Enterprise RA                                                        2026 March | 33
+Appendix A – Terminology
+Table 9 Terminology
+ Term                                        Definition
+
+ Node                                        The distinct hardware tray in the GB300 NVL72 rack that
+                                             supports a bare-metal OS instance
+
+ Rack                                        A physical arrangement of equipment, such as servers or
+                                             switches in a vertical closet
+
+ Open Compute Project (OCP) Rack             Rack based on the Open Rack V3 standard from the Open
+                                             Compute Project, with the vertical space divided up into
+                                             48mm units (OU) and with power distributed using power
+                                             shelves, a DC bus bar and, AC power cords
+
+ Electronic Industries Alliance (EIA) Rack   Conventional “Enterprise” Rack, originally based on the
+                                             EIA-310-D standard, with the vertical space divided up in
+                                             44.45mm rack units (RU) and with power distributed
+                                             using rack power distribution units (rPDUs) and AC power
+
+ Tray                                        One of the systems inserted into the GB300 NVL72
+                                             solution, generally either a “Node” or a “NVSwitch” (which
+                                             may include 1-2 NVSwitch ASICs) installed directly into a
+                                             Rack
+
+ Hot Air Containment (HAC)                   Refers to a set of racks that exhaust into the same hot-
+                                             air containment area, generally from two opposing rows
+
+ NVLink (?) Switch ASIC                      The silicon building block with a specific logical port count
+                                             that drives the network topology
+
+ Global Fabric Manager (GFM)                 The external services that manage the fabric of a NVLink
+                                             Domain
+
+ NVLink Domain                               The full set of nodes connected with a single multi-node
+                                             NVLink fabric
+
+ NVLink Block                                A group of nodes within a NVLink Domain that are
+                                             allocated to the same job. A single job may have multiple
+                                             blocks assigned across multiple domains
+
+ NVLink Partition                            A construct of group nodes within an NVLink Domain that
+                                             are isolated to only access each other’s GPU memory. A
+                                             partition could be configured as an entire domain or there
+                                             could be multiple partitions in the same domain. Using
+                                             partitions should protect interruptions to work running
+                                             on one partition from the other partitions. Partitions are
+                                             setup via API calls to the GFM.
+
+
+
+
+NVIDIA Enterprise RA                                                                      2026 March | 34
+Appendix B – Node Configurations
+
+This appendix provides information on the compute trays and networking
+configurations.
+
+
+Compute Trays
+Table 10 shows the GB300 compute tray requirements
+Table 10 GB300 compute node/tray requirements
+ Component                                 Configuration
+
+ CPUs                                      2x NVIDIA Grace (C2), with total of 72 ARM
+                                           Neoverse V2 cores connected with NVLink C2C
+
+ System Memory                             1 TB aggregated CPU LPDDR5 Main Memory
+
+ Boot Drive                                1 x 2 TB Gen4 M.2 for OS SSD
+
+ Data Cache Drive                          8 x 4 TB E1.S for Data Cache SSD
+
+ NVIDIA GPUs                               4x NVIDIA Blackwell Ultra GPU, with total of 720 GB
+                                           of aggregated HBM3 memory
+
+ Compute Network Adapter                   2x NVIDIA Mezzanine Boards with 2x ConnectX-8
+                                           800 GB/s NICs in each one
+
+ Storage/in-band Network Adapter           1x Dual-port QSFP112 NVIDIA BlueField-3 DPU
+                                           operating at 400 GB/s
+
+ Platform Security                         TPM 2.0, SHA-256 and support for secure boot
+
+ Baseboard Management Controller (BMC)     Host BMC with discrete connection, supports
+                                           Redfish 1.4 or above, Serial-over-LAN via SSH, IPv6
+                                           support, support discovery of BMC IP in-band via
+                                           Redfish
+
+ Host UEFI                                 UEFI 2.6 compliant BIOS implementation for
+                                           HTTP(s) network boot
+
+
+
+
+NVIDIA Enterprise RA                                                             2026 March | 35
+Switches and Cables
+Table 11 and Table 12 provides an overview of the switches and cables used in the
+cluster. The network adapters of the GB300 NVL72, the storage servers, and the control
+plane servers are included for better understanding of the connectivity requirements.
+Table 11 Switching with required inter-switch links, transceivers, and cables
+
+
+
+
+NVIDIA Enterprise RA                                                        2026 March | 36
+Table 12 Endpoint connects with required transceivers, and cables
+
+
+
+
+For exact BOM and part numbers, please work with your OEM/ODM partners and our
+NVIDIA support team depending on your specific rack and data center conditions.
+
+
+
+
+NVIDIA Enterprise RA                                                   2026 March | 37
+

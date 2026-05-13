@@ -8,4 +8,5 @@ The research reports are prepared in MD format and may also contain a HTML for e
 
 ## Areas
 
+- [gpu-infra](gpu-infra/) — GPU infrastructure: NVIDIA Blackwell reference architectures, scale-out fabrics, K8s operator stack, multi-tenant inference platforms.
 - [k8s-fed](k8s-fed/) — Open source Kubernetes federation technologies for a 50+ edge inference platform.
