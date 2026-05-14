@@ -1,0 +1,902 @@
+NVIDIA HGX AI Factory — Enterprise Reference Architecture
+A consolidated document compiled from the NVIDIA Enterprise Reference Architecture documentation.
+
+Source: https://docs.nvidia.com/enterprise-reference-architectures/hgx-ai-factory/latest/
+Table of Contents
+
+NVIDIA Enterprise Reference Architecture
+
+ 1. Abstract
+ 2. Overview
+ 3. Components
+ 4. Networking Hardware
+ 5. Networking Physical Topologies
+ 6. Networking Logical Architecture
+ 7. Software
+ 8. NVIDIA-Certified Storage
+ 9. Services
+10. Summary
+
+Appendix
+
+11. Appendix: Node Configurations
+
+Notices
+
+12. Notices
+1. Abstract
+
+This NVIDIA Enterprise Reference Architecture (RA) is a practical design guide for an NVIDIA HGX AI Factory. It is based on a 2-8-9-800 infrastructure
+configuration (2 CPUs, 8 GPUs, 9 NICs at 800 Gb/s bandwidth per GPU) with NVIDIA HGX™ B300 Servers featuring eight NVIDIA Blackwell Ultra GPUs
+connected via fifth-generation NVLink with 14.4 TB/s total interconnect bandwidth, along with NVIDIA ConnectX-8 SuperNICs, NVIDIA BlueField®-3 DPUs, and
+NVIDIA Spectrum-X™ Ethernet networking at the 32, 64, and 128 node design points.
+
+The NVIDIA HGX AI Factory is designed to support enterprise AI inference workloads with industry-leading performance in an air-cooled form factor, AI training
+and fine-tuning, and high-performance computing (HPC) applications.
+
+This document outlines the hardware components that define this scalable and modular architecture. This includes guidance regarding the SU design and
+specifics of Ethernet fabric topologies.
+2. Overview
+
+The NVIDIA Enterprise RA using the 2-8-9-800 node architecture with NVIDIA HGX B300 and NVIDIA Spectrum-X Networking is optimized for workloads of
+multi-node AI or hybrid applications. The Enterprise RA is a modular architecture based on NVIDIA-Certified HGX B300 systems, each with eight B300 SXM
+GPUs. Using a four-node scalable unit (SU) — see Figure 8 — this Enterprise RA scales up to 128 NVIDIA-Certified HGX B300 systems for a total of 1024 B300
+SXM GPUs.
+
+    A fully tested system scales to 32 SUs (Scalable Units). Larger clusters can be built based on customer requirements.
+    Flexible rail-optimized end-of-row network architecture that can accommodate modifications in the rack layout and number of servers per rack.
+
+Hardware support is available through the fulfillment system and channel partners. Software support from NVIDIA is based on a per-GPU paid subscription of
+NVIDIA AI Enterprise and NVIDIA Run:ai.
+
+The NVIDIA HGX B300 and NVIDIA Spectrum-X Networking Platform Enterprise RA enables the following use cases:
+
+    AI Inference — Large (per node) and Medium (per GPU) model parameter inference workload.
+    AI Training — Large to small model training and fine tuning based on cluster sizing.
+    Large-scale data analytics — GPU-accelerated big data analytics with simplified ETL processes and fewer data transfer bottlenecks.
+
+Sizing guides provide guidance on typical characteristics and models supported for various workloads.
+
+For all use cases, this architecture is ideal for multi-user, single-tenant workloads. Specifically, the logical design and software is streamlined for deployment
+and maintenance ease by tailoring the configuration to one where users are all part of the same enterprise, and accounting and access control can be
+consolidated.
+
+Similarly, Kubernetes is the modern foundation of enterprise AI work, and this Enterprise RA is architected for deploying Kubernetes and Kubernetes-
+dependent applications and tooling.
+3. Components
+
+This section describes the hardware components of the Enterprise RA.
+
+
+NVIDIA HGX B300 Baseboard
+
+The HGX B300 baseboard (Figure 1) is an AI powerhouse that enables enterprises to expand the frontiers of business innovation and optimization. HGX B300
+is a unified platform consisting of 8 Blackwell GPUs internally connected by NVLink and externally connected by a network interface of 800 Gb/s (2 x 400 Gb/s
+Ethernet) per GPU. This connectivity is provided by 8x ConnectX-8 SuperNICs on the HGX baseboard for the East/West networking.
+
+Figure 1: HGX B300 Baseboard.
+
+
+
+
+Table 1: HGX H200, B200 and B300 GPU per Node & Memory specifications.
+
+ Specification                                                 NVIDIA H200 SXM                      NVIDIA B200 SXM                       NVIDIA B300 SXM
+
+ Memory per GPU                                                141 GB HBM3e                         180 GB HBM3e                          288 GB HBM3e
+
+ Memory per Node                                               1.1 TB HBM3e                         1.44 TB HBM3e                         2.30 TB HBM3e
+
+ GPU Bandwidth                                                 4.80 TB/s                            Up to 8 TB/s                          Up to 8 TB/s
+
+ GPU Aggregate Bandwidth per Node                              38.4 TB/s                            Up to 64 TB/s                         Up to 64 TB/s
+
+
+The HGX B300 baseboard provides up to 144 petaflops of processing power, making it a leading accelerated platform for AI. It offers advanced networking up
+to 800 Gbps with ConnectX-8 SuperNICs, enabling AI cloud networking, composable storage, zero-trust security, and GPU compute elasticity for AI workloads.
+
+
+NVIDIA HGX B300 Systems
+
+NVIDIA-Certified HGX B300 systems are based on a common system design with flexibility for optimizing the configuration to match the cluster requirements.
+An example of this design is shown in Figure 2.
+
+Figure 2: HGX B300 System.
+
+
+
+
+Elements for an NVIDIA-Certified HGX B300 system are listed in Table 2.
+
+Table 2. NVIDIA HGX B300 system elements.
+
+ Parameter              Requirement
+
+ Target workloads       Large Language Model; Traditional DL Inference Models, HPC
+
+ GPU configuration      Eight NVIDIA B300 GPUs on an HGX B300 baseboard with up to 2304 GB of GPU memory
+
+ NVIDIA® NVLink™        NVIDIA HGX B300 Baseboards use a combination of fifth-generation NVSwitch and fifth-generation NVLink. Total Aggregate Bandwidth 14.4 TB/s. GPU-to-
+ and NVSwitch™          GPU Bandwidth 1800 GB/s
+
+ CPU sockets            2
+
+ CPU speed              2.0 GHz minimum base CPU clock
+
+ CPU cores              Minimum of 48 physical CPU cores per socket. Recommendation of 56 physical CPU cores per socket
+
+ System memory (total   Minimum of 2 TB system memory; minimum of 500 GB/s memory bandwidth. For optimal performance, system memory should be evenly distributed
+ across all CPU         across all CPU sockets and memory channels and should be fully populated and symmetrically placed on all CPU memory controller (MC) channels.
+ sockets)
+
+ DPU (North/South)      One NVIDIA® BlueField®-3 DPU per server
+ PCI Express            Eight Gen5 x16 links and one Gen4 x2 link per NVIDIA HGX B300 baseboard. One Gen5 x16 link per DPU, SuperNIC or adapter
+
+ PCIe topology          Balanced PCIe topology with connectivity spread evenly across CPU sockets and PCIe root ports
+
+ Network                Eight NVIDIA® ConnectX-8 SuperNICs per NVIDIA HGX B300 baseboard. Up to 800 Gbps per adapter
+ Adapters/NICs speed
+ (East/West)
+
+ Local storage          Inference Servers: Minimum 1 TB NVMe drive per CPU socket. Training / DL Servers: Minimum 2 TB NVMe drive per CPU socket. HPC Servers: Minimum 1
+                        TB NVMe drive per CPU socket. 1 TB NVMe boot drive
+
+ Remote systems         SMBPBI over SMBus (OOB) protocol to BMC; PLDM T5-enabled; SPDM-enabled
+ management
+
+ Security               TPM 2.0 module (secure boot)
+
+
+
+Control Plane / Management Nodes
+
+The cluster design specified in this Enterprise RA can support up to eight control plane nodes. In addition to the standard compute nodes, control plane nodes
+are needed to run the software that manages the cluster and provides access for users. The specific components depend on the management software. Table
+3 shows an example configuration for these nodes.
+
+For example, a configuration using NVIDIA Base Command Manager, Slurm, and Kubernetes together can include seven control plane nodes in total: two for
+Base Command Manager (with high availability configured), two for Slurm head nodes, and three for Kubernetes control plane nodes. This uses seven of the
+eight available control plane nodes possible.
+
+Table 3. Control plane node components
+
+ Component        Quantity    Description
+
+ CPU              2           32C Intel Xeon Gold 6448Y or equivalent; 32C AMD EPYC 9354
+
+ North/South      1           NVIDIA BlueField-3 B3220 DPU with two 200G ports and 1 Gb RJ45 management port. Other variants can be supported as per Compute Node
+ (DPU)                        alternatives — Table 4
+
+ System Memory    —           Minimum of 256 GB DDR5
+
+ Boot Drive       1           1 TB NVMe SSD
+
+ Local storage    1           4 TB NVMe SSD. More may be required if image storage is required
+
+ BMC              1           1 Gb RJ45 management port
+
+
+In cases where the existing control plane nodes are missing, the Enterprise RA recommends deploying one set per cluster. Configure these nodes for high
+availability to keep your cluster running smoothly.
+
+
+Networking
+
+The NVIDIA HGX platform networking configuration enables the highest AI performance and scale, while ensuring cloud manageability and security. It
+leverages NVIDIA expertise in AI cloud data centers and optimizes network traffic flow:
+
+    East/West (Compute Network) traffic: This refers to traffic between NVIDIA HGX systems within the cluster, typically for multi-node AI training, AI fine
+    tuning, HPC collective operations, and other workloads.
+    North/South (Customer and Storage Network) traffic: This involves traffic between NVIDIA HGX systems and any external resources including cloud
+    management and orchestration systems, remote data storage nodes, and other parts of the data center or the Internet.
+
+When combined with NVIDIA Spectrum-X Ethernet, the NVIDIA HGX B300 platform delivers strong performance for deep learning training and inference, data
+science, scientific simulation, and other modern workloads. The following sections describe recommended NVIDIA HGX B300 platform configurations along
+with their associated NVIDIA networking platforms.
+
+Compute (Node East/West) Ethernet Networking
+
+On the NVIDIA HGX B300 baseboard, NVIDIA ConnectX-8 SuperNIC offers up to 800 Gb/s, low-latency network connectivity between GPUs in the AI cluster,
+featuring RDMA and RoCE acceleration, with NVIDIA® GPUDirect® and GPUDirect Storage technologies. For data centers that deploy Ethernet, NVIDIA
+ConnectX-8 offers a range of advancements including RoCE optimizations and multi-tenancy, which are key in AI cloud environments. Additionally, NVIDIA
+ConnectX-8 offers advanced hardware offloads for overlay networks such as VXLAN and NVGRE, which help reduce CPU load and improve network efficiency.
+
+Beyond raw speed, NVIDIA ConnectX-8 enhances network performance with features like advanced congestion control, telemetry-based routing, and quality of
+service (QoS) capabilities to meet diverse AI application and training requirements. Security is built in with hardware acceleration for cryptographic protocols
+like IPSec and MACSec, taking these tasks over from the CPU to maintain performance.
+
+Multi-node deployments with an NVIDIA HGX B300 platform should adhere to the following total compute network bandwidth per GPU recommendations.
+
+The NVIDIA ConnectX-8 SuperNIC is integrated onto the NVIDIA HGX B300 baseboard, maintaining a 1:1 GPU-to-NIC ratio to ensure optimal bandwidth and
+direct connectivity for each GPU.
+
+Total Minimum Compute Network Bandwidth
+
+    400 GB/s (8x 400 Gb/s Ethernet NICs)
+
+Total Recommended Compute Network Bandwidth
+
+    800 GB/s (16x 400 Gb/s Ethernet NICs using breakout)
+
+Converged (Node North/South) Ethernet Networking
+
+This section describes the NVIDIA BlueField-3 role for the North/South Ethernet network in the NVIDIA HGX platform and the recommended NVIDIA BlueField-3
+models for this infrastructure.
+
+The NVIDIA BlueField-3 data processing unit (DPU) is a 400 Gb/s infrastructure compute platform that enables organizations to securely deploy and operate
+NVIDIA HGX AI data centers at massive scales. NVIDIA BlueField-3 DPU is optimized for the North/South network and the NVIDIA BlueField-3 IC is optimized for
+the East/West AI compute fabric.
+
+NVIDIA BlueField-3 offers several essential capabilities and benefits within the NVIDIA HGX platform:
+
+    Workload Orchestration: NVIDIA BlueField-3 serves as an optimized compute platform for the data center control-plane, enabling automated
+    provisioning and elasticity. This empowers NVIDIA HGX AI cloud platforms to scale resources dynamically based on fluctuating demand, ensuring efficient
+    allocation of computing resources for transient AI workloads.
+    Storage Acceleration: NVIDIA BlueField-3 provides advanced storage acceleration features that optimize data storage access. Its innovative NVIDIA
+    BlueField SNAP technology enables remote storage devices to function as local, improving AI performance and streamlining cloud operations.
+    Secure Infrastructure: NVIDIA BlueField-3 operates in a highly secure zero-trust mode and functions independently from the host, significantly
+    enhancing the security of the NVIDIA HGX platform. In addition, NVIDIA BlueField-3 enables a wide range of accelerated security services, including next-
+    generation firewall and micro-segmentation, bolstering the overall security posture of the infrastructure.
+
+The NVIDIA BlueField-3 DPU integration enhances NVIDIA HGX platforms by improving resource management, performance, security, and scalability, making
+them well-suited for AI workloads in datacenter environments.
+
+NVIDIA BlueField-3 DPUs support multiple operating modes, including Embedded Function (ECPF) or DPU mode, which is commonly used as a default. In this
+mode, the Arm subsystem on the DPU owns and manages NIC resources, and network traffic typically passes through a virtual switch on the DPU before
+reaching the host, adding an extra layer of control.
+
+To support secure management of NVIDIA HGX platforms, many NVIDIA BlueField products integrate an onboard Baseboard Management Controller (BMC).
+This BMC enables provisioning and management of both the NVIDIA BlueField DPU and the HGX platform using standard tools such as Redfish APIs, relies on
+an external root-of-trust for firmware protection, and connects to the management network through a dedicated 1 GbE out-of-band port.
+
+When planning NVIDIA HGX deployments with NVIDIA BlueField-3, it is important to account for card form factor and power requirements. Some BlueField-3
+configurations for north-south connectivity can draw more than 75 W and therefore require both standard PCIe slot power and an additional PCIe power
+connector rated for at least 75 W.
+
+For NVIDIA BlueField-3 DPUs used in the North/South network for NVIDIA HGX 8-GPU platforms, the NVIDIA BlueField-3 products listed in Table 4 are generally
+recommended as suitable options.
+
+Table 4. HGX B300 recommended BF-3 DPUs for North/South Network
+
+ Product                                                       PCIe Card Form Factor                   Connector Required                      Applicable
+                                                                                                                                               Topologies
+
+ NVIDIA BlueField-3 B3240 P-Series FHHL DPU, 400GbE (default   Single-slot FHHL PCIe Gen5 x16 with     8-pin ATX 12V PCIe; 1G/USB Management   Cold-aisle
+ mode) / NDR IB, Dual-port QSFP112                             x16 PCIe extension option               Interfaces; QSFP112 connector cages     slots/servers
+                                                                                                                                               only
+
+ NVIDIA BlueField-3 B3240 P-Series FHHL DPU, 400GbE (default   Dual-slot FHHL PCIe Gen5 x16 with x16   8-pin ATX 12V PCIe; 1G/USB Management   All
+ mode) / NDR IB, Dual-port QSFP112                             PCIe extension option                   Interfaces; QSFP112 connector cages
+
+ NVIDIA BlueField-3 B3220 P-series FHHL DPU, 200GbE (default   Single-slot FHHL PCIe Gen5 x16 with     8-pin ATX 12V PCIe; 1G/USB Management   All
+ mode) / NDR200 IB, Dual-port QSFP112                          x16 PCIe extension option               Interfaces; QSFP112 connector cages
+
+
+Note: NVIDIA recommends using the NVIDIA BlueField-3 B3240 DPU with NVIDIA HGX B300 platforms rather than the NVIDIA BlueField-3 B3220 that is
+common in NVIDIA HGX H100/200 and HGX B200 systems with 2x 200 GbE uplinks. For HGX B300 deployments, it can be helpful to consider future workloads
+such as distributed inference that may use KV cache offloads to high-speed, network attached storage. In these cases, having higher burst I/O capacity per
+GPU can be advantageous, even if the average bandwidth needs for typical training workloads are not very high.
+4. Networking Hardware
+
+This section describes the networking hardware used to connect elements of the Enterprise RA.
+
+
+NVIDIA ConnectX-8 HCA (on baseboard)
+
+With support for Ethernet networking up to 800 Gb/s (2x 400 Gb/s), the NVIDIA ConnectX-8 SuperNIC (Figure 3) delivers extremely fast, efficient network
+connectivity, and significantly enhances system performance for AI factories and cloud data center environments. Depending on the deployment scenario and
+use case, the SuperNIC can be leveraged for dual-plane east-west networking (using 2x 400 Gb/s twin-port transceivers) or single-plane east-west networking
+(using 1x 400 Gb/s single-port OSFP transceivers) enabling flexible support for different performance and bandwidth requirements.
+
+Figure 3. NVIDIA ConnectX-8 HCA.
+
+
+
+
+NVIDIA BlueField-3 B3240 DPU
+
+The NVIDIA BlueField-3 B3240 DPU with two 400 GbE ports (Figure 4) is used in the in-band management and storage fabric. The Enterprise RA recommends
+the use of dual-ports for best performance and flexibility.
+
+Figure 4. NVIDIA BlueField-3 B3240 DPU
+
+
+
+
+NVIDIA SN5610 Switch
+
+The NVIDIA SN5610 switch (Figure 5) offers 64 total ports of 800 Gbps to provide connectivity for Compute (E/W), Customer and Storage (N/S), in-band
+management.
+
+Figure 5. NVIDIA SN5610 Ethernet switch.
+
+
+
+
+NVIDIA SN2201 Switch
+
+The NVIDIA SN2201 switch (Figure 6) offers 48 ports to provide connectivity for out-of-band (OOB) management. OOB management provides consolidated
+management connectivity for all components in the Enterprise RA.
+
+Figure 6. NVIDIA SN2201 Ethernet switch.
+5. Networking Physical Topologies
+
+The Enterprise RA configurations use three physical network fabrics:
+
+    Compute (Node East/West) Network
+    CPU Converged (Node North/South) Network
+    Out-of-Band Management Network
+
+Each network is discussed in this section.
+
+
+Compute (Node East/West) Network
+
+The compute fabric (East/West) is built using switches with NVIDIA Spectrum technology in a full non-blocking fat-tree topology to provide the highest level of
+performance for the application running over the NVIDIA HGX B300 cluster. The compute fabric is an RDMA-based fabric. It is designed to provide the shortest
+hops through the network for the application, in a leaf-spine manner, where the GPUs are connected using a rail-optimized network topology through their
+respective NVIDIA ConnectX-8 SuperNICs. This design allows the most efficient communication for multi-GPU applications within and across the nodes.
+
+The leaf and spine architecture allows for a scalable and reliable network that can fit varied sizes of clusters using the same architecture.
+
+The compute fabric is designed to facilitate redundancy, maximize bandwidth and minimize network latency required to connect GPUs within a server and
+within a rail. While the architecture below recommends a dual-plane compute fabric for resiliency purposes, a cost-effective single-plane configuration is also
+supported based on deployment needs.
+
+The compute network is not necessarily required for inference workloads. Most common pre-trained models do not exceed the size of a single NVIDIA B300
+SXM GPU. Models beyond 120B parameters may require model parallelism and require more than one NVIDIA B300 SXM GPU. This parallelism will still reside
+within the same node as each server node can hold up to 8x NVIDIA B300 SXM GPUs.
+
+For larger network design points, due to the high number of endpoints required, the Compute Fabric utilizes a spine and leaf networking architecture. This is
+principally to support the required design points but also to allow extensibility in the architecture.
+
+In the architectures below, the Compute Fabric is merged with the Converged Fabric for smaller design points. This is to lower cost and to simplify the network
+architecture.
+
+Compute Fabric Excluded for Pure Inference Deployments
+
+For the use case of pure inference, a compute network may not be necessary. Each NVIDIA B300 SXM GPU can support a maximum model size of
+approximately 120B parameters. Also, tensor parallelism yields less performant results per GPU than running the model on the same GPUs in data parallel
+mode.
+
+Since there are no performance gains from running an inference model on multiple GPUs, either on a single node or across multiple nodes, a compute network
+is not necessary.
+
+The drawback to implementing an infrastructure without a compute network is that the infrastructure cannot be used for any hybrid workflows including
+model training. The infrastructure can be deployed without a compute network and can be retrofitted later, albeit with potentially significant downtime and
+reconfiguration.
+
+Multi-Plane Topology Approach
+
+While each GPU is associated with a dedicated NVIDIA ConnectX-8 SuperNIC, the coupling of a single link from a NIC to a single point of failure (SPOF) in the
+fabric is a concern. Increasingly, customers are opting for a load-balanced multi-link approach which can satisfy both the full capacity of the GPU bandwidth as
+well as avoiding a SPOF. Each compute networking plane forms a separate fabric, where the resiliency and the load balancing between the two planes is
+handled by the NCCL on the host. Any failure to provide GPU-to-GPU connectivity via one plane will seclude traffic to the alternative plane, but if both planes
+are active, the traffic will be balanced between planes in a manner that utilizes the bandwidth of both links. Load balancing via NCCL is more efficient than
+other L2/L3 bonds like LAG that only have "local" awareness for traffic balancing and static hash-based distribution which is suboptimal for AI workloads due to
+low entropy.
+
+A second benefit of plane separation is expansion of the fan-out of the NIC and switches. A higher radix of interfaces enables the creation of a larger network
+with fewer network tiers in a Clos topology.
+
+Dual Plane Topology
+
+
+In this Enterprise RA we recommend using a Dual Plane topology. A Dual Plane topology involves building two identical planes that connect to each GPU
+interface. With each GPU generating 800 Gb/s bandwidth through the NVIDIA ConnectX-8 SuperNICs, dual plane topology involves breaking the interface to 2x
+400 Gb/s interfaces. Every such interface is then connected to a different leaf switch, and every such leaf switch is part of an independent fabric that scales to
+1024 interfaces of 400 Gb/s as part of this reference architecture. The GPU is not aware of the two independent fabrics, each carrying 50% of the generated
+traffic, and is only aware that 100% of traffic is carried by the NVIDIA ConnectX-8 SuperNIC. Tracking of each plane, load balancing, and failure handling is
+handled by the ConnectX-8 SuperNIC on the hardware level. A failing or degraded plane will carry an impact linearly associated with the dropped bandwidth.
+
+Single Plane Topology
+
+
+A Single Plane topology is also possible as a cost-effective alternative to the Dual Plane topology. In the configuration, each GPU operates at 400 Gb/s of
+bandwidth through the NVIDIA ConnectX-8 SuperNIC without breaking the interface — using a single 1x 400 Gb/s connection instead of the 2x 400 Gb/s. Each
+interface is connected to a leaf switch within a single compute fabric that scales to 1024 interfaces of 400 Gb/s as part of the reference architecture. While
+this approach reduces the total GPU bandwidth by 50%, it is well-suited for workloads that do not warrant maximum throughput and can benefit from lower
+networking infrastructure costs. The use of OSFP transceiver modules enables seamless migration between single plane and dual plane topologies, allowing
+flexibility in adapting to evolving performance needs.
+
+
+CPU Converged (Node North/South) Network
+A converged network for both storage and in-band management are used in the Enterprise RA. This provides enterprises with flexible storage allocation and
+easy network management. The converged network has the following attributes:
+
+    Provides high bandwidth to shared storage and connects the customer through the converged network.
+    Is independent of the compute fabric to maximize both storage and application performance.
+    Each compute and management node is connected with two 400 GbE ports to two separate switches to provide redundancy and high storage throughput
+    that can reach up to 40 GB/s per node.
+
+The fabric is built on Ethernet technology with RDMA over Converged Ethernet (RoCE) support and utilizes NVIDIA BlueField-3 B3240 DPUs in each compute
+node to deliver existing and emerging cloud and storage services.
+
+    It is flexible and can scale to meet specific capacity and bandwidth requirements.
+    Tenant-controlled management nodes provide the tenant the flexibility to deploy OS and their job scheduler of choice.
+    Hybrid storage fabric design with support for tenant isolation provides access to both shared and dedicated storage per tenant.
+    Used for node provisioning, data movement, internet access, and other services that must be accessible by the users.
+
+
+Out-of-Band Management (Node) Network
+
+The OOB management network connects all the Baseboard Management Controller (BMC) ports, as well as other devices that should be physically isolated
+from system users to allow infrastructure management. This includes the 1 GbE switch management ports and the NVIDIA BlueField-3 DPU management
+ports.
+6. Networking Logical Architecture
+
+This Enterprise RA uses a converged spine-leaf network providing physical fabrics for the use cases such as inferencing and fine-tuning. Deeper explanations
+of each of the fabric roles are below:
+
+    GPU Compute (East/West) Network — The GPU Compute (East/West) network is an RDMA-based fabric in a leaf-spine architecture where the GPUs are
+    connected using a rail-optimized network topology through their respective SuperNICs. This design allows the most efficient communication for multi-GPU
+    applications within and across the compute nodes due to the high number of endpoints needed. The leaf-spine networking architecture also allows for
+    future extensibility.
+    CPU Converged (North/South) Network — The CPU Converged (North/South) network connects the nodes using two 400 GbE ports to two separate
+    switches to provide redundancy and high storage throughput. This network is used for node communications with compute, storage, in-band
+    management, and end-user connections.
+    Storage (North/South) Connectivity — This network specifically provides converged connectivity for storage infrastructure. Principally storage is
+    attached on this network and then can be provided to the nodes via the CPU Compute network as required.
+    Customer (North/South) Network Connectivity — Typically, this is upstream connectivity to connect the cluster to the rest of an enterprise
+    customer's networking infrastructure. This is provisioned to provide ample bandwidth for typical user communications.
+    Support Server Networking — This is dedicated networking for the respective support servers. These servers generally provide management,
+    provisioning, monitoring, and control services to the rest of the cluster. High-performance networking is used here due to requirements such as cluster
+    deployment and imaging.
+    Out-of-band Management Networking for the infrastructure — All infrastructure requires management. This network provides bulk management
+    1Gb RJ45 connectivity for all the nodes. This network uses low-cost bulk management switches. These switches have upstream connections to the core
+    networking infrastructure to allow flexibility and wider consolidation of services such as management and monitoring.
+
+Note: VLAN isolation would be used to provide logical separation of the networks above over the single physical fabric.
+
+
+Enterprise RA Scalable Unit (SU)
+
+This Enterprise RA is built on scalable units (SU) based on 4 compute nodes. Each SU is a discrete entity of computation that is tied to the port
+availability size of the network devices. SUs can be replicated to adjust the scale of the deployment with more ease.
+
+Figure 7: Example diagram of 4-Node SU.
+
+
+
+
+The 4-Node scalable unit provides the following connectivity building blocks:
+
+    For the Compute (East/West) fabric: 4 servers, each with 8x NVIDIA ConnectX-8 SuperNICs, providing 64x 400 Gb/s connections and a total aggregate
+    bandwidth of 25.6 Tb/s.
+    For the Converged (North/South) fabric: 4 servers, each with 1x NVIDIA BlueField-3 B3240 DPU providing 8x 400 Gb/s connections and a total aggregate
+    bandwidth of 3.2 Tb/s.
+    For the Out-of-band Management fabric, 4 servers, each with 6x 1 Gb/s connections providing 24x 1 Gb/s for management.
+
+
+Spine-Leaf Networking
+
+The network fabrics are built using switches with NVIDIA Spectrum-X Ethernet technology in a full non-blocking fat-tree topology to provide the highest level of
+performance for the application running over the Enterprise RA configuration. The networks are RDMA-compliant fabrics in a leaf-spine architecture where the
+GPUs are connected using a rail-optimized network topology through their respective SuperNICs. This design allows the most efficient communication for
+multi-GPU applications within and across the nodes.
+
+The leaf and spine architecture supports a scalable and reliable network that can fit varied sizes of clusters using the same architecture. The compute network
+is designed to maximize bandwidth and minimize network latency required to connect GPUs within a server and within a rail.
+
+In addition to the supported compute fabrics, the converged spine-leaf network also supports the following attributes:
+
+    Provides high bandwidth to high performance storage and connects to the data center network.
+    Each compute node is connected with two 400 GbE ports and each management node is connected with two 200 GbE ports to two separate switches to
+    provide redundancy and high storage throughput.
+
+
+Out-of-Band (OOB) Management Network
+
+The OOB management network connects the following components:
+
+    Baseboard Management Controller (BMC) ports of the server nodes
+    BMC ports of the BlueField-3 DPU and SuperNICs
+    OOB management ports of switches
+
+This OOB network can also connect other devices that should have management connectivity physically isolated for security purposes. The NVIDIA SN2201
+switch is used to connect to the BMC/OOB 1 Gbps ports of these components. Scale out this network using a 25 Gbps or 100 Gbps spine layer to connect the
+NVIDIA SN2201 uplink switches.
+Optimized Use Case
+
+This architecture is optimized for both inference and training use cases. Deployment of this single architecture will enable both types of workloads.
+
+Architecture Details
+
+The components of the NVIDIA HGX B300 Spectrum Enterprise RA using Spectrum-X 800 Gbps for the compute fabric are described in Table 5.
+
+Table 5: HGX B300 Server Ethernet components with Spectrum-X fabric
+
+ Component                      Technology
+
+ Compute node servers (4-       NVIDIA HGX B300 Servers with 8 NVIDIA B300 SXM GPUs, configured with: one NVIDIA BlueField-3 B3240 dual-port 400 GbE DPU; eight NVIDIA
+ 128)                           ConnectX-8 single-port 800 GbE SuperNICs, configured for 2x 400 Gb Ethernet breakout
+
+ Compute (East/West)            NVIDIA SN5600 128-port 400 GbE switches
+ Spine-Leaf Fabric
+
+ Converged (North/South)        NVIDIA SN5600 128-port 400 GbE switches
+ Spine-Leaf Fabric
+
+ OOB management fabric          NVIDIA SN2201 48-port 1 Gb plus 4-port 100 GbE
+
+
+Compute (Node East/West) Fabric Table
+
+Table 6 below shows the number of cables and switches required for the dual-plane compute (Node East/West) Fabric for different SU sizes. Figures shown are
+aggregate amounts for both planes.
+
+Table 6: Compute (Node East/West) and switch component count
+
+ Nodes     GPUs      SUs   Leaf          Spine        Uplinks per leaf     Node-to-Leaf             Node-to-Leaf           Switch-to-           Compute-to-         Switch-to-
+                           Switches      Switches     to spine @ 400G      Transceivers             Transceivers           Switch               Leaf Cables         Switch
+                                                                           (Compute)                (Switch)               Transceivers                             Cables
+
+ 32        256       8     8             4            32                   256                      256                    512                  512                 512
+
+ 64        512       16    16            8            16                   512                      512                    1024                 1024                1024
+
+ 128       1024      32    32            16           8                    1024                     1024                   2048                 2048                2048
+
+
+Converged (Node North/South) Fabric Table
+
+Table 7 below shows the number of cables and switches required for the Converged (Node North/South) Fabric for different SU sizes. For lower node counts
+such as 16 nodes where the Converged Network has been consolidated with the Compute Network, the transceivers and cables are additional to the
+quantities in Table 7 used for the East/West fabric.
+
+Table 7: Converged (Node North/South) and switch component count
+
+ Nodes     GPUs      SUs   Leaf    Spine      CPU     Storage    Mgmt.     Customer     Support    ISL      Node-to-       Node-to-        Switch-to-         Node-        Switch-
+                                              (Node              Uplinks                           Ports    Leaf           Leaf            Switch             to-          to-
+                                              N-S)                                                 (both    Transceivers   Transceivers    Transceivers       Leaf         Switch
+                                                                                                   ends)    (Node)         (Switch)                           Cables       Cables
+
+ 32        256       8     2       N/A        32      8          4         16           4          26       188            62              26                 188          26
+
+ 64        512       16    4       2          64      16         4         32           4          256      352            118             256                352          256
+
+ 128       1024      32    8       4          128     32         8         64           4          512      688            232             512                688          512
+
+
+32 Nodes with 256 NVIDIA HGX B300 SXM GPUs
+
+Figure 8: NVIDIA HGX B300 Spectrum Enterprise RA with 32 servers (256 GPUs) and dual-plane compute fabric.
+
+
+
+
+Architecture Overview
+
+      32 NVIDIA HGX B300 Servers (256 GPUs) in 2-8-9-800 configuration with NVIDIA Spectrum-X compute fabric.
+      8 scalable units (SUs) with 4 server nodes per unit.
+
+Network Design
+
+      Cost-efficient converged two-switch fabric for CPU (North/South) Network.
+      GPU Compute (East/West) Network uses separate, isolated dual-plane leaf-spine architecture for high-bandwidth, low-latency communication.
+      Dual-plane rail-optimized, non-blocking Spectrum fabric with 64-port switches.
+      Port breakout functionality consolidates ports while maintaining resiliency.
+   4 leaf switches per plane, each supporting 2 rails (1+5, 2+6, 3+7, 4+8).
+   Each GPU has individual 400 Gb connection to each plane via 800 Gb port broken out to 2x 400 Gb.
+
+Connectivity (Under Optimal Conditions)
+
+   64x 400G uplinks per SU for GPU Compute traffic (East/West).
+   8x 200G uplinks per SU for CPU traffic (North/South).
+   Up to 8 support servers, dual-connected at 200 Gb.
+   64x 100G/200G connections to customer network (minimum 25 Gb bandwidth per GPU).
+   32x 100G/200G connections for storage (minimum 12.5 Gb bandwidth per GPU).
+
+Management
+
+   SN2201 switch for every 2 SUs (4 switches total).
+   Each SN2201 uplinked to core via 2x 100G links.
+   200 GbE management fabric with HA using eight 100 GbE core connections.
+   All nodes connected to 1 Gb management switches.
+
+Additional Considerations
+
+   VLAN isolation separates North-South and East-West fabrics collapsed into the physical infrastructure.
+   Rack layout must provide power supply redundancy; otherwise, consider an alternative rack layout.
+   The number of GPU servers per rack depends on available rack power.
+
+64 Nodes with 512 NVIDIA HGX B300 SXM GPUs
+
+Figure 9: HGX B300 Spectrum Enterprise RA with 64 servers (512 GPUs) with dual-plane compute fabric.
+
+
+
+
+Architecture Overview
+
+   64 NVIDIA HGX B300 Servers (512 GPUs) in 2-8-9-800 configuration with NVIDIA Spectrum-X compute fabric.
+   16 scalable units (SUs) with 4 server nodes per unit.
+
+Network Design
+
+   Cost-efficient converged two-switch fabric for CPU (North/South) Network.
+   GPU Compute (East/West) Network uses separate, isolated dual-plane leaf-spine architecture for high-bandwidth, low-latency communication.
+   Dual-plane rail-optimized, non-blocking Spectrum fabric with 64-port switches.
+   Port breakout functionality consolidates ports while maintaining resiliency.
+   8 leaf switches (in 2 blocks of 4) per plane, each supporting 2 rails (1+5, 2+6, 3+7, 4+8).
+   2 leaf switches supporting each pair of rails with corresponding spine increase.
+   Each GPU has individual 400 Gb connection to each plane via 800 Gb port broken out to 2x 400 Gb.
+
+Connectivity (Under Optimal Conditions)
+
+   64x 400G uplinks per SU for GPU Compute traffic (East/West).
+   8x 200G uplinks per SU for CPU traffic (North/South).
+   Up to 8 support servers, dual-connected at 200 Gb.
+   128x 100G/200G connections to customer network (minimum 25 Gb bandwidth per GPU).
+   64x 100G/200G connections for storage (minimum 12.5 Gb bandwidth per GPU).
+
+Management
+
+   SN2201 switch per SU (8 switches total).
+   Each SN2201 uplinked to core via 2x 100G links.
+   200 GbE management fabric with HA using sixteen 100 GbE core connections.
+   All nodes connected to 1 Gb management switches.
+
+Additional Considerations
+
+   VLAN isolation separates fabrics on Converged (North/South) Network.
+   Rack layout must provide power supply redundancy.
+   HGX B300 servers per rack depends on available rack power.
+   Dual-ported optic recommended to simplify breakout at NVIDIA ConnectX-8 OSFP port.
+
+128 Nodes with 1024 B300 HGX GPUs
+Figure 10: HGX B300 Spectrum Enterprise RA with 128 servers (1024 GPUs) with dual-plane compute fabric.
+
+
+
+
+Architecture Overview
+
+   128 NVIDIA HGX B300 Servers (1024 GPUs) in 2-8-9-800 configuration with NVIDIA Spectrum-X compute fabric.
+   32 scalable units (SUs) with 4 server nodes per unit.
+
+Network Design
+
+   Cost-efficient spine-leaf design for all fabrics.
+   GPU Compute (East/West) Network uses separate, isolated dual-plane leaf-spine architecture for high-bandwidth, low-latency communication.
+   Dual-plane rail-optimized, non-blocking Spectrum fabric with 64-port switches.
+   Port breakout functionality consolidates ports while maintaining resiliency.
+   16 leaf switches (in 4 blocks of 4) per plane, each supporting 2 rails (1+5, 2+6, 3+7, 4+8).
+   4 leaf switches supporting each pair of rails with corresponding spine increase.
+   Each GPU has individual 400 Gb connection to each plane via 800 Gb port broken out to 2x 400 Gb.
+
+Connectivity (Under Optimal Conditions)
+
+   64x 400G uplinks per SU for GPU Compute traffic (East/West).
+   8x 200G uplinks per SU for CPU traffic (North/South).
+   Up to 8 support servers, dual-connected at 200 Gb.
+   256x 100G/200G connections to customer network (minimum 25 Gb bandwidth per GPU).
+   128x 100G/200G connections for storage (minimum 12.5 Gb bandwidth per GPU).
+
+Management
+
+   NVIDIA SN2201 switch per SU (32 switches total).
+   Each NVIDIA SN2201 uplinked to core via 2x 100G links.
+   200 GbE management fabric with HA using thirty-two 100 GbE core connections.
+   All nodes connected to 1 Gb management switches.
+
+Additional Considerations
+
+   VLAN isolation separates fabrics on Converged (North/South) Network.
+   Rack layout must provide power supply redundancy.
+   NVIDIA HGX B300 servers per rack depends on available rack power.
+   Dual-ported optic recommended to simplify breakout at NVIDIA ConnectX-8 OSFP port.
+7. Software
+
+Infrastructure software is a critical component of the NVIDIA Enterprise Reference Architecture, providing the foundation for deploying, managing, and
+orchestrating AI workloads at scale. In conjunction with the NVIDIA HGX AI Factory, the NVIDIA Enterprise AI Factory Validated Design (for enterprise and
+government) utilizes software tools and solutions from NVIDIA to provide a comprehensive, high-performance solution for modern AI projects and ensure
+optimal performance while adhering to best practices. Additionally, it includes tested and validated solutions from an ecosystem of partners, with specified
+versions and integrations, to support the end-to-end AI pipeline, from data curation to model testing, workflow orchestration, guard railing, security, and more.
+
+Key components of these software designs include:
+
+    NVIDIA AI Enterprise, a suite of software tools, libraries and frameworks, including NVIDIA NIM and NeMo microservices, that accelerate and simplify
+    the development, deployment, and scaling of AI applications. Also includes Base Command Manager, which streamlines infrastructure provisioning,
+    workload management and resource monitoring.
+    NVIDIA Run:ai, an orchestration platform that accelerates AI operations with dynamic orchestration across the AI lifecycle.
+    NVIDIA NetQ, a highly scalable, modern network operations toolset that provides visibility, troubleshooting and validation of Cumulus fabrics in real time.
+8. NVIDIA-Certified Storage
+
+This Enterprise Reference Architecture is designed to support high-performance storage solutions that can keep pace with GPU-intensive AI workloads. As a
+guideline, the architecture allocates approximately 12.5 Gb/s per GPU, scaling linearly as the cluster grows — for example, a 16-GPU cluster would require
+around 200 Gb/s of aggregate storage bandwidth. For validated storage systems and deployment guidance tailored to your cluster size, refer to the NVIDIA-
+Certified Storage program, which integrates seamlessly with this reference architecture.
+
+The NVIDIA-Certified Storage program provides a comprehensive validation framework that ensures storage platforms meet stringent performance, quality,
+and interoperability standards for AI workloads. Partner solutions undergo extensive functional and performance testing to guarantee predictable deployment,
+energy efficiency, and operational consistency for end-to-end AI factories.
+9. Services
+
+A successful deployment requires more than advanced infrastructure — it also requires comprehensive services that accelerate deployment, ensure reliability,
+and achieve optimal performance.
+
+NVIDIA works closely with its global partners to extend service reach, scale delivery, and provide deep industry expertise across all stages of implementation
+and operation.
+
+    Roadmap services — Conduct current infrastructure assessments, model future capacity scenarios and develop phased plans to guide design, build,
+    migration and operations of data centers over time.
+    First project implementation services — Execute the initial deployment (from installation, configuration and commissioning to operational hand-over)
+    of a first data center build or module.
+    Managed services — Operate the ongoing monitoring, maintenance, and optimization of the data center including 24/7 support, contract management
+    and vendor coordination.
+    Support Services — Minimize downtime by providing expert guidance and access to NVIDIA specialists across compute, software and networking,
+    ensuring optimal performance and availability.
+    Education Services — Deliver online and hands-on training to customers and partners, providing in-depth knowledge that enables customers to
+    maximize the value of their AI investments and partners to build deep AI expertise.
+
+For additional information about NVIDIA Enterprise Services, visit https://www.nvidia.com/en-us/support/enterprise/services/.
+10. Summary
+
+The NVIDIA Enterprise Reference Architecture is the leading enterprise-scale architecture to meet the demanding and growing needs of AI compute. The
+Enterprise RA represents the architecture used by NVIDIA for internal AI model training, inference for reasoning AI, and large-scale data analytics.
+
+This specific Enterprise RA focuses on the NVIDIA B300 baseboard delivered in HGX servers. It is interconnected using NVIDIA Spectrum-X for compute and
+converged connectivity. It includes guidance for both dual-plane and cost-effective single-plane network topologies to suit a variety of deployment needs.
+
+The Enterprise RA documents a complete system of hardware and infrastructure software necessary to implement data centers for high-performance AI
+functionality. It leverages decades of NVIDIA expertise in accelerated computing, networking and AI software to remove guesswork, improve speed-to-value,
+optimize performance and TCO, and ensure enterprise-grade reliability and security.
+
+The Enterprise RA is designed to both support the workloads of today and grow to support tomorrow's applications.
+11. Appendix: Node Configurations
+
+This appendix provides information on the compute and control plane node configurations.
+
+
+Compute Nodes
+
+The starting point and the basic building block of this Enterprise RA is the NVIDIA-Certified HGX B300 platform. This is covered in more detail in the Node
+Hardware section of this document but for completeness in the Appendix there is a more simplified version below.
+
+Table 8: HGX B300 Server system components
+
+ Component       Quantity      Description
+
+ GPUs            8 on          Eight NVIDIA B300 SXM GPUs on an NVIDIA B300 baseboard, with GPU Memory of up to 2304 GB
+                 baseboard
+
+ DPU             1             NVIDIA BlueField-3 B3240 DPU with 2x 400G ports and 1 Gb RJ45 management port
+
+ SuperNIC        8 on          NVIDIA ConnectX-8 SuperNIC with a dual-port 400G configuration
+                 baseboard
+
+ CPUs            2             Minimum of 32 physical CPU cores per socket. Recommendation of 56 physical CPU cores per socket
+
+ System          1             Minimum of 2 TB system memory
+ Memory
+
+ Storage         3             Inference Servers: minimum 1 TB NVMe drive per CPU socket. Training / DL Servers: minimum 2 TB NVMe drive per CPU socket. HPC Servers: minimum
+                               1 TB NVMe drive per CPU socket. 1×1 TB NVMe boot drive
+
+ BMC/iLO         1             1 GbE RJ45 management port
+
+
+
+Switches and Cables
+
+Table 9 and Table 10 provide an overview of the switches and cables used in the cluster for a dual-plane configuration. The network adapters of the NVIDIA
+HGX B300 server, the storage servers, and the control plane servers are included for better understanding of the connectivity requirements.
+
+Table 9: Switching with required inter-switch links, transceivers, and cables
+
+ Component                                                                                                 32 Server Nodes       64 Server Nodes       128 Server Nodes
+
+ NVIDIA HGX B300 SXM GPUs (8/node, on baseboard)                                                           256                   512                   1024
+
+ NVIDIA ConnectX-8 SuperNIC, Compute fabric (8/node, on baseboard)                                         256                   512                   1024
+
+ BlueField-3 B3240 DPU, In-band management, Customer & Storage fabric and Support Servers                  32                    64                    128
+
+ NVIDIA Spectrum-4 SN5600 Ethernet switch, compute core fabric                                             12                    24                    48
+
+ NVIDIA Spectrum-4 SN5600 Ethernet switch, converged core fabric                                           12                    24                    48
+
+ SN2201 leaf switches for OOB management fabric                                                            4                     8                     16
+
+ OSFP, 2x 400G transceiver used for N/S inter-switch links (ISL)                                           26                    256                   512
+
+ Cable used for N/S inter-switch links (ISL)                                                               26                    256                   512
+
+ OSFP, 2x 400G transceiver used for E/W inter-switch links (E/W ISL)                                       512                   1024                  2048
+
+ Cable used for E/W inter-switch links (ISL)                                                               512                   1024                  2048
+
+ QSFP 100G transceivers used for OOB leaf switches                                                         8                     16                    32
+
+ OSFP, 2x 400G transceiver used for OOB leaf switches                                                      2                     4                     8
+
+ Cable used for OOB leaf switches                                                                          2                     4                     8
+
+
+Table 10: End-point connections with required transceivers, and cables (dual plane)
+
+ Component                                                                                                 32 Server Nodes       64 Server Nodes       128 Server Nodes
+
+ NVIDIA HGX B300 SXM GPUs (8/node, on baseboard)                                                           256                   512                   1024
+
+ NVIDIA ConnectX-8 SuperNIC, Compute fabric (8/node, on baseboard)                                         256                   512                   1024
+
+ BlueField-3 B3240 DPU, In-band management, Customer & Storage fabric and Support Servers                  32                    64                    128
+
+ OSFP, 2x 400G transceiver used for Switch to compute node (DPU)                                           32                    64                    128
+
+ OSFP, 2x 400G transceiver used for Switch to compute node (SuperNIC)                                      256                   512                   1024
+
+ OSFP, 2x 400G transceiver used for SuperNIC to switch                                                     256                   512                   1024
+
+ QSFP, 400G transceiver used for DPU to switch                                                             64                    128                   256
+
+ Cable for Switch to ConnectX-8 SuperNIC                                                                   512                   1024                  2048
+
+ Cable for Switch to B3220 DPU                                                                             64                    128                   256
+
+ OSFP, 2x 400G transceiver used for switch to Storage                                                      4                     8                     16
+
+ QSFP 100G transceiver used for upstream storage                                                           32                    64                    128
+
+
+ Cable for storage                                                                                         8                     16                    32
+OSFP, 2x 400G transceiver used for switch to customer network           8     16    32
+
+QSFP 100G transceiver used for customer network                         64    128   256
+
+Cable for customer network                                              16    32    64
+
+OSFP, 2x 400G transceiver used for switch to control-plane B3220 DPUs   4     4     4
+
+QSFP, 400G transceiver used for control plane B3220 DPUs                16    16    16
+
+Cable for control-plane                                                 8     8     8
+
+CAT6 RJ45 cable for 1G OOB fabric                                       192   384   768
+12. Notices
+
+Notice
+
+NVIDIA Enterprise Reference Architecture documentation is NVIDIA confidential information and embodies substantial intellectual property and engineering
+know-how. NVIDIA grants you limited permissions to use NVIDIA Enterprise Reference Architecture to create NVIDIA platform-enabled data center clusters with
+NVIDIA technologies. You may not use the NVIDIA Enterprise Reference Architecture to develop competing products or technologies or to assist a third party in
+such activities. Except as expressly stated in this Notice & Disclaimer statement, no other license or right is granted to you by implication, estoppel or
+otherwise. NVIDIA objects to and rejects any additional or different terms you may propose.
+
+NVIDIA Enterprise Reference Architecture is subject to change without notice. NVIDIA technologies may require enabled hardware, software, or service
+activation. Your costs and results may vary. This document is not a commitment to develop, release, or deliver any technology, code, or functionality. NVIDIA
+reserves the right to make corrections, modifications, enhancements, improvements, and any other changes to this document, at any time without notice. It is
+your sole responsibility to evaluate and determine the applicability of any information contained in this document and ensure that the product is suitable and
+fit for the application planned by you. Information published by NVIDIA regarding third-party products or services does not constitute a license from NVIDIA to
+use such products or services or a warranty or endorsement thereof. Use of such information may require a license from a third party or a license from
+NVIDIA.
+
+NVIDIA products or services are subject to the applicable NVIDIA product or sales terms and conditions that are provided in conjunction with the relevant
+NVIDIA product or service. NVIDIA's provision of these resources does not expand or otherwise alter NVIDIA's applicable warranties or warranty disclaimers for
+the NVIDIA products or services.
+
+You will not use the NVIDIA Enterprise Reference Architecture or NVIDIA's confidential information to: (i) identify or support an assertion or potential assertion
+of any intellectual property rights (including patent, copyright, or trade secret); or (ii) prepare, file, amend, or prosecute any patent applications. You agree to
+grant NVIDIA a limited, worldwide, nonexclusive, perpetual, irrevocable, non-sublicensable, nontransferable, royalty-free, fully-paid license to any patent claim
+that you may file after accessing NVIDIA Enterprise Reference Architecture that covers the subject matter disclosed herein.
+
+Warranty Disclaimer. NVIDIA Enterprise Reference Architecture materials disclosed are provided "AS IS". To the maximum extent permitted by applicable
+law, NVIDIA disclaims all warranties and representations of any kind, whether express, implied, or statutory, relating to or arising under this agreement,
+including, without limitation, the warranties of title, noninfringement, merchantability, fitness for a particular purpose, usage of trade, and course of dealing.
+
+Limitation of Liability. To the maximum extent permitted by applicable law, in no event will NVIDIA be liable for any (i) indirect, punitive, special, incidental,
+or consequential damages, or (ii) damages for the (a) cost of procuring substitute goods or (b) loss of profits, revenues, use, data, or goodwill arising out of or
+related to this document, whether based on breach of contract, tort (including negligence), strict liability, or otherwise, and even if NVIDIA has been advised of
+the possibility of such damages and even if your remedies fail their essential purpose. Additionally, to the maximum extent permitted by applicable law,
+NVIDIA's total cumulative aggregate liability for any and all liabilities, obligations, or claims arising out of or related to this document will not exceed one-
+hundred U.S. dollars (US$100).
+
+NVIDIA, NVIDIA HGX, NVIDIA DGX SuperPOD, NVIDIA DGX Cloud, NVIDIA ConnectX, NVIDIA BlueField, NVIDIA Spectrum, NVIDIA NVLink, NVIDIA Base
+Command, NVIDIA CUDA, NVIDIA Magnum IO, NVIDIA NetQ, and the NVIDIA logo are trademarks and/or registered trademarks of NVIDIA Corporation in the
+U.S. and other countries. Other company and product names may be trademarks of the respective companies with which they are associated.
+
+© 2025-2026, NVIDIA Corporation. All rights reserved.
+End of document. Compiled from https://docs.nvidia.com/enterprise-reference-architectures/hgx-ai-factory/latest/ — © NVIDIA Corporation.
+
