@@ -136,14 +136,15 @@ header.meta {
 <li><a href="#requirements">Requirements</a></li>
 <li><a href="#assumptions-made">Assumptions Made</a></li>
 <li><a href="#gpu-concepts-you-need-before-reading-the-rest">GPU concepts you need before reading the rest</a></li>
-<li><a href="#nvidias-two-reference-architectures-side-by-side">NVIDIA's two reference architectures, side by side</a></li>
+<li><a href="#nvidias-three-reference-architectures-side-by-side">NVIDIA's three reference architectures, side by side</a></li>
+<li><a href="#the-inference-ra-component-model">The Inference RA component model</a></li>
 <li><a href="#the-hardware-gb300-nvl72-and-hgx-b300">The hardware: GB300 NVL72 and HGX B300</a></li>
 <li><a href="#east-west-scale-out-fabric-ib-vs-spectrum-x-vs-vendor-neutral-ethernet">East-west scale-out fabric: IB vs Spectrum-X vs vendor-neutral Ethernet</a></li>
 <li><a href="#kubernetes-networking-cni-for-the-control-plane-vs-the-data-plane">Kubernetes networking: CNI for the control plane vs. the data plane</a></li>
 <li><a href="#storage-tier-weka-vast-ddn-pure-ceph-beegfs">Storage tier: WEKA, VAST, DDN, Pure, Ceph, BeeGFS</a></li>
 <li><a href="#k8s-control-plane-add-ons-the-operator-zoo">K8s control-plane add-ons: the operator zoo</a></li>
 <li><a href="#inference-runtimes-nvidia-stack-vs-open-source">Inference runtimes: NVIDIA stack vs open source</a></li>
-<li><a href="#gpu-sharing-whole-gpu-vs-mig-vs-mps-time-slicing">GPU sharing: whole-GPU vs MIG vs MPS / time-slicing</a></li>
+<li><a href="#gpu-sharing-whole-gpu-vs-mig-vs-mps-time-slicing-vs-dra">GPU sharing: whole-GPU vs MIG vs MPS / time-slicing vs DRA</a></li>
 <li><a href="#oem-reference-designs-supermicro-and-dell">OEM reference designs: Supermicro and Dell</a></li>
 <li><a href="#neocloud-reference-designs-where-they-diverge-from-nvidias-ra">Neocloud reference designs: where they diverge from NVIDIA's RA</a></li>
 <li><a href="#multi-tenant-security-architecture">Multi-tenant security architecture</a></li>
@@ -151,7 +152,7 @@ header.meta {
 <li><a href="#recommendation-for-this-platform">Recommendation for this platform</a></li>
 </ol>
 <h2 id="executive-summary">Executive Summary</h2>
-<p>NVIDIA publishes <strong>two</strong> canonical reference architectures (RAs) for Blackwell-generation Kubernetes deployments, and both are explicitly <strong>single-tenant</strong>. The multi-tenant inference platform described here will diverge from them deliberately at four layers (fabric, CNI, tenancy, runtime), and converge at three (hardware SKU, GPU operator stack, observability).</p>
+<p>NVIDIA publishes <strong>three</strong> distinct reference architectures (RAs) relevant to Blackwell-generation Kubernetes inference: the <strong>Enterprise RA</strong> (GB300 NVL72 + Spectrum-X, the <em>infrastructure</em> design for enterprise data centers), the <strong>DGX SuperPOD RA</strong> (GB300 + Quantum-X800 InfiniBand, the <em>infrastructure</em> design for frontier-scale labs), and the <strong>NVIDIA Inference RA</strong> (the <em>software / orchestration</em> Northstar for NCPs and ISVs building large-scale inference). The two infrastructure RAs are explicitly <strong>single-tenant</strong>; the Inference RA is fabric-neutral and CSP-oriented but does not prescribe a tenant-isolation model. The multi-tenant platform described here adopts NVIDIA's hardware design + the Inference RA's component model verbatim, then diverges deliberately at four layers (fabric, CNI, tenancy, security) that NVIDIA's RAs do not address.</p>
 <table>
 <thead>
 <tr>
@@ -168,17 +169,17 @@ header.meta {
 </tr>
 <tr>
 <td>Scale-out fabric</td>
-<td><strong>SuperPOD:</strong> Quantum-X800 InfiniBand. <strong>Enterprise RA:</strong> Spectrum-X Ethernet with dual-plane</td>
+<td><strong>SuperPOD + Inference RA:</strong> Quantum-X800 InfiniBand. <strong>Enterprise RA:</strong> Spectrum-X Ethernet, dual-plane (NVIDIA itself is split)</td>
 <td>Spectrum-X dual-plane Ethernet (RoCE v2); reasoning below</td>
 </tr>
 <tr>
 <td>GPU sharing</td>
-<td>MIG-first for partitioned workloads; whole-GPU otherwise</td>
-<td>All three modes exposed; MIG default, whole-GPU for tensor-parallel, MPS gated and tenant-internal only</td>
+<td>MIG-first for partitioned workloads; whole-GPU otherwise; <strong>Inference RA names DRA (Dynamic Resource Allocation) as the K8s primitive</strong> for controlled sharing + MNNVL ComputeDomains</td>
+<td>Whole-GPU default; MIG opt-in for cooperative tenants; DRA the wrapper; Confidential Computing for adversarial fractional sharing</td>
 </tr>
 <tr>
 <td>Tenancy</td>
-<td>Single tenant ("all users in same enterprise")</td>
+<td>Single tenant ("all users in same enterprise") on infra RAs; Inference RA is CSP/NCP-oriented but does not prescribe tenant isolation</td>
 <td>vCluster-per-tenant on shared physical fleet; tenants BYO runtime</td>
 </tr>
 <tr>
@@ -188,12 +189,12 @@ header.meta {
 </tr>
 <tr>
 <td>Inference runtime</td>
-<td>NVIDIA Dynamo + TRT-LLM + NIM</td>
-<td>BYO: support Dynamo, NIM, vLLM, SGLang; expose Dynamo-style disaggregation as a tenant-selectable pattern</td>
+<td>Inference RA: <strong>Dynamo + Router + KVBM + NIXL + Grove + KAI + Planner + TRT-LLM</strong> as the full GenAI stack; backends include PyTorch, SGLang, TRT-LLM, vLLM</td>
+<td>BYO: support Dynamo, NIM, vLLM, SGLang as tenant-selectable; expose the Inference RA's component set to tenants who pick Dynamo</td>
 </tr>
 <tr>
 <td>GPU operator stack</td>
-<td>GPU Operator + Network Operator + NIM Operator + KAI Scheduler</td>
+<td>GPU Operator + Network Operator + KAI Scheduler + Grove + Planner + NIM Operator</td>
 <td>Same, plus NVIDIA DPF (DOCA Platform Framework) for BlueField-3 multi-tenant offload</td>
 </tr>
 <tr>
@@ -209,7 +210,7 @@ header.meta {
 </tbody>
 </table>
 <p><strong>The headline finding</strong> is that NVIDIA's reference designs solve the <em>hard</em> problem (300+ Gb/s GPU-to-GPU fabric, NVLink coherence across 72 GPUs in a rack, liquid cooling integration, deterministic NCCL performance) and explicitly punt on the problem this platform actually has (hard isolation between distrustful tenants who each get their own K8s control plane). The architecture below adopts the hardware and fabric design verbatim, then composes a multi-tenancy layer that NVIDIA's RA does not.</p>
-<p><strong>Recommend Spectrum-X dual-plane Ethernet over InfiniBand</strong> for this deployment, on three grounds: (1) it is the fabric in NVIDIA's <em>Enterprise</em> RA — the one written for enterprise data centers rather than national-lab-style SuperPODs — which signals NVIDIA's own bet on Ethernet for the buyer profile you fit; (2) multi-tenant isolation primitives (VRFs, EVPN-VXLAN, BlueField-3 offload, per-tenant ACLs on Spectrum-4 switches) compose more naturally with K8s than InfiniBand's partition keys; (3) operator skill pool for Ethernet/BGP is an order of magnitude larger than for IB + Subnet Manager + UFM. The bandwidth and latency penalty for choosing Spectrum-X over Quantum-X800 is small enough for inference (both are 800 Gb/s, both support GPUDirect RDMA, NCCL on Spectrum-X with adaptive routing is within ~5% of IB on B-series GPUs) that the operational simplification wins.</p>
+<p><strong>Recommend Spectrum-X dual-plane Ethernet over InfiniBand</strong> for this deployment, on three grounds: (1) it is the fabric in NVIDIA's <em>Enterprise</em> RA — the one written for enterprise data centers rather than national-lab-style SuperPODs — which signals NVIDIA's own bet on Ethernet for the buyer profile you fit; (2) multi-tenant isolation primitives (VRFs, EVPN-VXLAN, BlueField-3 offload, per-tenant ACLs on Spectrum-4 switches) compose more naturally with K8s than InfiniBand's partition keys; (3) operator skill pool for Ethernet/BGP is an order of magnitude larger than for IB + Subnet Manager + UFM. The bandwidth and latency penalty for choosing Spectrum-X over Quantum-X800 is small enough for inference (both are 800 Gb/s, both support GPUDirect RDMA, NCCL on Spectrum-X with adaptive routing is within ~5% of IB on B-series GPUs) that the operational simplification wins. Note: NVIDIA's Inference RA explicitly recommends "NVLink for intra-node, InfiniBand for inter-node" — i.e. NVIDIA's inference team disagrees with this recommendation. Pull on that disagreement deliberately in the fabric section.</p>
 <p><strong>The two biggest risks</strong> to keep in mind while reading the rest: (a) MIG provides hardware partitioning of compute and memory, but academic research has demonstrated cross-MIG covert and side channels at up to 31 kb/s — multi-tenant GPU sharing across distrustful tenants without NVIDIA Confidential Computing should be considered weak isolation; (b) vCluster gives each tenant their own API server but shares the underlying CNI, GPU Operator, and host kernel — a tenant-escape from a vCluster pod is, by default, an escape into the entire physical cluster. Both risks are addressable but require explicit design choices documented later.</p>
 <h2 id="requirements">Requirements</h2>
 <ul>
@@ -232,7 +233,7 @@ header.meta {
 </ul>
 <h2 id="assumptions-made">Assumptions Made</h2>
 <ul>
-<li><strong>"NVIDIA reference architecture"</strong> here means two specific NVIDIA-published documents: the <strong>NVIDIA Enterprise Reference Architecture with GB300 NVL72 and Spectrum-X</strong> (dated March 2026, the most recent at this writing) and the <strong>DGX SuperPOD GB300 RA</strong>. Where NVIDIA Cloud Partner (NCP) RA contributes additional detail (e.g. for neocloud sizing) it's called out by name.</li>
+<li><strong>"NVIDIA reference architecture"</strong> here means three NVIDIA-published documents at two different levels of the stack. <strong>Infrastructure-level:</strong> the <a href="https://docs.nvidia.com/enterprise-reference-architectures/nvl72-ai-factory-with-gb300-nvl72-dual-plane-networking-architecture.pdf">NVIDIA Enterprise Reference Architecture with GB300 NVL72 and Spectrum-X</a> (March 2026) and the <a href="https://docs.nvidia.com/pdf/dgx-spod-gb300-ra.pdf">DGX SuperPOD GB300 RA</a>. <strong>Software / orchestration-level:</strong> the <a href="https://docs.nvidia.com/dsx/guides/inference-ra/">NVIDIA Inference Reference Architecture</a> (the "Northstar" for NCPs and ISVs). Where NVIDIA Cloud Partner (NCP) RA contributes additional detail (e.g. for neocloud sizing) it's called out by name.</li>
 <li><strong>B300 = GB300 NVL72</strong> is the deployment unit. HGX B300 NVL8 standalone nodes are mentioned where relevant but are not the centerpiece.</li>
 <li><strong>vCluster</strong> is the assumed virtual-K8s technology (most production-mature). Kamaji and Cluster API are alternatives; full comparison is out of scope.</li>
 <li><strong>Liquid cooling is a constraint, not a topic.</strong> Rack-level CDU implications noted, thermals not analyzed.</li>
@@ -255,72 +256,192 @@ header.meta {
 - <strong>Time-slicing:</strong> <em>Cooperative</em> sharing via the driver. Multiple pods get the same GPU; the driver round-robins their kernels. Even weaker than MPS.</p>
 <p><strong>MIG profile geometry on B-series.</strong> B200/B300 supports 1-instance, 2-instance, 3-instance, 4-instance, and 7-instance partitionings, with HBM divided proportionally. On B200 the 7-way split gives 23 GB per slice; the 2-way split gives 93 GB per slice (<a href="https://www.nvidia.com/en-us/technologies/multi-instance-gpu/">NVIDIA Multi-Instance GPU</a>). On B300 with 288 GB/GPU the corresponding 7-way slice is ~36 GB, the 2-way slice is ~140 GB. Each slice has more memory than an entire H100 had, which changes the calculus on whether MIG is worth using for inference (it now is, for 7-13B-class models).</p>
 <p><strong>DPU (Data Processing Unit).</strong> A NIC with its own ARM SoC, memory, and PCIe topology that can run a separate OS and offload host services (storage, networking, security). NVIDIA's BlueField-3 is the GB300's standard DPU; it runs DOCA software, hosts the OVS dataplane, and (in NVIDIA's reference) terminates the host's north-south traffic before it ever touches the x86 or Grace host.</p>
-<h2 id="nvidias-two-reference-architectures-side-by-side">NVIDIA's two reference architectures, side by side</h2>
-<p>NVIDIA publishes two reference architectures with overlapping but distinct scope. Understanding the difference matters because picking one as your starting point biases every downstream decision.</p>
+<h2 id="nvidias-three-reference-architectures-side-by-side">NVIDIA's three reference architectures, side by side</h2>
+<p>NVIDIA publishes three relevant reference architectures at two distinct levels of the stack. Two are <em>infrastructure</em> RAs (hardware, fabric, power, cooling); the third is a <em>software / orchestration</em> RA (components, runtimes, schedulers). Understanding all three matters because they overlap, contradict each other on fabric, and target different buyer profiles.</p>
 <table>
 <thead>
 <tr>
 <th>Dimension</th>
-<th><a href="https://docs.nvidia.com/enterprise-reference-architectures/nvl72-ai-factory-with-gb300-nvl72-dual-plane-networking-architecture.pdf">Enterprise RA (March 2026)</a></th>
+<th><a href="https://docs.nvidia.com/enterprise-reference-architectures/nvl72-ai-factory-with-gb300-nvl72-dual-plane-networking-architecture.pdf">Enterprise RA (Mar 2026)</a></th>
 <th><a href="https://docs.nvidia.com/pdf/dgx-spod-gb300-ra.pdf">DGX SuperPOD GB300 RA</a></th>
+<th><a href="https://docs.nvidia.com/dsx/guides/inference-ra/">Inference RA</a></th>
 </tr>
 </thead>
 <tbody>
 <tr>
+<td>Level</td>
+<td>Infrastructure</td>
+<td>Infrastructure</td>
+<td>Software / orchestration</td>
+</tr>
+<tr>
+<td>Audience</td>
+<td>Enterprise data center</td>
+<td>Frontier labs / national labs</td>
+<td>NVIDIA Cloud Partners (NCPs), ISVs</td>
+</tr>
+<tr>
 <td>Scalable Unit (SU)</td>
-<td>1 rack of GB300 NVL72 (72 GPUs, 18 trays)</td>
-<td>8 racks of DGX GB300 (576 GPUs, 144 trays)</td>
+<td>1 rack GB300 NVL72 (72 GPUs)</td>
+<td>8 racks DGX GB300 (576 GPUs)</td>
+<td>Not infra-prescriptive; cluster-shaped per workload</td>
 </tr>
 <tr>
 <td>Tested scale</td>
-<td>up to 8 SUs (576 GPUs); super-spine at 1024+ nodes</td>
+<td>up to 8 SUs (576 GPUs); super-spine at 1024+</td>
 <td>up to 16 SUs (9,216 GPUs)</td>
+<td>n/a (scales with the chosen infra RA)</td>
 </tr>
 <tr>
 <td>Scale-out fabric</td>
-<td>NVIDIA <strong>Spectrum-X Ethernet</strong>, dual-plane</td>
-<td>NVIDIA <strong>Quantum-X800 InfiniBand</strong>, single-plane fat-tree</td>
+<td><strong>Spectrum-X Ethernet</strong>, dual-plane</td>
+<td><strong>Quantum-X800 InfiniBand</strong>, fat-tree</td>
+<td>"NVLink intra-node, <strong>InfiniBand inter-node</strong>" recommended; Ethernet (Spectrum) and RoCE listed as supported via NIXL</td>
 </tr>
 <tr>
 <td>Compute switch</td>
 <td>SN5600 (128 × 400 Gb/s)</td>
 <td>Q3400-RD (144 × 800 Gb/s)</td>
-</tr>
-<tr>
-<td>Storage fabric</td>
-<td>Same Spectrum-4 (SN5600) — converged with east-west on small designs</td>
-<td>Separate Spectrum-4 (SN5600D) for storage + in-band</td>
-</tr>
-<tr>
-<td>Mgmt fabric</td>
-<td>SN2201 1 Gb OOB</td>
-<td>SN2201 1 Gb OOB</td>
+<td>n/a</td>
 </tr>
 <tr>
 <td>Per-tray NICs</td>
-<td>4× ConnectX-8 (2×400 Gb/s) + 1× BlueField-3 B3240</td>
-<td>4× ConnectX-8 (800 Gb/s) + 1× BlueField-3</td>
+<td>4× ConnectX-8 (2×400) + 1× BlueField-3</td>
+<td>4× ConnectX-8 (800) + 1× BlueField-3</td>
+<td>n/a</td>
 </tr>
 <tr>
-<td>Software</td>
-<td>NVIDIA AI Enterprise, Mission Control, Dynamo, Run:ai, NetQ</td>
-<td>Same, plus UFM for IB management, NMX-M for NVLink</td>
+<td>Software stack</td>
+<td>NVIDIA AI Enterprise, Mission Control, Dynamo, Run:ai (KAI), NetQ</td>
+<td>Same + UFM (IB) + NMX-M (NVLink)</td>
+<td><strong>Dynamo + Router + KVBM + NIXL + Grove + KAI + Planner + TRT-LLM + Model Optimizer + Model Express + AIConfigurator + AIPerf</strong></td>
 </tr>
 <tr>
-<td>Tenancy</td>
-<td><strong>"Ideal for multi-user, single-tenant workloads"</strong> — users in same enterprise</td>
-<td>Single-tenant on-prem; "customer owns the hardware"</td>
+<td>Tenancy posture</td>
+<td>"Multi-user, single-tenant" — users in same enterprise</td>
+<td>Single-tenant on-prem</td>
+<td>CSP-style elastic / on-demand; tenant isolation <strong>not prescribed</strong> at this layer</td>
 </tr>
 <tr>
 <td>Workload</td>
 <td>K8s + Slurm, non-virtualized</td>
 <td>K8s + Slurm, non-virtualized</td>
+<td>K8s-native; disaggregated inference is the canonical pattern</td>
 </tr>
 </tbody>
 </table>
-<p>Two things to internalize from this table.</p>
-<p><strong>First, NVIDIA itself is making the IB-vs-Ethernet call differently by buyer profile.</strong> Enterprises (Fortune 500 IT, regulated industries, on-prem AI labs) get Spectrum-X Ethernet; national labs, frontier-model labs, and customers building &gt;1000-GPU pods get DGX SuperPOD with Quantum-X800 InfiniBand. The technical headline reason is operator skill: enterprise IT teams have Ethernet engineers, not IB engineers. The Enterprise RA closes the technical gap with the <strong>dual-plane topology</strong> (described in the fabric section below) and with NVIDIA's adaptive routing + congestion control in Spectrum-X that makes RoCE behave more like IB.</p>
-<p><strong>Second, neither RA targets multi-tenancy.</strong> The Enterprise RA states this explicitly on p. 5: "this architecture is ideal for multi-user, single tenant workloads. Specifically, the logical design and software is streamlined for deployment and maintenance ease by tailoring the configuration to one where users are all part of the same enterprise, and accounting and access control can be consolidated." The SuperPOD RA is similar — "the customer owns the hardware, the service it provides, and is responsible for their cluster infrastructure." Both presume one organization owns the cluster and runs trusted workloads on it. The platform described in this report is the inverse: many tenants, distrustful, each running their own runtime. Everything below from the CNI section onward is a deliberate divergence from NVIDIA's published RA.</p>
+<p>Three things to internalize from this table.</p>
+<p><strong>First, NVIDIA itself is making the IB-vs-Ethernet call differently by buyer profile and by team.</strong> The Enterprise RA team (March 2026) writes Spectrum-X Ethernet into the most recent enterprise design. The SuperPOD team writes InfiniBand. The Inference RA team's deployment recommendation reads "NVLink for intra-node, InfiniBand for inter-node" — even though NIXL (NVIDIA's inference transfer library) supports all of NVLink, InfiniBand, RoCE, and Ethernet. <strong>The Inference RA agrees with SuperPOD, not with Enterprise RA.</strong> That's not an oversight; it's a real internal split. The fabric section below pulls on this deliberately.</p>
+<p><strong>Second, the infrastructure RAs don't target multi-tenancy and the Inference RA doesn't address it at all.</strong> The Enterprise RA states explicitly on p. 5: <em>"this architecture is ideal for multi-user, single tenant workloads. Specifically, the logical design and software is streamlined for deployment and maintenance ease by tailoring the configuration to one where users are all part of the same enterprise."</em> The SuperPOD RA is similar. The Inference RA is written for CSP-style elastic operations but does not specify how tenant boundaries are enforced — it covers the components but not the isolation primitives. <strong>All three RAs presume the operator solves the multi-tenant problem; none tell you how.</strong> Everything below from the CNI section onward is a deliberate divergence.</p>
+<p><strong>Third, the Inference RA is the most important of the three for an inference-focused platform</strong> — and it's the one most often skipped because it isn't a "hardware" RA. It defines the canonical component set (Grove, Planner, KVBM, NIXL, Router, Model Express, AIConfigurator, AIPerf) and the canonical adoption patterns. The next section walks through it.</p>
+<h2 id="the-inference-ra-component-model">The Inference RA component model</h2>
+<p>The Inference RA organizes its components into seven layers. Each layer can be adopted independently — the document is explicit about this, framing the stack as <em>"every component in this reference architecture can be adopted independently, combined incrementally, or integrated with existing infrastructure you already have in place."</em> The full list (from the <a href="https://docs.nvidia.com/dsx/guides/inference-ra/">primary source</a> in <code>sources/nvidia-inference-ra.pdf</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Components</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Infrastructure</strong></td>
+<td>NVIDIA IMEX, NVLink, <strong>Dynamic Resource Allocation (DRA)</strong></td>
+<td>IMEX = multi-node NVLink (MNNVL): GPUs read/write each other's memory across nodes connected by an NVSwitch. DRA = K8s primitive for controlled GPU sharing + ComputeDomains (the scheduler-visible scope of MNNVL).</td>
+</tr>
+<tr>
+<td><strong>Optimization</strong></td>
+<td>Model Optimizer, TensorRT, TensorRT-LLM</td>
+<td>Quantization (NVFP4, FP8), distillation, pruning, speculative decoding, sparsity. TRT-LLM is the GenAI-specific runtime.</td>
+</tr>
+<tr>
+<td><strong>Deployment</strong></td>
+<td>KAI Scheduler, GPU Operator, Network Operator, <strong>Grove</strong>, <strong>Planner</strong></td>
+<td>Grove = K8s API for <strong>gang scheduling + topology awareness</strong> for multi-node disaggregated serving. Planner = real-time SLA-driven tuner that decides aggregated vs disaggregated serving and allocates GPU workers based on TTFT/ITL targets.</td>
+</tr>
+<tr>
+<td><strong>Inference Serving</strong></td>
+<td>Dynamo, Router, <strong>Gateway API Inference Extension</strong></td>
+<td>Dynamo = disaggregated GenAI serving. Router = smart KV-cache-aware request routing with overlap scoring + Radix Tree. The Gateway API Inference Extension is K8s-native ingress integration.</td>
+</tr>
+<tr>
+<td><strong>Memory and Caching</strong></td>
+<td><strong>NIXL</strong>, <strong>KV Block Manager</strong>, <strong>Model Express</strong></td>
+<td>NIXL (NVIDIA Inference tranXfer Library) = hardware-agnostic point-to-point data transfer across G1–G4 memory tiers (GPU, host RAM, NVMe, networked storage); supports NVLink, IB, RoCE, Ethernet. KVBM = hierarchical KV cache with customizable eviction. Model Express = fast model weight loading via caching + NIXL, also fault-tolerance.</td>
+</tr>
+<tr>
+<td><strong>Performance Tooling</strong></td>
+<td>AIConfigurator, AIPerf</td>
+<td>AIConfigurator estimates aggregated vs disaggregated performance based on model + ISL/OSL + hardware. AIPerf is a distributed Python benchmarking tool.</td>
+</tr>
+<tr>
+<td><strong>Container Registry</strong></td>
+<td>nvcr.io</td>
+<td>GPU-optimized containers, pretrained models, SDKs, Helm charts.</td>
+</tr>
+</tbody>
+</table>
+<p>NVIDIA's <a href="https://docs.nvidia.com/dsx/guides/inference-ra/">common adoption patterns table</a> maps use cases to component combinations:</p>
+<table>
+<thead>
+<tr>
+<th>Use case</th>
+<th>Core components</th>
+<th>Optional</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Basic ML inference</td>
+<td>TensorRT + Triton</td>
+<td>DALI, GPU Operator</td>
+</tr>
+<tr>
+<td>Speech / NLP pipeline</td>
+<td>Riva SDK + Triton</td>
+<td>DALI, TensorRT</td>
+</tr>
+<tr>
+<td>Single-node LLM</td>
+<td>TensorRT-LLM + Dynamo</td>
+<td>Model Optimizer</td>
+</tr>
+<tr>
+<td>Distributed LLM</td>
+<td>Dynamo + KVBM + NIXL + Router + TensorRT-LLM</td>
+<td>Planner, Model Express, Model Optimizer</td>
+</tr>
+<tr>
+<td>Kubernetes deployment</td>
+<td>GPU Operator + KAI Scheduler</td>
+<td>Network Operator, Grove</td>
+</tr>
+<tr>
+<td><strong>Full GenAI stack</strong></td>
+<td><strong>Dynamo + NIXL + KVBM + Router + Grove + KAI Scheduler + Planner</strong></td>
+<td>AIConfigurator, AIPerf</td>
+</tr>
+</tbody>
+</table>
+<p>For this platform the relevant adoption path is the <strong>full GenAI stack</strong> for tenants that select Dynamo, plus the <strong>Kubernetes deployment</strong> baseline (GPU Operator + KAI Scheduler) installed once per physical cluster. Tenants who choose vLLM or SGLang get a subset (the runtime + KVBM + NIXL for KV transfer; Grove + KAI for gang scheduling + topology awareness).</p>
+<p><strong>The disaggregated serving pipeline</strong>, end-to-end (NVIDIA's reference, faithful to the diagram on p. 12 of the source):</p>
+<ol>
+<li><strong>Client → Dynamo API Server + Smart Router</strong> (request enters, overlap-scored against Radix Tree of cached KV blocks).</li>
+<li><strong>Router → Prefill Workers</strong> (compute-bound, low tensor-parallelism, generates KV cache for the input).</li>
+<li><strong>KV cache → Distributed KV Cache</strong> (KVBM places blocks across GPU HBM, host RAM, NVMe; NIXL handles transfer).</li>
+<li><strong>Decode Workers</strong> (memory-bound, high tensor-parallelism, generates tokens) read KV from the distributed cache via NIXL.</li>
+<li><strong>Planner</strong> continuously rebalances prefill:decode worker ratios against SLA targets (time-to-first-token, inter-token latency).</li>
+<li><strong>Grove + KAI</strong> schedule the gang of prefill + decode pods with topology awareness so they land in the right NVL72 racks.</li>
+</ol>
+<p>NVIDIA's published worked example is <strong>DeepSeek-R1 671B on GB300 NVL72</strong>: NVFP4 quantization via Model Optimizer v0.23.0, calibrated on <code>cnn_dailymail</code>, evaluated on MMLU, configured with <strong>EP4DP16 for the prefill context phase</strong> (Expert Parallel 4, Data Parallel 16) and <strong>EP64DP3 for the generation/decode phase</strong>. The published gains versus H200 FP8:</p>
+<ul>
+<li><strong>50× more tokens/MW</strong> (token-per-watt) at the same interactivity level (1k/1k input/output, see chart p. 17).</li>
+<li><strong>35× lower cost per million tokens</strong> vs Hopper.</li>
+<li><strong>1.5× lower cost per million tokens</strong> vs GB200 NVL72 on long-context 128k/8k workloads.</li>
+<li><strong>1.5× higher NVFP4 compute throughput</strong> and <strong>2× faster attention</strong> vs GB200.</li>
+</ul>
+<p>For the platform team, the operational implication is that <strong>the canonical Dynamo deployment is a multi-CRD gang</strong> — prefill pool, decode pool, KVBM, Router, Planner — orchestrated by Grove + KAI, not a single Deployment. The tenant-facing abstraction must surface this.</p>
 <h2 id="the-hardware-gb300-nvl72-and-hgx-b300">The hardware: GB300 NVL72 and HGX B300</h2>
 <p>The unit of deployment is one <strong>GB300 NVL72</strong> rack. From <a href="https://www.nvidia.com/en-us/data-center/gb300-nvl72/">NVIDIA's product page</a> and the Enterprise RA:</p>
 <ul>
@@ -429,9 +550,9 @@ header.meta {
 <li><strong>Multi-tenant isolation primitives compose better with K8s.</strong> P_Keys in IB are a fabric-wide construct managed by the Subnet Manager / UFM appliance — they live outside K8s, and mapping them to vCluster boundaries requires a translation layer. VRFs and per-tenant VXLAN segments on Spectrum-X live in the same EVPN control plane that already carries the rest of the data center, and K8s primitives (NetworkPolicy, NetworkAttachmentDefinitions via Multus) attach cleanly. CoreWeave runs IB for compute and <em>Ethernet</em> for storage <a href="https://www.coreweave.com/products/hgx-h100-h200">explicitly to avoid this contention</a>; on a single-fabric Ethernet platform you avoid the impedance mismatch by construction.</li>
 <li><strong>Operator skill pool.</strong> The team running this platform on day 2 will be debugging Spectrum-4 BGP convergence and ECN drops, not "subnet manager elections" and IB partition reconvergence. This is a workforce decision, not a technology decision.</li>
 <li><strong>Performance is close enough.</strong> Spectrum-X with adaptive routing delivers within ~5% of Quantum-X800 IB on multi-node NCCL all-reduce for B-series GPUs. For inference (where the cross-node hot path is KV-cache transfer between prefill and decode workers, not all-reduce gradients), the gap is even smaller. The MLPerf numbers above were produced on Quantum-X800; production deployments on Spectrum-X are showing parity-class results.</li>
-<li><strong>NVIDIA itself moves enterprise customers to Spectrum-X.</strong> The most recent Enterprise RA (March 2026) is Spectrum-X-only. The IB path is reserved for SuperPOD and frontier-lab buyers.</li>
+<li><strong>NVIDIA itself is split on this — but the most recent enterprise RA is Spectrum-X.</strong> The Enterprise RA team (March 2026) writes Spectrum-X. The Inference RA team writes "NVLink intra-node, InfiniBand inter-node" — even though NIXL is fabric-agnostic. The SuperPOD team writes IB. This is an internal NVIDIA tension, not a clean recommendation. The Inference RA's IB preference reflects the cross-node KV-cache transfer latency advantage IB still has on paper; the Enterprise RA's Spectrum-X preference reflects the multi-tenant + operator-skill realities most buyers actually face. For this platform's profile (multi-tenant, vCluster, K8s-native), the Enterprise RA's logic wins; for a frontier-lab single-tenant deployment, the Inference RA's logic would win.</li>
 </ol>
-<p><strong>The InfiniBand counter-argument</strong> is real: if your customers are training-heavy and need every last drop of all-reduce performance, IB still wins narrowly, and SHARPv3 (in-network reductions) is a feature that has no Ethernet equivalent. For <em>inference</em>, this doesn't apply.</p>
+<p><strong>The InfiniBand counter-argument</strong> is real: if your customers are training-heavy and need every last drop of all-reduce performance, IB still wins narrowly, and SHARPv3 (in-network reductions) is a feature that has no Ethernet equivalent. For <em>inference</em> specifically, NIXL abstracts the transport — KV-cache transfers happen over whichever fabric is present, so the inference team's IB preference is more about latency tails than throughput. On a Spectrum-X fabric with adaptive routing those tail effects are largely absorbed by the congestion control.</p>
 <p><strong>Vendor-neutral RoCE</strong> (Arista/Cisco/Juniper instead of Spectrum-4) is a viable third option if NVIDIA-lock-in at the switching tier is unacceptable. The cost: you lose Spectrum-X's adaptive routing and proprietary congestion control, NetQ telemetry, and the ConnectX-8 ↔ Spectrum-4 co-optimization. Meta runs this profile internally on Arista switches. The trade is acceptable if your team can engineer PFC/ECN/adaptive-routing yourselves, less so if the platform team is small.</p>
 <h2 id="kubernetes-networking-cni-for-the-control-plane-vs-the-data-plane">Kubernetes networking: CNI for the control plane vs. the data plane</h2>
 <p>Multi-tenant GPU clusters run <strong>two separate networks</strong>, both surfaced to pods:</p>
@@ -643,60 +764,145 @@ header.meta {
 <p><strong>The connectivity tier:</strong> RoCE v2 on the converged north-south fabric (Spectrum-4 SN5600 in NVIDIA's Enterprise RA), terminated at the BlueField-3 DPU on each tray. BlueField-3 offloads NVMe-oF initiator from the host CPU — the host sees a local NVMe device, but the actual blocks live on the storage cluster. This is the same model in DGX SuperPOD (<a href="https://docs.nvidia.com/pdf/dgx-spod-gb300-ra.pdf">SuperPOD RA</a>, p. 14): 400 Gbps line rate per tray to the storage fabric, dedicated port (not shared with in-band) to avoid RoCE/control contention.</p>
 <p><strong>GPUDirect Storage (GDS).</strong> Skip the host-bounce path entirely: the NIC's RDMA engine DMAs storage reads straight into GPU HBM. Requires (a) <code>nvidia-fs</code> kernel module, (b) GDS-aware storage client, (c) GDS-aware application (model loader). Common runtimes (vLLM, TRT-LLM, Triton) all have GDS-compatible loaders. The throughput win on 405B-class cold starts is dramatic — published WEKA + GDS numbers show ~80 GB/s per node sustained, versus ~25 GB/s through the host page cache.</p>
 <h2 id="k8s-control-plane-add-ons-the-operator-zoo">K8s control-plane add-ons: the operator zoo</h2>
-<p>NVIDIA's Blackwell K8s stack composes a half-dozen operators. They are not strictly necessary in all combinations, but they are the path NVIDIA documents and the path neoclouds run in production.</p>
+<p>NVIDIA's Blackwell K8s stack composes the <a href="#the-inference-ra-component-model">Inference RA's component model</a> into a set of operators, CRDs, and libraries. Some are operators that <em>install</em> things; some are libraries that runtimes <em>use</em>; some are CRDs that schedulers <em>consume</em>. The Inference RA does not lay out the install order; this is the order the field uses.</p>
 <table>
 <thead>
 <tr>
-<th>Operator</th>
-<th>What it owns</th>
+<th>Component</th>
+<th>Type</th>
+<th>What it does</th>
 <th>Required for</th>
 </tr>
 </thead>
 <tbody>
 <tr>
+<td><strong><a href="https://github.com/kubernetes-sigs/node-feature-discovery">Node Feature Discovery (NFD)</a></strong></td>
+<td>Operator</td>
+<td>Labels nodes with hardware features (GPU type, NUMA, NIC, fabric)</td>
+<td>All other operators depend on these labels</td>
+</tr>
+<tr>
 <td><strong><a href="https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/">NVIDIA GPU Operator</a></strong></td>
-<td>Driver (datacenter R570+), container toolkit, k8s-device-plugin, DCGM exporter, MIG manager, node feature discovery (NFD), validator. All managed via ClusterPolicy CRD</td>
+<td>Operator</td>
+<td>Driver, container toolkit, k8s-device-plugin, DCGM exporter, MIG manager, validator; ClusterPolicy CRD</td>
 <td>Anything that uses a GPU</td>
 </tr>
 <tr>
 <td><strong><a href="https://docs.nvidia.com/networking/display/kubernetes2570/index.html">NVIDIA Network Operator</a></strong></td>
-<td>DOCA-OFED driver, Multus CNI, SR-IOV CNI, SR-IOV device plugin, RDMA shared device plugin, IPoIB, NVIDIA IPAM</td>
-<td>Multi-tenant scale-out fabric (mandatory here)</td>
+<td>Operator</td>
+<td>DOCA-OFED, Multus CNI, SR-IOV CNI + device plugin, RDMA shared device plugin, IPoIB</td>
+<td>Multi-tenant scale-out fabric</td>
+</tr>
+<tr>
+<td><strong>DRA (Dynamic Resource Allocation)</strong></td>
+<td>K8s primitive</td>
+<td>Per-GPU device allocation with claims/classes; supersedes the static device-plugin model; underpins <strong>ComputeDomains</strong> for Multi-Node NVLink (MNNVL)</td>
+<td>GB200/GB300 MNNVL workloads, dynamic GPU sharing</td>
+</tr>
+<tr>
+<td><strong><a href="https://docs.nvidia.com/dsx/guides/inference-ra/">NVIDIA IMEX</a></strong></td>
+<td>Library + daemon</td>
+<td>Facility for GPUs to read/write each other's memory across nodes via NVSwitch</td>
+<td>Multi-node NVLink-coherent workloads</td>
+</tr>
+<tr>
+<td><strong><a href="https://github.com/NVIDIA/KAI-scheduler">KAI Scheduler</a></strong> (née Run:ai)</td>
+<td>Scheduler</td>
+<td>Topology-aware scheduling, fair-share quotas, gang scheduling, fractional GPUs, dynamic MIG</td>
+<td>Tenant fairness + topology-aware GPU placement</td>
+</tr>
+<tr>
+<td><strong>Grove</strong></td>
+<td>CRD (K8s API)</td>
+<td>Gang scheduling + topology awareness for <strong>multi-node disaggregated serving</strong>; consumed by KAI</td>
+<td>Multi-node Dynamo (prefill + decode pools across racks)</td>
+</tr>
+<tr>
+<td><strong>Planner</strong></td>
+<td>Daemon</td>
+<td>Real-time, SLA-driven (TTFT / inter-token latency) decisions on aggregated vs disaggregated serving and prefill:decode ratio</td>
+<td>Production Dynamo with live SLA targets</td>
+</tr>
+<tr>
+<td><strong><a href="https://docs.nvidia.com/dynamo/latest/">Dynamo K8s Operator</a></strong></td>
+<td>Operator</td>
+<td>Dynamo CRDs (prefill pool, decode pool, Router, KVBM, NIXL config), Helm</td>
+<td>Tenants who select Dynamo</td>
+</tr>
+<tr>
+<td><strong>Router</strong></td>
+<td>Service</td>
+<td>Smart request routing using overlap scoring against a Radix Tree of cached KV blocks; integrates with <strong>Gateway API Inference Extension</strong> for K8s ingress</td>
+<td>Dynamo + KV-cache-aware routing</td>
+</tr>
+<tr>
+<td><strong>KV Block Manager (KVBM)</strong></td>
+<td>Library / sidecar</td>
+<td>Hierarchical KV cache across GPU HBM / host RAM / NVMe / object storage with customizable eviction</td>
+<td>Disaggregated inference at scale</td>
+</tr>
+<tr>
+<td><strong>NIXL (NVIDIA Inference tranXfer Library)</strong></td>
+<td>Library</td>
+<td>Hardware-agnostic point-to-point transfer across G1–G4 memory tiers; supports NVLink, IB, RoCE, Ethernet</td>
+<td>KV-cache transfer between prefill / decode pools; Model Express fast-load</td>
+</tr>
+<tr>
+<td><strong>Model Express</strong></td>
+<td>Library</td>
+<td>Fast model weight loading via caching + NIXL; doubles as fault tolerance</td>
+<td>Cold-start latency, replica scale-out</td>
+</tr>
+<tr>
+<td><strong>Model Optimizer</strong></td>
+<td>Toolkit</td>
+<td>NVFP4 / FP8 quantization, distillation, pruning, speculative decoding, sparsity</td>
+<td>Producing inference-ready checkpoints</td>
+</tr>
+<tr>
+<td><strong>AIConfigurator</strong></td>
+<td>CLI</td>
+<td>Performance estimation: aggregated vs disaggregated serving for a model + ISL/OSL + hardware</td>
+<td>Capacity planning before deploy</td>
+</tr>
+<tr>
+<td><strong>AIPerf</strong></td>
+<td>Tool</td>
+<td>Distributed Python benchmarking</td>
+<td>Continuous performance validation</td>
 </tr>
 <tr>
 <td><strong><a href="https://docs.nvidia.com/nim-operator/latest/index.html">NIM Operator</a></strong></td>
+<td>Operator</td>
 <td>NIM and NeMo microservice CRDs, model caching, autoscaling</td>
 <td>Tenants who select the NIM runtime path</td>
 </tr>
 <tr>
-<td><strong><a href="https://docs.nvidia.com/dynamo/latest/">Dynamo K8s Operator</a></strong></td>
-<td>Dynamo CRDs for prefill / decode worker pools, KV router, KVBM, Grove for multi-node tensor parallel</td>
-<td>Tenants who select Dynamo</td>
-</tr>
-<tr>
-<td><strong><a href="https://github.com/NVIDIA/KAI-scheduler">KAI Scheduler</a></strong> (née Run:ai)</td>
-<td>Topology-aware scheduling, fair-share / hierarchical quotas, gang scheduling, fractional GPUs, dynamic MIG</td>
-<td>Tenant fairness + topology-aware GPU placement</td>
-</tr>
-<tr>
 <td><strong><a href="https://docs.nvidia.com/networking/display/dpf2507">DPF (DOCA Platform Framework)</a></strong></td>
+<td>Operator</td>
 <td>BlueField-3 DPU provisioning + lifecycle, DOCA service orchestration</td>
 <td>Phase 2: DPU-side multi-tenant offload</td>
 </tr>
 <tr>
 <td><strong><a href="https://github.com/NVIDIA/dcgm-exporter">DCGM Exporter</a></strong></td>
+<td>DaemonSet</td>
 <td>Per-GPU Prometheus metrics (utilization, memory, ECC, throttling, power)</td>
-<td>Observability — mandatory in production</td>
+<td>Observability</td>
 </tr>
 <tr>
-<td><strong><a href="https://github.com/kubernetes-sigs/node-feature-discovery">Node Feature Discovery (NFD)</a></strong></td>
-<td>Labels nodes with hardware features (GPU type, NUMA, NIC, fabric)</td>
-<td>All other operators depend on these labels</td>
+<td><strong>nvcr.io</strong></td>
+<td>Registry</td>
+<td>NVIDIA-curated containers, models, Helm charts</td>
+<td>Distribution; admission policy</td>
 </tr>
 </tbody>
 </table>
-<p>The dependency order is <strong>NFD → GPU Operator → Network Operator → KAI Scheduler → (NIM Operator | Dynamo Operator)</strong>. DPF sits next to Network Operator; DCGM Exporter is invoked by GPU Operator.</p>
-<p><strong>One opinion worth stating up front:</strong> the KAI Scheduler (the productized Run:ai successor, <a href="https://github.com/NVIDIA/KAI-scheduler">open-sourced by NVIDIA in 2025</a>) is the right gang/fair scheduler for this platform. The default K8s scheduler does not know that a tenant's 8-way tensor-parallel pod needs all 8 GPUs on the same NVL72 rack or it should not start at all. KAI does. Alternatives — Volcano, Kueue — are viable but Volcano is heavier-weight and Kueue is queue-management only.</p>
+<p>The dependency order is <strong>NFD → GPU Operator (+ DRA) → Network Operator → KAI Scheduler → (Grove + Planner) → (Dynamo Operator | NIM Operator)</strong>. DPF sits next to Network Operator; IMEX is configured by the GPU Operator on GB200/GB300 nodes; DCGM Exporter is bundled with the GPU Operator.</p>
+<p><strong>Two opinions worth stating up front:</strong></p>
+<ol>
+<li><strong>KAI Scheduler is the right gang/fair scheduler.</strong> The default K8s scheduler does not know that a tenant's 8-way tensor-parallel pod needs all 8 GPUs on the same NVL72 rack or it should not start at all. KAI does, and Grove extends this to the multi-rack disaggregated case. Alternatives (Volcano, Kueue) are viable but Volcano is heavier-weight and Kueue is queue-management only.</li>
+<li><strong>DRA is the path forward for GPU sharing</strong>, not the device-plugin model. The Inference RA names DRA explicitly. K8s 1.32+ supports DRA as a stable feature; the GPU Operator surfaces it via the <code>nvidia.com/gpu</code> resource claim. This is the K8s-native way to do fractional GPUs, MIG slice allocation, and MNNVL ComputeDomain claims, and it composes with KAI's topology-aware scheduling. See the GPU sharing section for how this changes the picture.</li>
+</ol>
 <h2 id="inference-runtimes-nvidia-stack-vs-open-source">Inference runtimes: NVIDIA stack vs open source</h2>
 <p>The platform commits to <strong>BYO runtime</strong>: tenants pick their inference stack and the platform provides the substrate. The five runtimes that matter for B-series:</p>
 <table>
@@ -715,11 +921,11 @@ header.meta {
 <tr>
 <td><strong>NVIDIA Dynamo</strong></td>
 <td>Apache-2.0</td>
-<td>Block-paged, KVBM offload to CPU/disk, Flash Indexer @ 170M ops/s</td>
-<td><strong>Native</strong>, prefill/decode worker pools as separate CRDs</td>
+<td>Block-paged via <strong>KVBM</strong> (hierarchical: GPU HBM → host RAM → NVMe → object); Flash Indexer @ 170M ops/s; Radix-Tree overlap scoring at Router</td>
+<td><strong>Native</strong>, prefill/decode worker pools as separate CRDs; <strong>Planner</strong> auto-tunes P:D ratio against TTFT/ITL SLA</td>
 <td>Yes via TRT-LLM</td>
-<td>K8s Operator + Helm; Grove for multi-node TP; KV-cache-aware routing</td>
-<td>NVIDIA's preferred path; can use TRT-LLM, vLLM, or SGLang as engine</td>
+<td>K8s Operator + Helm; <strong>Grove</strong> for multi-node TP + gang scheduling; <strong>NIXL</strong> for cross-fabric KV transfer; Gateway API Inference Extension for ingress</td>
+<td>NVIDIA's preferred path; <strong>explicitly supports PyTorch, SGLang, TRT-LLM, vLLM as backend engines</strong> (Inference RA, p. 18)</td>
 </tr>
 <tr>
 <td><strong>NVIDIA Triton + TRT-LLM</strong></td>
@@ -761,7 +967,7 @@ header.meta {
 </table>
 <p><strong>Comparative read:</strong></p>
 <ul>
-<li><strong>Disaggregated prefill/decode</strong> is the architecture pattern that B-series hardware was designed around — moving compute-bound prefill to a small dedicated pool and memory-bandwidth-bound decode to a different pool, transferring KV blocks between them. Dynamo and SGLang have native first-class support; vLLM has it as experimental; Triton has the older non-native pattern. For tenants with reasoning workloads (DeepSeek-R1-class models, long thinking traces), disaggregated serving is the headline 2-3× win.</li>
+<li><strong>Disaggregated prefill/decode</strong> is the architecture pattern that B-series hardware was designed around — moving compute-bound prefill to a small dedicated pool and memory-bandwidth-bound decode to a different pool, transferring KV blocks between them. Dynamo and SGLang have native first-class support; vLLM has it as experimental; Triton has the older non-native pattern. NVIDIA's published worked example for the platform is <strong>DeepSeek-R1 671B on GB300 NVL72</strong> with <strong>EP4DP16 context-phase parallelism</strong> and <strong>EP64DP3 generation-phase parallelism</strong> (NVFP4 weights via Model Optimizer v0.23.0, calibrated on <code>cnn_dailymail</code>, evaluated on MMLU), delivering 50× tokens/MW and 35× lower $/M-tokens vs Hopper FP8, and 1.5× lower $/M-tokens vs GB200 NVL72 on 128k/8k long-context workloads (<a href="https://docs.nvidia.com/dsx/guides/inference-ra/">NVIDIA Inference RA</a>, pp. 16-18). For tenants with reasoning workloads, disaggregated serving is the headline 2-3× win on top of the hardware generation gain.</li>
 <li><strong>NVFP4 + FP8 KV cache</strong> is the second headline win. All five runtimes support it on B-series; NVIDIA's stack ships pre-quantized checkpoints, OSS runtimes typically require an explicit quantization step.</li>
 <li><strong>Multi-LoRA</strong> support is mature in vLLM (S-LoRA inheritance), reasonable in SGLang, supported in Triton via the in-flight batching, and present in Dynamo. NIM does not generally expose multi-LoRA — the model image is pre-baked.</li>
 <li><strong>KV-cache-aware routing.</strong> Dynamo's Flash Indexer is the most sophisticated implementation — every cache block is tracked across the fleet at 170M ops/s, and request routing picks the worker whose KV cache best matches the incoming prefix. SGLang's RadixAttention provides similar locality benefits but per-worker, not fleet-wide. vLLM does not have this at the moment, though llm-d is moving in this direction.</li>
@@ -799,8 +1005,8 @@ header.meta {
 </tbody>
 </table>
 <p>The platform's job is to make all five paths first-class. Operationally, this means: an internal Helm chart catalog with one entry per runtime that wires up the right operator, observability, ingress, and resource requests; a shared model registry; and a tenant-facing self-service that lets them pick.</p>
-<h2 id="gpu-sharing-whole-gpu-vs-mig-vs-mps-time-slicing">GPU sharing: whole-GPU vs MIG vs MPS / time-slicing</h2>
-<p>Three modes; choose per workload, not platform-wide.</p>
+<h2 id="gpu-sharing-whole-gpu-vs-mig-vs-mps-time-slicing-vs-dra">GPU sharing: whole-GPU vs MIG vs MPS / time-slicing vs DRA</h2>
+<p>Three sharing modes plus one K8s primitive that wraps them. Choose per workload, not platform-wide.</p>
 <table>
 <thead>
 <tr>
@@ -831,6 +1037,14 @@ header.meta {
 </tr>
 </tbody>
 </table>
+<p><strong>DRA (Dynamic Resource Allocation)</strong> is not a fourth sharing mode — it is the <strong>K8s-native API</strong> through which all three modes above are now exposed. The Inference RA names DRA explicitly as the Infrastructure-layer component for "controlled sharing and dynamic reconfiguration of GPUs" and the substrate that enables <strong>ComputeDomains</strong> for Multi-Node NVLink (MNNVL) on GB200/GB300. Stable in K8s 1.32+, DRA replaces the static <code>nvidia.com/gpu</code> device-plugin model with <code>ResourceClaim</code> and <code>ResourceClass</code> objects that:</p>
+<ul>
+<li>let a pod claim "a MIG slice with ≥ 36 GB HBM" without pinning to a specific node</li>
+<li>let KAI Scheduler pick the slice with topology awareness (same NUMA node as the requested NIC, same rack as a sibling pod, etc.)</li>
+<li>let a multi-node tensor-parallel pod claim a <strong>ComputeDomain</strong> spanning multiple physical GPUs across nodes connected via MNNVL — currently the only K8s-native way to express "I need 16 GPUs that can talk to each other over NVLink-coherent memory across racks"</li>
+<li>let MIG geometry be reconfigured per-claim without pre-baked node labels (still requires a node drain on Blackwell, but the policy moves into K8s)</li>
+</ul>
+<p><strong>Operational impact for this platform:</strong> the GPU Operator's DRA driver replaces the device plugin. KAI Scheduler consumes ResourceClaims. Tenants who want a fractional GPU file a ResourceClaim with the desired MIG profile; tenants who want MNNVL file a ComputeDomain claim. This is the <strong>modern path</strong> the report endorses for new builds — the device-plugin model is fine for existing deployments but is the legacy interface.</p>
 <p><strong>MIG profile arithmetic on B-series:</strong></p>
 <table>
 <thead>
@@ -1087,7 +1301,7 @@ header.meta {
 - <strong>Per-tenant rollup dashboards</strong> so tenants can see <em>their</em> GPU usage without seeing other tenants'.
 - <strong>Synthetic NCCL all-reduce probes</strong> running continuously across pairs of nodes to catch fabric degradation before tenants notice.</p>
 <h2 id="recommendation-for-this-platform">Recommendation for this platform</h2>
-<p>The architecture in one paragraph: <strong>GB300 NVL72 racks from either Supermicro or Dell, Spectrum-X dual-plane Ethernet for compute, separate Spectrum-4 Ethernet for storage and north-south, ConnectX-8 for compute + BlueField-3 for north-south + (phase 2) DPF on BlueField-3 for tenant offload, Cilium primary CNI with WireGuard, Multus + SR-IOV CNI for data plane, NVIDIA GPU Operator + Network Operator + KAI Scheduler + NIM Operator + Dynamo Operator, vCluster per tenant with strict PodSecurity admission and Cilium L7 NetworkPolicy at the boundary, WEKA or VAST for hot storage + Ceph/MinIO for cold, support Dynamo + NIM + vLLM + SGLang as first-class tenant runtimes, whole-GPU default with opt-in MIG for cooperative tenants and Confidential Computing for adversarial-tenant fractional sharing, cordon-only driver upgrades on a week-long rolling window.</strong></p>
+<p>The architecture in one paragraph: <strong>GB300 NVL72 racks from either Supermicro or Dell, Spectrum-X dual-plane Ethernet for compute, separate Spectrum-4 Ethernet for storage and north-south, ConnectX-8 for compute + BlueField-3 for north-south + (phase 2) DPF on BlueField-3 for tenant offload, Cilium primary CNI with WireGuard, Multus + SR-IOV CNI for data plane, NVIDIA GPU Operator + Network Operator + KAI Scheduler + Grove + Planner + NIM Operator + Dynamo Operator with DRA-based GPU claims, vCluster per tenant with strict PodSecurity admission and Cilium L7 NetworkPolicy at the boundary, WEKA or VAST for hot storage + Ceph/MinIO for cold, support Dynamo (with NIXL + KVBM + Router) + NIM + vLLM + SGLang as first-class tenant runtimes per the Inference RA's full-GenAI-stack pattern, whole-GPU default with opt-in MIG for cooperative tenants and Confidential Computing for adversarial-tenant fractional sharing, cordon-only driver upgrades on a week-long rolling window.</strong></p>
 <p>The specific divergences from NVIDIA's published reference architectures, restated:</p>
 <table>
 <thead>
@@ -1145,11 +1359,14 @@ header.meta {
 </table>
 <p><strong>The open threads</strong> (worth knowing about before the next session):</p>
 <ul>
-<li>DPF maturity at this scale. The 25.07.0 release is recent; the field has limited operational experience with DPF running as a per-node second control plane in production. Probably the biggest "unknown unknown" in the design.</li>
-<li>NVIDIA Confidential Computing performance at GB300 scale with NVLink encryption fully on across all 72 GPUs in a rack. Published numbers are at HGX scale; NVL72-rack-scale CC has less data.</li>
-<li>KV-cache offload (KVBM) cross-tenant safety. Need to validate that the KVBM block-store can be per-tenant-keyed; if not, a per-tenant local NVMe partition + encryption is the workaround.</li>
-<li>Vendor-neutral Ethernet (Arista/Cisco + Broadcom Tomahawk) as a Spectrum-X alternative. Worth a follow-up topic specifically focused on this trade if NVIDIA-lock-in becomes a problem.</li>
-<li>llm-d (CNCF) maturity as the K8s wrapper around vLLM for disaggregated serving. If llm-d catches up to Dynamo on operator ergonomics, the runtime recommendation matrix shifts.</li>
+<li><strong>DPF maturity at this scale.</strong> The 25.07.0 release is recent; the field has limited operational experience with DPF running as a per-node second control plane in production. Probably the biggest "unknown unknown" in the design.</li>
+<li><strong>NVIDIA Confidential Computing performance at GB300 scale</strong> with NVLink encryption fully on across all 72 GPUs in a rack. Published numbers are at HGX scale; NVL72-rack-scale CC has less data.</li>
+<li><strong>KV-cache offload (KVBM) cross-tenant safety.</strong> Need to validate that the KVBM block-store can be per-tenant-keyed; if not, a per-tenant local NVMe partition + encryption is the workaround.</li>
+<li><strong>DRA + ComputeDomain maturity</strong> for MNNVL across racks. K8s 1.32+ stabilizes DRA; the NVIDIA-side ComputeDomain CRD is newer and the operational track record on production multi-rack inference is thin.</li>
+<li><strong>NVIDIA's internal fabric inconsistency.</strong> The Enterprise RA recommends Spectrum-X; the Inference RA recommends "InfiniBand inter-node." Worth tracking which way NVIDIA resolves this — the next major revision of either RA might align.</li>
+<li><strong>Grove + Planner + KAI interaction</strong> at &gt;1000-GPU scale. Each works individually; the combined gang-schedule-with-live-replanning loop is newer than its components.</li>
+<li><strong>Vendor-neutral Ethernet (Arista/Cisco + Broadcom Tomahawk)</strong> as a Spectrum-X alternative. Worth a follow-up topic specifically focused on this trade if NVIDIA-lock-in becomes a problem.</li>
+<li><strong>llm-d (CNCF) maturity</strong> as the K8s wrapper around vLLM for disaggregated serving. If llm-d catches up to Dynamo on operator ergonomics, the runtime recommendation matrix shifts.</li>
 </ul>
   </main>
 </body>
