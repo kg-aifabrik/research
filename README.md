@@ -10,3 +10,4 @@ The research reports are prepared in MD format and may also contain a HTML for e
 
 - [gpu-infra](gpu-infra/) — GPU infrastructure: NVIDIA Blackwell reference architectures, scale-out fabrics, K8s operator stack, multi-tenant inference platforms.
 - [k8s-fed](k8s-fed/) — Open source Kubernetes federation technologies for a 50+ edge inference platform.
+- [mgmt-plane-setup](mgmt-plane-setup/) — Production management plane on managed K8s: AWS EKS vs GCP GKE cost and architecture comparison (multi-region HA, SOC 2, Cloudflare ingress).
