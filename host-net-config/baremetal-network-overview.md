@@ -33,6 +33,16 @@ The host has **10 physical NICs** divided into two logical zones.
 
 BlueField-3 is a full DPU, not just a SuperNIC: it has 16× Arm Cortex-A78 cores, DDR5 memory, and accelerators. For v1 we use it in **NIC mode** — the Arm cores are quiesced and the device behaves as a high-speed Ethernet adapter to the host. Future iterations can move Cilium dataplane, storage offload, or encryption onto the DPU's Arm cores (DOCA framework); that path is preserved by hardware choice but not exercised yet.
 
+> **Caveat — DPU mode is firmware state, not OS config.** The BF-3's operating mode (NIC mode vs DPU mode vs separated-host mode) is selected by `mlxconfig` firmware bits and only takes effect after a power cycle. Netplan and cloud-init have no visibility into this layer. Three implications for the pipeline:
+>
+> - **Firmware mode is part of the host's declared intent.** Treat it with the same rigor as IPs and VLANs — modeled in Netbox (e.g., `device.custom_fields.bf3_mode = "nic"`), validated, and rendered.
+> - **The renderer emits a firmware-control step in parallel with Netplan.** A one-shot systemd unit (`bf3-mode@.service`) reads the desired mode, runs `mlxconfig -d <pci> query` to compare, and if drifted runs `mlxconfig set INTERNAL_CPU_MODEL=…` followed by a controlled reboot. Cloud-init triggers this on first boot; the Day-2 reconcile agent re-checks it.
+> - **HW replacement / RMA is the silent-failure mode.** A swapped DPU may arrive flashed in DPU mode by the factory. Without an explicit mode check before fleet join, a "v1 NIC mode" host can silently accept a DPU-mode unit and behave unpredictably. The hardware-acceptance suite (D17) must include a `mlxconfig query` step.
+>
+> Switching to **DPU mode** in a later phase (running Cilium dataplane or storage offload on the Arm cores) reframes substantial parts of the architecture: a second OS image is needed for the DPU itself, the DPU becomes a host-config target in its own right, and the discovery / cloud-init pipeline must extend to address it. That's an architectural decision, not a config-toggle, and is scoped out of v1.
+
+
+
  Because the two leaves advertise a common LACP System ID, the host sees a single LACP partner and runs an ordinary `mode=802.3ad` bond named `bond0`. The bond is configured with `lacp-rate: fast` (1 s LACPDU interval, ~3 s failover) and `transmit-hash-policy: layer3+4` so flows distribute across both physical links instead of pinning by MAC.
 
 Three VLAN sub-interfaces sit on the bond:

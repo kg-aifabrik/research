@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Baremetal network configuration — interface layout and packet flows</title>
 <style>
-  :root { --fg:#1e1e1e; --muted:#495057; --soft:#868e96; --bg:#fff; --accent:#1864ab; --rule:#dee2e6; --code-bg:#f1f3f5; --box-bg:#f8f9fa; }
+  :root { --fg:#1e1e1e; --muted:#495057; --soft:#868e96; --bg:#fff; --accent:#1864ab; --rule:#dee2e6; --code-bg:#f1f3f5; --box-bg:#f8f9fa; --caveat-bg:#fff8e1; --caveat-border:#f59f00; }
   * { box-sizing: border-box; }
   html, body { background: var(--bg); color: var(--fg); }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.55; max-width: 920px; margin: 2.5rem auto; padding: 0 1.25rem 4rem; font-size: 16px; }
@@ -23,6 +23,11 @@
   .figure svg { background: white; border-radius: 4px; }
   .figcap { font-size: 0.85em; color: var(--soft); text-align: center; margin-top: 0.5rem; }
   .lede { border-left: 3px solid var(--accent); padding: 0.1rem 0.9rem; background: #f4f8fc; margin: 1rem 0 1.5rem; font-size: 0.97em; }
+  .caveat { border-left: 4px solid var(--caveat-border); background: var(--caveat-bg); padding: 0.7rem 1rem; margin: 1.1rem 0; border-radius: 4px; font-size: 0.96em; }
+  .caveat p:first-child { margin-top: 0; }
+  .caveat p:last-child { margin-bottom: 0; }
+  .caveat ul { margin: 0.4rem 0; }
+  .caveat .tag { font-weight: 700; color: #8a5a00; }
   .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--soft); font-size: 0.85em; }
   strong { color: #000; }
   .pill { display: inline-block; padding: 0 0.45em; border-radius: 3px; font-size: 0.8em; font-weight: 600; margin-right: 0.25em; vertical-align: middle; }
@@ -76,6 +81,16 @@ A B300 GPU server is provisioned with two distinct network subsystems. <strong>T
 <p><code>nsa</code> and <code>nsb</code> are the host-facing Ethernet ports of two NVIDIA BlueField-3 DPUs, each at 400&nbsp;Gb/s per direction. They connect to <code>leaf-A</code> and <code>leaf-B</code>, which form an ESI-LAG pair on the fabric side. Aggregate N-S capacity per host is 800&nbsp;Gb/s per direction.</p>
 
 <p>BlueField-3 is a full DPU, not just a SuperNIC: it has 16&times; Arm Cortex-A78 cores, DDR5 memory, and accelerators. For v1 we use it in <strong>NIC mode</strong> &mdash; the Arm cores are quiesced and the device behaves as a high-speed Ethernet adapter to the host. Future iterations can move Cilium dataplane, storage offload, or encryption onto the DPU's Arm cores (DOCA framework); that path is preserved by hardware choice but not exercised yet.</p>
+
+<div class="caveat">
+<p><span class="tag">Caveat &mdash; DPU mode is firmware state, not OS config.</span> The BF-3's operating mode (NIC mode vs DPU mode vs separated-host mode) is selected by <code>mlxconfig</code> firmware bits and only takes effect after a power cycle. Netplan and cloud-init have no visibility into this layer. Three implications for the pipeline:</p>
+<ul>
+  <li><strong>Firmware mode is part of the host's declared intent.</strong> Treat it with the same rigor as IPs and VLANs &mdash; modeled in Netbox (e.g., <code>device.custom_fields.bf3_mode = "nic"</code>), validated, and rendered.</li>
+  <li><strong>The renderer emits a firmware-control step in parallel with Netplan.</strong> A one-shot systemd unit (<code>bf3-mode@.service</code>) reads the desired mode, runs <code>mlxconfig -d &lt;pci&gt; query</code> to compare, and if drifted runs <code>mlxconfig set INTERNAL_CPU_MODEL=&hellip;</code> followed by a controlled reboot. Cloud-init triggers this on first boot; the Day-2 reconcile agent re-checks it.</li>
+  <li><strong>HW replacement / RMA is the silent-failure mode.</strong> A swapped DPU may arrive flashed in DPU mode by the factory. Without an explicit mode check before fleet join, a &ldquo;v1 NIC mode&rdquo; host can silently accept a DPU-mode unit and behave unpredictably. The hardware-acceptance suite (D17) must include a <code>mlxconfig query</code> step.</li>
+</ul>
+<p>Switching to <strong>DPU mode</strong> in a later phase (running Cilium dataplane or storage offload on the Arm cores) reframes substantial parts of the architecture: a second OS image is needed for the DPU itself, the DPU becomes a host-config target in its own right, and the discovery / cloud-init pipeline must extend to address it. That's an architectural decision, not a config-toggle, and is scoped out of v1.</p>
+</div>
 
 <p>Because the two leaves advertise a common LACP System ID, the host sees a single LACP partner and runs an ordinary <code>mode=802.3ad</code> bond named <code>bond0</code>. The bond uses <code>lacp-rate: fast</code> (1&nbsp;s LACPDU interval, ~3&nbsp;s failover) and <code>transmit-hash-policy: layer3+4</code> so flows distribute across both physical links instead of pinning by MAC.</p>
 
@@ -135,7 +150,7 @@ A B300 GPU server is provisioned with two distinct network subsystems. <strong>T
   <li><strong>Interfaces have roles, not just names.</strong> The intent schema encodes interface <em>role</em> &mdash; bond-member, VLAN-child, RoCE-underlay, SR-IOV-parent &mdash; because each role generates a structurally different output. Bond members need ethtool baselining; VLAN children need IP, gateway, and MTU; RoCE underlays need PFC tuning that Netplan cannot express and falls to a separate systemd template unit; SR-IOV parents need <code>virtual-function-count</code> plus per-VF udev rules.</li>
   <li><strong>The kernel is not always in the path.</strong> For &#9315; and &#9316;, Netplan declares the <em>substrate</em> &mdash; the underlay IP, the VF count, the MTU &mdash; but actual packet movement does not touch the kernel IP stack. Boot-time validation must probe the substrate (VFs present, RDMA verbs functional, PFC negotiated) rather than rely on <code>ping</code>-style reachability through it.</li>
 </ul>
-<p>These shape the rest of the work: the Pydantic intent model needs role-aware interface types, and the renderer's output extends beyond Netplan into systemd <code>.link</code> files, instantiated <code>roce-tuning@.service</code> units, and <code>sysctl.d</code> drop-ins. BF-3 DPU mode (NIC vs DPU vs separated-host mode) is also a host-level configuration concern the renderer must lock down via firmware/<code>mlxconfig</code>, not Netplan.</p>
+<p>These shape the rest of the work: the Pydantic intent model needs role-aware interface types, and the renderer's output extends beyond Netplan into systemd <code>.link</code> files, instantiated <code>roce-tuning@.service</code> units, and <code>sysctl.d</code> drop-ins. BF-3 DPU mode (per the caveat in &sect;1) is a third class of host-level state the renderer must lock down via firmware rather than OS config.</p>
 
 <div class="footer">Diagrams: <code>diagrams/b300-host-nic-topology.svg</code>, <code>diagrams/host-packet-flow.excalidraw.svg</code>. Source Excalidraw files in the same folder.</div>
 </body>
