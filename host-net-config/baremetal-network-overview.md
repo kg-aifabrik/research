@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-A B300 GPU server is provisioned with two distinct network subsystems. **Two 200 GbE NICs are bonded under LACP and carry three VLAN-tagged sub-interfaces** — management, storage, ingress — for north-south traffic. **Eight 800 Gb/s ConnectX-8 SuperNICs, one per GPU,** expose host-addressed RoCE underlay IPs and SR-IOV virtual functions for east-west collectives. Inbound packets fall into five classes: two traverse the full kernel IP stack, two bypass the kernel entirely (RDMA verbs and SR-IOV virtual functions), and one is intercepted by Cilium eBPF before reaching userspace. Non-GPU hosts (K8s control plane, jumphosts) use the same north-south pattern with the east-west zone omitted.
+A B300 GPU server is provisioned with two distinct network subsystems. **Two NVIDIA BlueField-3 DPUs at 400 Gb/s are bonded under LACP and carry three VLAN-tagged sub-interfaces** — management, storage, ingress — for north-south traffic. **Eight 800 Gb/s ConnectX-8 SuperNICs, one per GPU,** expose host-addressed RoCE underlay IPs and SR-IOV virtual functions for east-west collectives. Inbound packets fall into five classes: two traverse the full kernel IP stack, two bypass the kernel entirely (RDMA verbs and SR-IOV virtual functions), and one is intercepted by Cilium eBPF before reaching userspace. Non-GPU hosts (K8s control plane, jumphosts) use the same north-south pattern with the east-west zone omitted.
 
 ## Requirements
 
@@ -27,9 +27,13 @@ A B300 GPU server is provisioned with two distinct network subsystems. **Two 200
 
 The host has **10 physical NICs** divided into two logical zones.
 
-### North-south zone (2 × 200 GbE)
+### North-south zone (2 × BlueField-3 DPU @ 400 Gb/s)
 
-`nsa` and `nsb` connect to `leaf-A` and `leaf-B`, which form an ESI-LAG pair on the fabric side. Because the two leaves advertise a common LACP System ID, the host sees a single LACP partner and runs an ordinary `mode=802.3ad` bond named `bond0`. The bond is configured with `lacp-rate: fast` (1 s LACPDU interval, ~3 s failover) and `transmit-hash-policy: layer3+4` so flows distribute across both physical links instead of pinning by MAC.
+`nsa` and `nsb` are the host-facing Ethernet ports of two NVIDIA BlueField-3 DPUs, each at 400 Gb/s per direction. They connect to `leaf-A` and `leaf-B`, which form an ESI-LAG pair on the fabric side. Aggregate N-S capacity per host is 800 Gb/s per direction.
+
+BlueField-3 is a full DPU, not just a SuperNIC: it has 16× Arm Cortex-A78 cores, DDR5 memory, and accelerators. For v1 we use it in **NIC mode** — the Arm cores are quiesced and the device behaves as a high-speed Ethernet adapter to the host. Future iterations can move Cilium dataplane, storage offload, or encryption onto the DPU's Arm cores (DOCA framework); that path is preserved by hardware choice but not exercised yet.
+
+ Because the two leaves advertise a common LACP System ID, the host sees a single LACP partner and runs an ordinary `mode=802.3ad` bond named `bond0`. The bond is configured with `lacp-rate: fast` (1 s LACPDU interval, ~3 s failover) and `transmit-hash-policy: layer3+4` so flows distribute across both physical links instead of pinning by MAC.
 
 Three VLAN sub-interfaces sit on the bond:
 
