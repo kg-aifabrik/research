@@ -28,7 +28,7 @@ Commit after every completed unit of work in this repo without waiting to be ask
   ...
 ```
 
-Each topic is a single Markdown report. **Do not generate an HTML version.** Older topics in this repo may still have paired `.html` files; leave them in place but do not create new ones.
+Each topic is a single Markdown report. **Do not generate an HTML version.**
 
 For visuals, prefer Mermaid, inline SVG, or referenced image/diagram files (Excalidraw, SVG in a `diagrams/` subfolder) embedded into the Markdown — anything that renders cleanly in a standard Markdown viewer.
 
