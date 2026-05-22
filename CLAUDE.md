@@ -24,13 +24,13 @@ Commit after every completed unit of work in this repo without waiting to be ask
 <area>/
   README.md            # executive summary of the area
   <topic-1>.md         # report
-  <topic-1>.html       # self-contained HTML version of the same report
   <topic-2>.md
-  <topic-2>.html
   ...
 ```
 
-Each topic produces a paired `.md` and `.html` with matching base names. Both files must convey the same content. The HTML is for browser review and must be **fully self-contained** — inline CSS, no external JS, no external font or image fetches. The only external references allowed are citation links in the prose.
+Each topic is a single Markdown report. **Do not generate an HTML version.** Older topics in this repo may still have paired `.html` files; leave them in place but do not create new ones.
+
+For visuals, prefer Mermaid, inline SVG, or referenced image/diagram files (Excalidraw, SVG in a `diagrams/` subfolder) embedded into the Markdown — anything that renders cleanly in a standard Markdown viewer.
 
 ## Report structure
 
@@ -54,7 +54,7 @@ Reports are written for a reader proficient in the topic. Optimize for their tim
 - **Terse.** No throat-clearing, no restating the question, no "in conclusion." Cut adjectives. Prefer concrete numbers, named systems, and specific claims over abstractions.
 - **Acronyms.** On first occurrence, expand the term — e.g. "Kubernetes (K8s)", "Container Network Interface (CNI)". Subsequent uses can be the acronym alone. Applies per report, not per session.
 - **Length budget.** Keep each report under 4 printed pages. If a topic genuinely cannot fit, produce the long version and **ask the user which sections to trim** before finalizing.
-- **Citations.** Important — cite primary sources where possible. Use inline anchor links embedded in the prose: `<a href="...">phrase</a>` in HTML, `[phrase](url)` in Markdown. No trailing reference list — keep the link details out of the reading flow.
+- **Citations.** Important — cite primary sources where possible. Use inline Markdown links embedded in the prose: `[phrase](url)`. No trailing reference list — keep the link details out of the reading flow.
 - **Visuals.** Mermaid diagrams, inline SVG, KaTeX, comparison tables, etc. are all fair game when they convey more than prose would. Pick the right tool for the topic.
 - **Comparisons.** When the report compares options, the Executive Summary leads with a table:
   - **Columns = the choices** being compared (A, B, C…).

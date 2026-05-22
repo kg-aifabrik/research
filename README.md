@@ -4,7 +4,7 @@ This repository holds the research work on various topics, organized by **area**
 
 Almost all the research work and the bytes written are by LLMs, predominantly Claude and may be other models from time to time.
 
-The research reports are prepared in MD format and may also contain a HTML for easier readability.
+Reports are written in Markdown. Older topics may still have paired HTML versions; new reports are Markdown-only.
 
 ## Areas
 
