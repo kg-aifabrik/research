@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-A B300 GPU server is provisioned with two distinct network subsystems. **Two 200 GbE NICs are bonded under LACP and carry three VLAN-tagged sub-interfaces** — management, storage, ingress — for north-south traffic. **Eight 400 GbE NICs, one per GPU,** expose host-addressed RoCE underlay IPs and SR-IOV virtual functions for east-west collectives. Inbound packets fall into five classes: two traverse the full kernel IP stack, two bypass the kernel entirely (RDMA verbs and SR-IOV virtual functions), and one is intercepted by Cilium eBPF before reaching userspace. Non-GPU hosts (K8s control plane, jumphosts) use the same north-south pattern with the east-west zone omitted.
+A B300 GPU server is provisioned with two distinct network subsystems. **Two 200 GbE NICs are bonded under LACP and carry three VLAN-tagged sub-interfaces** — management, storage, ingress — for north-south traffic. **Eight 800 Gb/s ConnectX-8 SuperNICs, one per GPU,** expose host-addressed RoCE underlay IPs and SR-IOV virtual functions for east-west collectives. Inbound packets fall into five classes: two traverse the full kernel IP stack, two bypass the kernel entirely (RDMA verbs and SR-IOV virtual functions), and one is intercepted by Cilium eBPF before reaching userspace. Non-GPU hosts (K8s control plane, jumphosts) use the same north-south pattern with the east-west zone omitted.
 
 ## Requirements
 
@@ -41,9 +41,9 @@ Three VLAN sub-interfaces sit on the bond:
 
 The bond itself carries no IP. Untagged frames have no destination on this host and are silently dropped — a useful defensive property against switch-port misconfiguration.
 
-### East-west zone (8 × 400 GbE)
+### East-west zone (8 × ConnectX-8 SuperNIC @ 800 Gb/s)
 
-One RoCE-capable NIC per GPU. Each NIC carries:
+One ConnectX-8 SuperNIC per GPU at 800 Gb/s per direction (~1.6 Tb/s full-duplex), pinned to the same PCIe Gen6 root complex as its paired GPU. Each NIC carries:
 - A host-side underlay IP (e.g., `10.42.100.23/24` … `10.42.107.23/24`) used during RDMA queue-pair setup.
 - 16 SR-IOV virtual functions, which Multus assigns to customer pods.
 
