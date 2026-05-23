@@ -30,6 +30,7 @@ These are the load-bearing values. Every other decision in this plan derives fro
 8. **Boring technology wins.** Choose the technology that will still be supported, hireable-for, and patched in ten years. Resist novelty unless the alternative materially fails the durability test.
 9. **One way to do common things.** Every common operation (run tests, format code, build docs, deploy) has exactly one entry point. Multiple competing ways are technical debt the day they ship.
 10. **Quality is preserved, not retrofit.** Linting, type-checking, coverage gates, ADR-on-design-change discipline — all enforced from the first commit. Retrofitting them onto an established codebase is several engineer-years of work.
+11. **Leave no trace.** Every operation that provisions a resource is paired with the operation that destroys it. Every run starts with nothing and ends with nothing — no orphaned containers, no leftover Droplets, no half-applied OpenTofu state, no `/tmp` debris. Cleanup runs on failure as reliably as on success.
 
 ---
 
@@ -53,14 +54,15 @@ These are the load-bearing values. Every other decision in this plan derives fro
 | Container runtime (dev) | **Docker** | Broadest ecosystem; testcontainers integration is best. Could revisit Podman later. |
 | Secret management (dev) | **direnv + .envrc** (gitignored) + `.envrc.example` (committed) | Simple, no infra dependency for local dev. Production-grade secrets management is M-scope-later. |
 | Task runner | **just** | Cleaner than Make for non-build tasks; cross-platform; single-file. ADR-0008 |
-| Docs site | **mkdocs + Material theme + mkdocstrings** | Renders Markdown beautifully, generates API reference from docstrings, hosts on GH Pages. Alternative (sphinx) is more powerful but heavier; not needed for this scope. ADR-0009 |
+| Documentation | **GitHub-rendered Markdown** in `docs/`; SVG diagrams in `docs/diagrams/` (Excalidraw sources + exported SVG) | No build step, no hosting dependency, no separate doc framework to maintain. GH renders Markdown natively and the SVGs embed inline. Simpler is more durable. ADR-0009 |
 | Observability — logs | **structlog** | Structured logging is non-negotiable for production. structlog gives clean Python ergonomics. ADR-0010 |
 | Observability — metrics | **prometheus-client** | Plain Prometheus text format at `/metrics`; standard, no agent dependency. ADR-0010 |
 | Observability — traces | **OpenTelemetry SDK** with auto-instrumentation for FastAPI | OTLP exporter configurable; no-op by default. ADR-0010 |
 | CI | **GitHub Actions** | Same platform as the repo; KVM available on hosted runners; free tier sufficient. ADR-0011 |
-| Documentation hosting | **GitHub Pages** | Free, integrated, no external dependency. ADR-0011 |
 
-**Change from previous plan:** Terraform → **OpenTofu**. OpenTofu is the right call for a project meant to outlive vendor licensing decisions; the migration cost is zero since the syntax is identical.
+**Changes from previous plan:**
+- Terraform → **OpenTofu**. OpenTofu is the right call for a project meant to outlive vendor licensing decisions; the migration cost is zero since the syntax is identical.
+- Dropped mkdocs / GH Pages. **GitHub-rendered Markdown is the documentation system.** Fewer moving parts, no build pipeline for docs, no doc-site outage risk. Diagrams are committed SVG files (Excalidraw sources alongside).
 
 ---
 
@@ -95,14 +97,15 @@ host-config/
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   └── CODEOWNERS
 │
-├── docs/                           # mkdocs Material site source
-│   ├── index.md                    # entry point
-│   ├── architecture/               # system-level diagrams + sequence flows
+├── docs/                           # GitHub-rendered Markdown
+│   ├── index.md                    # entry point (also linked from README)
+│   ├── architecture/               # systems overview, sequence flows, component contracts
+│   │   └── systems-overview.md     # the living architecture doc (mirrors ADR-0013)
 │   ├── adr/                        # 0001-..., 0002-..., immutable once landed
 │   │   └── template.md             # Michael Nygard format
 │   ├── runbooks/                   # operational playbooks
-│   ├── reference/                  # auto-generated from docstrings via mkdocstrings
-│   └── mkdocs.yml
+│   └── diagrams/                   # SVG diagrams + Excalidraw sources
+│       └── README.md               # how to author and export diagrams
 │
 ├── infra/
 │   ├── opentofu/                   # DO Droplet provisioning
@@ -195,6 +198,7 @@ host-config/
 - **`DESIGN.md` per module** — durable rationale for boundaries and trade-offs.
 - **`golden/` for renderer outputs** — checked-in expected bytes; every change to renderer requires updating goldens, which forces a review of output drift.
 - **`docs/adr/`** — numbered, dated, immutable; this is the load-bearing "why we did it that way" record.
+- **`docs/diagrams/`** — SVG files (committed) alongside their Excalidraw sources, so anyone can edit and re-export. Referenced from MD via `![alt](../diagrams/foo.svg)`. See §8.4.
 - **`fixtures/` separated from `tests/`** — fixtures are reusable data; tests are the assertions.
 
 ---
@@ -412,12 +416,50 @@ Coverage tells you which lines ran; mutation testing tells you whether your test
 - **Third-party library contracts.** Trust the contract; test our usage of it.
 - **Implementation details that aren't part of the contract.** Tests should survive refactors that don't change behavior.
 
-### 6.7 Coverage gates
+### 6.7 Coverage stance (balanced, not numeric-maximalist)
 
-- **Line coverage:** ≥85% on `src/host_config/`, ≥70% on Ansible-linted infra.
-- **Branch coverage:** ≥80% on `src/host_config/`.
-- **Coverage drop blocks merge.** A PR cannot reduce overall coverage by more than 0.5% without explicit override approval.
-- **Coverage is a floor, not a ceiling.** Hitting 85% means the dimmer parts of the codebase need more tests; it doesn't mean you stop writing tests.
+**Principle:** test the things that matter. Don't game the coverage number.
+
+- **Unit tests cover key functions and key flows.** "Key" is judgment-driven: anything with non-trivial logic, branching, error handling, or cross-module contracts. Trivial getters, Pydantic-emitted boilerplate, and pure delegation methods don't require dedicated unit tests.
+- **Every user-facing scenario has an integration test.** (See §6.8 below — this is the load-bearing rule.)
+- **Line coverage is reported, not gated at a single number.** We track it (target ~75% on `src/host_config/`; ~60% on Ansible-linted infra) but won't add filler tests just to hit a number. A PR-level *drop* of >2% is reviewed but not auto-blocked.
+- **Mutation score is the quality indicator** that complements coverage. A 100%-covered file with low mutation score has weak tests; coverage alone hides this.
+- **Reviewers may require tests for code that lacks them**, regardless of coverage number, if the code is non-trivial.
+
+### 6.8 User-facing scenarios — integration tests mandatory
+
+Every scenario in this list **must** have at least one integration test. New user-facing scenarios get new integration tests as part of the same PR — no "we'll add the test later."
+
+User-facing surfaces:
+
+1. **HTTP renderer endpoints.** Each route × happy path × representative error paths.
+   - `GET /render/<asset>/meta-data` for `cpu` role → 200 with valid YAML.
+   - `GET /render/<asset>/user-data` for `gpu-b300` role → 200 with valid cloud-config.
+   - `GET /render/<asset>/network-config` for both roles → 200 with byte-equal-to-golden output.
+   - `GET /render/<unknown>/*` → 404 with structured error JSON.
+   - `GET /render/<asset>/*` with Netbox down → appropriate 5xx + error JSON; logs preserve context.
+   - `GET /healthz` → 200 while running.
+   - `GET /readyz` → 200 when Netbox reachable, 503 with reason when not.
+   - `GET /metrics` → 200 with valid Prometheus exposition format.
+2. **nginx cache behavior** for each endpoint.
+   - Cold path: first request renders.
+   - Warm path: second request within TTL serves from cache, renderer not invoked.
+   - Expiry: request after TTL re-renders.
+   - Netbox-down + cache hit → still serves successfully from cache.
+   - Manual cache purge endpoint → next request re-renders.
+3. **Cloud-init NoCloud first-boot** per role.
+   - CPU host: VM boots, fetches via nginx, applies Netplan, bond + 3 VLANs come up.
+   - gpu-b300 host: same plus 8 east-west NICs + Soft-RoCE devices.
+4. **Lab lifecycle end-to-end** on Lima and on DO Droplet.
+   - `just lab-up` from cold start → fully working lab.
+   - `just lab-test` → all e2e tests pass.
+   - `just lab-down` → all resources reclaimed; no orphaned containers, Droplets, or volumes (verified by listing).
+5. **Fixture loader and Netbox schema apply.**
+   - Apply schema twice → idempotent.
+   - Populate fixtures twice → idempotent.
+   - Populate against an already-populated Netbox → conflict raises typed error with clear message.
+
+This list is the canonical contract surface for the Tier 1 system; if you add a new contract, add it here in the same PR.
 
 ---
 
@@ -551,10 +593,53 @@ Every PR:
 - All pre-commit checks repeated.
 - `mypy --strict` on full codebase.
 - Full `pytest` (unit + component + integration).
-- Coverage report; coverage drop > 0.5% blocks merge.
+- Coverage report (informational drop alert at >2%; not auto-blocking — see §6.7).
+- All integration tests for user-facing scenarios (§6.8) pass.
 - `pip-audit` (security advisory scan).
 - Conventional commit lint on PR title.
+- Broken-link check on `docs/` Markdown and SVG references.
 - For `main` branch: signed commits enforced; e2e tests must pass.
+
+### 8.4 SVG diagram convention
+
+Diagrams live in `docs/diagrams/`:
+
+- **Source of truth:** Excalidraw `.excalidraw` files committed alongside their **exported `.svg` files**. Both are versioned.
+- **Embedding:** Markdown references the SVG with relative path: `![systems overview](../diagrams/systems-overview.svg)`. GitHub renders this inline.
+- **Editing:** open the `.excalidraw` in [excalidraw.com](https://excalidraw.com), edit, re-export `.svg` next to it, commit both.
+- **Convention:** every architectural ADR includes at least one SVG when interactions or topology are involved. The companion `docs/architecture/<topic>.md` documents the latest state with the same SVG.
+- **`docs/diagrams/README.md`** explains this convention so contributors aren't left guessing.
+
+### 8.5 Secrets management
+
+- **Real secrets are never committed.** A gitignored `.envrc` file (loaded by direnv if available) holds local secrets — for example: `NETBOX_API_TOKEN`, `DIGITALOCEAN_TOKEN`, `SSH_KEY_FINGERPRINT`.
+- **`.envrc.example`** is committed. It lists every required variable with a placeholder value and a one-line comment explaining what it's for.
+- **README.md** has a `## Configuration` section that:
+  - Names each secret and its purpose.
+  - Shows how to obtain it (e.g., "Get your DO token at <link>").
+  - Documents the local-file setup: `cp .envrc.example .envrc && $EDITOR .envrc`.
+  - Notes that direnv is optional but recommended.
+- **CI uses GitHub Actions secrets**, never `.envrc`. Required workflow secrets are documented in `docs/runbooks/ci-secrets.md`.
+
+### 8.6 Resource lifecycle discipline ("leave no trace")
+
+Principle 11 (§2) made concrete: every operation that brings a resource into existence is paired with the operation that destroys it. Reliable cleanup is a design feature, not a checklist item.
+
+- **Test fixtures**: use pytest `yield` fixtures or context managers; teardown runs on both success and exception. Component-test containers are torn down at session end via `addfinalizer`.
+- **Local shell wrappers (`just`)**: `just lab-up` and `just lab-down` are the inverse pair. `just lab` (no suffix) runs up → test → down with a `trap` ensuring `lab-down` runs even on script failure or SIGINT.
+- **OpenTofu**: state files are local but ephemeral; `just lab-down` always runs `opentofu destroy` and verifies via `doctl` (or the DO API) that no Droplet remains tagged with our workspace.
+- **CI**: every workflow that provisions external resources has an `if: always()` teardown step. The DO-Droplet e2e workflow uses `always()` to call `just lab-down`.
+- **Verification step in the M6.5 gate** (see §9): explicitly list DO resources before and after a lab run; the difference must be zero.
+- **Local debris**: `just clean` removes `/tmp/seedsrv`, OVS bridges, tap interfaces, cached VM images. Documented in the README.
+
+### 8.7 Plan ↔ GitHub issues linking (bidirectional)
+
+For navigability across the implementation plan and the issue tracker:
+
+- **In this plan**: after issues are seeded, each row in the milestone tables in §9 gets a hyperlink from the issue ID column to the corresponding GitHub issue URL. Example: `[M0-1](https://github.com/<user>/host-config/issues/N)`.
+- **In each GitHub issue**: the issue body opens with a `**Plan reference:**` line linking back to the relevant subsection of this plan via its commit-pinned URL on GitHub. Example: `Plan reference: [§9 — M0 — Repo bootstrap](https://github.com/<user>/research/blob/<commit>/host-net-config/implementation-plan.md#m0--repo-bootstrap-layer)`.
+- **Stability**: links use commit SHAs (not `main`) so they don't break when the plan is edited. If the plan is amended after seeding, the relevant issues are updated to point at the new commit.
+- **Tooling**: the `gh issue create` calls in the seeding script template the issue body with both the plan reference and the standard issue template.
 
 ---
 
@@ -573,8 +658,8 @@ Every PR:
 | M0-1 | Initialize repo with license and base files | LICENSE (Apache-2.0), README skeleton, `.gitignore`, `.gitattributes`, `.python-version`, `pyproject.toml` (name, deps placeholders, tool sections), `CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, `.envrc.example`, `justfile` with placeholder targets |
 | M0-2 | Configure code quality tooling | `ruff` ruleset in `pyproject.toml`; `mypy` strict config; `pytest`/`pytest-cov` config; `.pre-commit-config.yaml` with all hooks (ruff, mypy, pytest -m fast, gitleaks, commitlint, file-size); `.editorconfig` |
 | M0-3 | Write `CODE_CONVENTIONS.md` | Authoritative version of §5 of this plan, lifted into the repo. Living document, edits via PR |
-| M0-4 | Set up mkdocs docs site | `mkdocs.yml` (Material theme), `docs/index.md`, `docs/architecture/` skeleton, `docs/adr/template.md` (Michael Nygard), `docs/runbooks/` skeleton, `mkdocstrings` config for API reference generation |
-| M0-5 | Write initial ADRs 0001–0011 | All 11 stack-choice ADRs listed in §11 of this plan. Each ADR follows the Nygard format. These document why we made each choice |
+| M0-4 | Set up `docs/` structure | `docs/index.md` (entry point, also linked from README); `docs/architecture/` skeleton with placeholder; `docs/adr/template.md` (Michael Nygard format); `docs/runbooks/` skeleton; `docs/diagrams/README.md` explaining the SVG+Excalidraw convention. No build tool — Markdown is rendered by GitHub |
+| M0-5 | Write initial ADRs 0001–0011 + 0013 | Twelve ADRs documented in §11: the eleven stack-choice ADRs plus ADR-0013 (systems overview). ADR-0013 includes the systems-overview SVG diagram and is mirrored as the living `docs/architecture/systems-overview.md`. ADR-0012 (deferred signed-seed path) ships later in M3-4 when its context lands |
 | M0-6 | Configure CI workflows | `.github/workflows/ci.yml` (lint+type+unit+component+coverage); `docs.yml` (mkdocs build+deploy on main); placeholder `e2e.yml` and `mutation.yml`; Dependabot config (`.github/dependabot.yml`); issue and PR templates; CODEOWNERS |
 | M0-7 | Configure branch protection and signed commits | Branch protection rule on `main`: required checks, signed commits, 1 review on substantive PRs (self-review allowed for trivial). Documentation of the rule in `CONTRIBUTING.md` |
 
@@ -710,13 +795,14 @@ Every PR:
 
 ### M6.5 — Gate: lab works on DigitalOcean (integration)
 
-**Goal:** The full M4.5 + M5.5 e2e tests pass on a real Droplet.
+**Goal:** The full M4.5 + M5.5 e2e tests pass on a real Droplet, AND the leave-no-trace principle is verified.
 
-**Issues (1):**
+**Issues (2):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M6.5-1 | Manual + scripted verification on DO Droplet | Documented procedure: `just lab-up`, run e2e tests, snapshot logs, `just lab-down`. Verification recorded in `docs/runbooks/deploy-do.md` as the canonical acceptance step. Costs logged in the runbook |
+| M6.5-1 | E2E verification on DO Droplet | Documented procedure: `just lab-up`, run e2e tests, snapshot logs, `just lab-down`. Verification recorded in `docs/runbooks/deploy-do.md` as the canonical acceptance step. Costs logged in the runbook |
+| M6.5-2 | Teardown integrity test | Capture DO resource inventory before `just lab-up`; verify the diff after `just lab-down` is zero — no Droplets, volumes, snapshots, firewalls, SSH keys, DNS records remain tagged with our workspace. Includes a deliberately failed `lab-up` to verify cleanup still runs (trap-on-exit pattern). Result documented in the runbook |
 
 ### M7 — GitHub Actions CI for full e2e (layer)
 
@@ -728,7 +814,7 @@ Every PR:
 |---|---|---|
 | M7-1 | `e2e.yml` workflow runs M4.5 + M5.5 on PR | KVM-enabled GHA runners; pulls Netbox + builds renderer; runs OVS + QEMU + cloud-init e2e; reports timing; parallelization across multiple jobs if total >10 min |
 | M7-2 | Coverage reporting + PR comments | `pytest-cov` reports uploaded; coverage delta posted to PR via Codecov or similar; failing coverage threshold blocks merge |
-| M7-3 | mkdocs site deploys to GH Pages | `docs.yml` builds Material site on every push to `main`; indexes ADRs and DESIGN files; mkdocstrings renders API reference from docstrings |
+| M7-3 | Docs link & diagram-reference checker | CI step that scans `docs/**/*.md` and `README.md` for broken internal Markdown links, missing SVG references, and ADRs not listed in the docs index. Runs on every PR; blocks merge on regressions |
 | M7-4 | Mutation testing workflow | `mutation.yml` runs `mutmut` weekly; posts mutation score; tracks over time; surviving mutants reviewed via issues automatically opened by the workflow |
 
 ### M7.5 — Gate: CI is the source of truth (integration)
@@ -780,10 +866,11 @@ These ADRs ship in M0-5 to anchor the design from day one:
 | **0006** | OpenTofu (not Terraform) for cloud IaC |
 | **0007** | Ansible for in-host configuration |
 | **0008** | `just` as the task runner |
-| **0009** | mkdocs Material + mkdocstrings for documentation |
+| **0009** | GitHub-rendered Markdown for documentation (no separate doc framework); SVG diagrams in `docs/diagrams/` with Excalidraw sources |
 | **0010** | structlog + OpenTelemetry + Prometheus for observability |
-| **0011** | GitHub Actions for CI; GitHub Pages for docs hosting |
+| **0011** | GitHub Actions for CI |
 | **0012** | Deferred: signed-seed delivery path (HMAC, mTLS) — recorded so it's not reinvented (lands in M3-4) |
+| **0013** | Systems overview: catalog of every component in the lab, the boundaries between them, and the interactions (request/response, fixture-time, deploy-time). Includes an SVG component diagram and one SVG sequence diagram for the canonical "render a host" flow. Mirrored as the living `docs/architecture/systems-overview.md` |
 
 Future ADRs will arrive as decisions cross the bar — anything that crosses module boundaries, affects public contracts, or chooses between credible alternatives.
 
@@ -805,12 +892,12 @@ Future ADRs will arrive as decisions cross the bar — anything that crosses mod
 | M5 | 3 | Layer |
 | M5.5 | 1 | Gate |
 | M6 | 4 | Layer |
-| M6.5 | 1 | Gate |
+| M6.5 | 2 | Gate |
 | M7 | 4 | Layer |
 | M7.5 | 2 | Gate |
-| **Total** | **45** | |
+| **Total** | **46** | |
 
-~45 issues across 15 milestones. Slightly higher than the previous draft's ~37 because we've added: dedicated observability work (M2-6), error-hierarchy issue (M2-7), TLS placeholder ADR (M3-4), QEMU role splitting (M4-4), `just`-target wrappers (M6-4), and the mutation testing workflow (M7-4). The increase corresponds to the higher durability bar; each addition is something a future maintainer will be glad we wrote.
+~46 issues across 15 milestones. Increases over earlier draft come from the durability bar: dedicated observability work (M2-6), error-hierarchy issue (M2-7), TLS placeholder ADR (M3-4), QEMU role splitting (M4-4), `just`-target wrappers (M6-4), teardown integrity verification (M6.5-2), mutation testing workflow (M7-4), and the docs-link checker replacing the mkdocs deploy (M7-3 repurposed). Each addition is something a future maintainer will be glad we wrote.
 
 ---
 
@@ -820,8 +907,14 @@ Future ADRs will arrive as decisions cross the bar — anything that crosses mod
 2. **We iterate to "yes."**
 3. **I scaffold the repo** via `gh repo create <user>/host-config --public --license apache-2.0` from this session.
 4. **I create the 15 milestones** in the new repo via `gh api`.
-5. **I seed all 45 issues** with titles, descriptions, acceptance criteria, labels, milestones, and links back to this plan.
-6. **M0-1 becomes the first PR target.**
-7. **Execution begins** one issue at a time, with a quick review at each gate before moving to the next layer.
+5. **I seed all 46 issues** with:
+   - Title and full description (from §9).
+   - Acceptance criteria as checkbox list.
+   - Labels (`milestone:Mx`, `area:...`, `kind:...`, `priority:...`).
+   - Milestone assignment.
+   - **`Plan reference:` line at the top of each issue body** linking back to the relevant subsection of this plan via commit-pinned URL (see §8.7).
+6. **I edit this plan once more** to backfill the bidirectional links: each issue ID in §9 tables gets a hyperlink to the GitHub issue URL.
+7. **M0-1 becomes the first PR target.**
+8. **Execution begins** one issue at a time, with a quick review at each gate before moving to the next layer.
 
-This plan stays in the research repo as the durable reference. Changes to the plan after seeding happen via ADRs in the new repo.
+This plan stays in the research repo as the durable reference. Changes to the plan after seeding happen via ADRs in the new repo (with the corresponding section in this plan getting a note that says "Amended; see ADR-NNNN in `host-config`").
