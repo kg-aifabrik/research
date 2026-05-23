@@ -5,7 +5,8 @@ Research on configuring host network interfaces during baremetal provisioning �
 ## State
 
 - **[Baremetal network overview](baremetal-network-overview.md)** — explainer covering the B300 host NIC topology (2× BF-3 DPU bonded N-S with VLAN trunk; 8× ConnectX-8 SuperNIC E-W RoCE underlay) and the five packet classes traversing the host. Paired Excalidraw + SVG diagrams in [diagrams/](diagrams/).
-- **[Test strategy](test-strategy.md)** — two-tier plan: software-only CI (Netbox in Docker + QEMU + OVS) for fast iteration; one rented GPU bare-metal box (Lambda / Crusoe H100) per burn for everything else; NVIDIA LaunchPad for the silicon-specific gap before site-1.
+- **[Test strategy](test-strategy.md)** — two-tier plan: software-only CI (Netbox + on-demand FastAPI renderer + nginx cache + OVS + QEMU + Soft-RoCE) on Lima/DO/GHA; one rented GPU bare-metal box (Lambda / Crusoe H100) per burn for hardware-specific validation; NVIDIA LaunchPad for the silicon gap before site-1.
+- **[Implementation plan](implementation-plan.md)** — durable charter and milestone breakdown for the `host-config` repo: 8 horizontal layer milestones + 7 integration gates, ~37 issues total. Captures repo charter, quality bar (mypy strict, ruff, coverage gates, signed commits, mkdocs, observability from day one), workflow conventions, and the issue list to be seeded.
 - Larger pipeline research is in flight: Netbox → typed intent → renderer → cloud-init NoCloud seed → Netplan/systemd-networkd, plus Day-2 reconciliation. Requirements & assumptions signed off; full report not yet written.
 
 ## Open threads
