@@ -1,239 +1,689 @@
 # Implementation plan — `host-config` repo
 
-> Durable planning artifact. Captures the decisions, repo charter, quality bar, milestone breakdown, and issue list for the `host-config` repository. Lives in the research repo as the reference; the new repo's README links here.
+> Durable planning artifact for the `host-config` GitHub repository. Captures the engineering philosophy, repo charter, code and quality conventions, testing strategy, observability strategy, milestone plan, and decision-log seed for the implementation of the Tier 1 host network configuration pipeline.
+>
+> This document is **immutable once seeded into the new repo**. Future changes happen via ADRs in `host-config`, not by editing this plan.
 
-## Charter
+---
 
-`host-config` is a public, Apache-2.0 GitHub repository under the same user account as this research repo. It holds the production-grade code, infrastructure, and deployment configuration for the **host network configuration pipeline** described in [`baremetal-network-overview.md`](baremetal-network-overview.md) and tested per [`test-strategy.md`](test-strategy.md).
+## 1. Charter
 
-**Initial scope:** Tier 1 only — Netbox model + fixtures, on-demand renderer service, nginx cache layer, OVS+QEMU test harness, cloud-init NoCloud integration, Soft-RoCE for east-west verbs validation, and a deployable lab on a DigitalOcean Droplet. **Out of initial scope:** Tier 2 hardware tests (run from this repo's CI but no provisioning code), Tier 3 LaunchPad, day-2 reconciliation, CNI / K8s overlay work (added later as a separate top-level module without restructuring).
+`host-config` is a **public, Apache-2.0** GitHub repository under the same user account as this research repo. It holds the production-grade code, infrastructure, and deployment configuration for the host network configuration pipeline described in [`baremetal-network-overview.md`](baremetal-network-overview.md) and tested per [`test-strategy.md`](test-strategy.md).
 
-**Operating principles:**
+**Initial scope (this plan):** Tier 1 only — Netbox model + fixtures, on-demand renderer service, nginx cache layer, OVS+QEMU test harness, cloud-init NoCloud integration, Soft-RoCE for east-west verbs validation, and a deployable lab on a DigitalOcean Droplet.
 
-- **Production grade from day one.** Linting, type-checking, coverage gates, ADRs, signed commits, observability — all on the first commit, not added later.
-- **Trunk-based, small reviewable changes.** Issues are scoped to be reviewable in a single sitting.
-- **Horizontal layer milestones with integration gates.** Each `.5` milestone proves a vertical slice works before the next layer starts.
-- **The research repo is the source of truth for design.** `host-config` references this repo for the why; it owns the how.
-- **No CNI scaffolding pre-built.** When CNI work starts, it gets its own top-level module. Don't pre-design what isn't being built.
+**Explicitly out of initial scope:** Tier 2 hardware-test orchestration code, Tier 3 LaunchPad workflows, day-2 reconciliation agent, CNI / K8s overlay work (added later as a separate top-level module without restructuring), production-grade seed signing / mTLS, multi-host scenarios.
 
-## Repo structure
+---
+
+## 2. Engineering principles (the durability mindset)
+
+These are the load-bearing values. Every other decision in this plan derives from them.
+
+1. **Code is read 10× more than it's written.** Optimize for the reader. If a clever one-liner would take two minutes to understand, the four-line obvious version wins.
+2. **Public contracts are forever; implementations are disposable.** Anything that crosses a module boundary (Pydantic models, REST routes, CLI invocations, library APIs, config-file shapes) is a contract. Treat its design with the seriousness of a versioned, semver-bound API.
+3. **Documentation is the artifact that outlives turnover.** A team's understanding evaporates over years. The text that explains *why* is what survives. Code comments, docstrings, ADRs, and DESIGN files are the durable medium.
+4. **Tests are the executable specification.** Tests describe what the system promises. A new contributor should learn what a function does by reading its tests, not by guessing from its name.
+5. **Logs are the post-mortem evidence.** When a 3am incident happens and the engineer on call has no context, the structured logs are the substrate they reconstruct reality from. Logs are debugging affordances, not afterthoughts.
+6. **Failure modes are first-class design subjects.** What does this function do when its dependency is down? When its inputs are malformed? When it's called concurrently? When the disk is full? These are designed for, not discovered.
+7. **Reproducibility is a feature.** Identical inputs produce identical outputs, regardless of time, machine, or network. Time, randomness, and external state are injected dependencies, not implicit globals.
+8. **Boring technology wins.** Choose the technology that will still be supported, hireable-for, and patched in ten years. Resist novelty unless the alternative materially fails the durability test.
+9. **One way to do common things.** Every common operation (run tests, format code, build docs, deploy) has exactly one entry point. Multiple competing ways are technical debt the day they ship.
+10. **Quality is preserved, not retrofit.** Linting, type-checking, coverage gates, ADR-on-design-change discipline — all enforced from the first commit. Retrofitting them onto an established codebase is several engineer-years of work.
+
+---
+
+## 3. Stack choices (revisited with the durability lens)
+
+| Choice | Selection | Rationale |
+|---|---|---|
+| Language | **Python 3.12** | Mature, stable, broad ecosystem for both web service and infrastructure scripting. 3.13's free-threaded mode is interesting but ecosystem support is partial. Pin to 3.12 for ecosystem maturity. ADR-0001 |
+| Package manager | **uv** | Single tool covering env, deps, lockfile, run, project. Replaces pip+venv+pip-tools+poetry+pipx with one fast, well-engineered binary. Maintained by Astral (also `ruff` makers). ADR-0002 |
+| Web framework | **FastAPI** | Pydantic-native, async, generates OpenAPI from types automatically. The "obvious choice" for production Python HTTP services in 2026. ADR-0003 |
+| Validation / models | **Pydantic v2** | The de-facto Python schema framework. Already pervasive; integrates with FastAPI. Strict mode + custom validators give us strong invariants. ADR-0003 |
+| Templating | **Jinja2** | Boring, ubiquitous, mature. ADR-0003 |
+| Linter + formatter | **ruff** | Replaces flake8 + isort + pyupgrade + black with one fast tool. Astral-maintained, actively developed. ADR-0004 |
+| Type checker | **mypy --strict** | More mature, broader ecosystem support, fewer edge cases than pyright. Slower CI but acceptable. ADR-0004 |
+| Test runner | **pytest** | The Python test standard. ADR-0005 |
+| Property-based testing | **Hypothesis** | For invariant-based testing of models and renderer. ADR-0005 |
+| Mutation testing | **mutmut** | Tracks test quality alongside coverage. ADR-0005 |
+| Test containers | **testcontainers-python** | For component tests against real Netbox / nginx containers. |
+| Infra-as-code (cloud) | **OpenTofu** (Terraform fork) | OpenTofu is the open-source-licensed fork of Terraform after HashiCorp's BUSL change. For a project meant to outlive HashiCorp's licensing decisions, OpenTofu is the safer pick. Functionally identical to Terraform 1.5; supports the same provider ecosystem. ADR-0006 |
+| Configuration management | **Ansible** | Massive ecosystem, idempotent by default, declarative roles, ubiquitous knowledge. ADR-0007 |
+| Container runtime (dev) | **Docker** | Broadest ecosystem; testcontainers integration is best. Could revisit Podman later. |
+| Secret management (dev) | **direnv + .envrc** (gitignored) + `.envrc.example` (committed) | Simple, no infra dependency for local dev. Production-grade secrets management is M-scope-later. |
+| Task runner | **just** | Cleaner than Make for non-build tasks; cross-platform; single-file. ADR-0008 |
+| Docs site | **mkdocs + Material theme + mkdocstrings** | Renders Markdown beautifully, generates API reference from docstrings, hosts on GH Pages. Alternative (sphinx) is more powerful but heavier; not needed for this scope. ADR-0009 |
+| Observability — logs | **structlog** | Structured logging is non-negotiable for production. structlog gives clean Python ergonomics. ADR-0010 |
+| Observability — metrics | **prometheus-client** | Plain Prometheus text format at `/metrics`; standard, no agent dependency. ADR-0010 |
+| Observability — traces | **OpenTelemetry SDK** with auto-instrumentation for FastAPI | OTLP exporter configurable; no-op by default. ADR-0010 |
+| CI | **GitHub Actions** | Same platform as the repo; KVM available on hosted runners; free tier sufficient. ADR-0011 |
+| Documentation hosting | **GitHub Pages** | Free, integrated, no external dependency. ADR-0011 |
+
+**Change from previous plan:** Terraform → **OpenTofu**. OpenTofu is the right call for a project meant to outlive vendor licensing decisions; the migration cost is zero since the syntax is identical.
+
+---
+
+## 4. Repo structure
 
 ```
 host-config/
-├── README.md                       # what this is, prereqs, quickstart
+├── README.md                       # what this is, prereqs, quickstart, links
 ├── LICENSE                         # Apache-2.0
 ├── CHANGELOG.md                    # auto-generated from conventional commits
-├── pyproject.toml                  # uv-managed; Python 3.12+
-├── uv.lock
+├── CODE_OF_CONDUCT.md              # Contributor Covenant 2.1
+├── CONTRIBUTING.md                 # how to contribute, dev setup, PR flow
+├── CODE_CONVENTIONS.md             # the living rulebook (§5 of this plan)
+├── SECURITY.md                     # how to report vulnerabilities
+├── justfile                        # one-line entry points for every common task
+├── pyproject.toml                  # uv-managed; Python 3.12; tool configs
+├── uv.lock                         # committed
 ├── .python-version
 ├── .pre-commit-config.yaml
+├── .envrc.example                  # template; real .envrc is gitignored
 ├── .gitignore
+├── .gitattributes                  # consistent line endings, binary marks
 │
 ├── .github/
 │   ├── workflows/
 │   │   ├── ci.yml                  # lint, type-check, unit, component
 │   │   ├── e2e.yml                 # full pipeline e2e on PR
-│   │   └── docs.yml                # mkdocs build + deploy on main
-│   ├── ISSUE_TEMPLATE/             # layer-task.md, gate-test.md, bug.md
-│   └── PULL_REQUEST_TEMPLATE.md
+│   │   ├── docs.yml                # mkdocs build + deploy on main
+│   │   ├── mutation.yml            # weekly mutation testing (mutmut)
+│   │   └── deps.yml                # dependabot + uv lock refresh
+│   ├── ISSUE_TEMPLATE/             # layer-task.md, gate-test.md, bug.md, design-discussion.md
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   └── CODEOWNERS
 │
 ├── docs/                           # mkdocs Material site source
-│   ├── index.md
-│   ├── architecture/
-│   ├── adr/                        # 0001-..., 0002-...
-│   ├── runbooks/
+│   ├── index.md                    # entry point
+│   ├── architecture/               # system-level diagrams + sequence flows
+│   ├── adr/                        # 0001-..., 0002-..., immutable once landed
+│   │   └── template.md             # Michael Nygard format
+│   ├── runbooks/                   # operational playbooks
+│   ├── reference/                  # auto-generated from docstrings via mkdocstrings
 │   └── mkdocs.yml
 │
 ├── infra/
-│   ├── terraform/                  # DO Droplet provisioning
-│   └── ansible/                    # in-host bootstrap (Netbox, OVS, nginx, renderer, qemu-host)
+│   ├── opentofu/                   # DO Droplet provisioning
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   ├── DESIGN.md
+│   │   └── README.md
+│   └── ansible/                    # in-host bootstrap
+│       ├── playbooks/
+│       │   └── deploy-lab.yml
+│       ├── roles/
+│       │   ├── netbox-dev/
+│       │   ├── renderer/
+│       │   ├── nginx-cache/
+│       │   ├── ovs-harness/
+│       │   └── qemu-host/
+│       ├── inventory/
+│       │   └── digitalocean.yml
+│       ├── DESIGN.md
+│       └── README.md
 │
-├── src/host_config/                # FastAPI renderer service (Python package)
-│   ├── models/                     # Pydantic HostIntent + variants
-│   ├── netbox/                     # pynetbox wrapper + loaders
-│   ├── render/                     # Jinja templates + emit logic
-│   ├── service/                    # FastAPI app + middleware
-│   ├── observability/              # structlog + OTel + Prometheus
-│   └── DESIGN.md                   # module-level design doc
+├── src/host_config/                # the renderer service (Python package)
+│   ├── __init__.py                 # version, package-level __all__
+│   ├── DESIGN.md                   # module-level design doc
+│   ├── errors.py                   # custom exception hierarchy
+│   ├── logging_config.py           # structlog setup, single source of truth
+│   ├── observability/
+│   │   ├── __init__.py
+│   │   ├── metrics.py              # Prometheus collectors
+│   │   └── tracing.py              # OTel setup
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── intent.py               # HostIntent + role-specific variants
+│   │   ├── interface.py            # PhysIface, Bond, VlanChild, RoceUnderlay, SriovParent
+│   │   └── validators.py           # cross-field validators
+│   ├── netbox/
+│   │   ├── __init__.py
+│   │   ├── client.py               # pynetbox wrapper (typed)
+│   │   ├── loaders.py              # Netbox record → HostIntent
+│   │   └── schema.py               # custom field definitions
+│   ├── render/
+│   │   ├── __init__.py
+│   │   ├── templates/              # Jinja2 templates per role
+│   │   │   ├── cpu/
+│   │   │   └── gpu-b300/
+│   │   ├── emitter.py              # template → text bytes
+│   │   └── golden/                 # checked-in expected outputs for fixtures
+│   └── service/
+│       ├── __init__.py
+│       ├── app.py                  # FastAPI app construction
+│       ├── routes.py               # route handlers
+│       ├── middleware.py           # request_id, logging, metrics
+│       └── dependencies.py         # FastAPI DI providers
 │
 ├── tests/
+│   ├── conftest.py                 # shared fixtures, container management
 │   ├── unit/
-│   ├── component/                  # tests against real Netbox container
+│   │   ├── models/
+│   │   ├── netbox/
+│   │   ├── render/
+│   │   └── service/
+│   ├── component/                  # against real Netbox container
+│   │   ├── netbox/
+│   │   ├── render/
+│   │   └── service/
 │   ├── integration/                # cross-module
-│   └── e2e/                        # gate-milestone tests
+│   ├── e2e/                        # full pipeline (gate-milestone tests)
+│   └── properties/                 # Hypothesis-based property tests
 │
 ├── fixtures/
-│   ├── netbox/                     # Netbox population scripts
-│   └── vms/                        # QEMU launch scripts, cloud images
+│   ├── netbox/
+│   │   ├── populate.py             # idempotent fixture loader
+│   │   └── data/                   # YAML descriptions of fixture hosts
+│   └── vms/
+│       ├── launch.py               # QEMU launcher
+│       └── images/                 # downloaded cloud images (gitignored)
 │
-└── scripts/                        # bootstrap-lima.sh, dev convenience
+└── scripts/                        # one-shot dev convenience
+    ├── bootstrap-lima.sh
+    ├── bootstrap-mac.sh
+    └── ...
 ```
 
-## Quality bar
+**Why this shape:**
 
-**Code:**
+- **Source under `src/host_config/`** (not flat) — prevents accidental "tests/imports from project root work because they run from the repo dir" foot-gun. Forces installed-package semantics.
+- **Module-per-domain** (`models/`, `netbox/`, `render/`, `service/`, `observability/`) — each module has one reason to change.
+- **`errors.py` per package** — custom exceptions colocated with the code that raises them.
+- **`DESIGN.md` per module** — durable rationale for boundaries and trade-offs.
+- **`golden/` for renderer outputs** — checked-in expected bytes; every change to renderer requires updating goldens, which forces a review of output drift.
+- **`docs/adr/`** — numbered, dated, immutable; this is the load-bearing "why we did it that way" record.
+- **`fixtures/` separated from `tests/`** — fixtures are reusable data; tests are the assertions.
 
-- **Python 3.12+** with `uv` as the package manager (single tool for env, deps, scripts).
-- **`mypy --strict`** end-to-end. CI gate.
-- **`ruff`** with curated ruleset (`E`, `F`, `I`, `UP`, `B`, `S`, `RUF`, `PL`, `TID`, `SIM`); `ruff format` for code style. CI gate.
-- **Tests:** `pytest` + `pytest-asyncio` + `pytest-cov`. Full pyramid (unit + component + integration) at every milestone.
-- **Coverage gates:** 85% on `src/host_config`, 70% on Ansible-linted infra. CI blocks merge if coverage drops.
-- **Pre-commit hooks:** `ruff`, `mypy`, `pytest -m fast`, `gitleaks` (secrets), `check-large-files`, `check-yaml`.
-- **Dependency hygiene:** `uv.lock` committed, Dependabot weekly, `syft` SBOM at release, `pip-audit` in CI.
+---
 
-**Process:**
+## 5. Code conventions
 
-- **Conventional commits** enforced via `commitlint` pre-commit hook. Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci`, `perf`, `build`.
-- **GPG-signed commits** required on `main` (branch protection).
-- **Trunk-based dev.** Feature branches off `main`, squash-merge back.
-- **PR template** requires: linked issue, what changed, how tested, acceptance criteria check.
-- **CI gates** to merge: lint + type-check + unit + component + coverage threshold + integration. e2e runs on PR but allowed to be slower.
-- **CHANGELOG.md** auto-generated from conventional commits at release time.
+These are concrete rules — what `CODE_CONVENTIONS.md` in the new repo will say.
 
-**Docs:**
+### 5.1 File organization
 
-- **README.md** — what, prereqs, quickstart (`scripts/bootstrap-lima.sh && pytest -m e2e`), pointers into `docs/`.
-- **`docs/architecture/`** — overview, sequence diagrams, component contracts. Renders to the mkdocs site.
-- **`docs/adr/`** — Michael Nygard format. Numbered, dated, immutable once landed (supersede, don't edit).
-- **Module `DESIGN.md`** — each major module (`src/host_config/`, `infra/terraform/`, `infra/ansible/`) gets one.
-- **`docs/runbooks/`** — operational playbooks (deploy to DO, debug a failing render, etc.).
-- **mkdocs Material theme**, published to GitHub Pages on every push to `main` via GHA.
-- **Docstrings:** all public functions/classes. Google style. Rendered via `mkdocstrings`.
+- **Every file declares its scope in a module-level docstring** at the top. Two sentences minimum: what this module is responsible for, and what it explicitly is not.
+- **File length budget: ~400 lines (soft cap).** Exceeding this is a smell. Either the file has too much responsibility or a function is over-budget.
+- **One primary class per file** when classes are involved. Tightly coupled helper classes can share a file.
+- **Standard intra-file ordering:**
+  1. Module docstring
+  2. `from __future__ import annotations`
+  3. Standard library imports
+  4. Third-party imports
+  5. First-party imports
+  6. Module-level constants
+  7. Type aliases
+  8. Public functions/classes (in order of importance)
+  9. Private functions (prefixed `_`)
+  10. `__all__` declaration at the bottom listing public API
 
-**Observability (in the renderer from day one):**
+### 5.2 Function conventions
 
-- **`structlog`** — JSON logs in production, console-friendly in dev.
-- **OpenTelemetry** — `opentelemetry-instrumentation-fastapi`; OTLP exporter configurable, no-op default.
-- **Prometheus metrics** at `/metrics` — request count, latency histograms, Netbox query duration, render duration, cache-miss rate.
-- **Health endpoints** — `/healthz` (liveness), `/readyz` (Netbox reachable + cache writable).
+- **Single responsibility.** A function does one thing. The one thing might be "orchestrate three other functions" — that's fine — but it's still one thing.
+- **Function length budget: ~50 lines (soft cap).** If a function exceeds this, factor.
+- **Cyclomatic complexity ≤ 10** (enforced by `ruff` rule `C901`).
+- **Pure functions preferred.** When a function has side effects (I/O, mutation, time), name and document them explicitly.
+- **Dependency injection.** External state (clock, random, network client, file system) is passed in, not imported globally. This makes functions testable without monkeypatching.
 
-## Workflow conventions
+### 5.3 Docstring style
 
-- **Branch naming:** `feat/<short-slug>`, `fix/<slug>`, `docs/<slug>`, `chore/<slug>`. Issue number suffix optional.
-- **Commit messages:** Conventional commit format. Body required for non-trivial changes; references linked issue.
-- **PR title:** Same Conventional Commit format. Squash-merge preserves the title in `main`'s history.
-- **Code review:** Self-review acceptable for trivial changes (docs typos, dependency bumps); substantive changes require linter+tests passing and a deliberate "looks good" comment before merge.
-- **Issue labels:** `milestone:M0`–`milestone:M7.5`, `layer:infra`, `layer:renderer`, `layer:fixtures`, `layer:docs`, `kind:feat`, `kind:test`, `kind:bug`, `priority:p0`–`p2`.
-- **Definition of done:** Acceptance criteria in the issue are checked off; tests written and passing; docstring/README/ADR updated where relevant; merged to `main`.
+Google style, extended with `Approach` and `Scenarios`. Every public function has a full docstring. Private helpers have at least a one-line summary.
 
-## Milestone plan
+```python
+def render_network_config(
+    intent: HostIntent,
+    templates_dir: Path,
+    *,
+    now: Callable[[], datetime] = datetime.utcnow,
+) -> bytes:
+    """Render the cloud-init network-config YAML for a host.
+
+    Approach:
+        Selects the Jinja2 template directory for the host's role,
+        constructs a deterministic Jinja environment (autoescape off
+        for YAML, undefined raises), and renders the template against
+        the intent. The output is post-processed via ruamel.yaml to
+        produce stable key ordering, ensuring byte-deterministic
+        output across runs given identical input.
+
+    Args:
+        intent: A validated `HostIntent` for the target host. Must
+            already have passed all cross-field invariants (e.g.,
+            exactly one default gateway).
+        templates_dir: Root of the templates tree. Expected to contain
+            a subdirectory matching `intent.role`.
+        now: Callable returning the current UTC datetime. Injected
+            for testability. Default: `datetime.utcnow`.
+
+    Returns:
+        UTF-8 encoded bytes of the rendered YAML, suitable for direct
+        delivery as a cloud-init `network-config` file.
+
+    Raises:
+        TemplateNotFoundError: No template directory exists for
+            `intent.role`.
+        RenderError: The Jinja template raised a `UndefinedError` or
+            similar — usually indicates the intent lacks a field the
+            template expected.
+
+    Scenarios:
+        - Happy path: cpu role intent → produces parseable YAML with
+            bond0 + three VLAN children.
+        - Happy path: gpu-b300 role intent → produces YAML with all
+            10 NICs configured.
+        - Missing role template → raises TemplateNotFoundError with
+            the offending role name.
+        - Intent missing a required field → raises RenderError with
+            the field name in the message.
+        - Same intent rendered twice → byte-identical output (tested
+            via golden-file comparison).
+        - now() returning a fixed timestamp → embedded timestamp in
+            output matches (tests determinism).
+
+    Example:
+        >>> intent = HostIntent(role="cpu", ...)
+        >>> output = render_network_config(intent, Path("templates"))
+        >>> assert b"bond0.100" in output
+    """
+```
+
+**The `Scenarios:` block is load-bearing.** It is the spec the test file implements. A reviewer reading the docstring knows what tests must exist; a contributor writing tests has a checklist.
+
+### 5.4 Inline comments
+
+- **Prefer "why" over "what."** The code already says what; comments explain the rationale.
+- **Use prefixed tags** for searchability:
+  - `# WHY: ...` — explains a non-obvious decision
+  - `# NOTE: ...` — caller-relevant context (e.g., "this assumes input is sorted")
+  - `# SAFETY: ...` — invariant that must hold; explains why something is safe
+  - `# TODO(#issue): ...` — must reference an open issue; ungrounded TODOs blocked by pre-commit
+  - `# HACK: ...` — known workaround; should link to the issue tracking proper fix
+- **Reference ADRs, RFCs, issue numbers** where context lives elsewhere.
+- **Document non-obvious trade-offs at the decision site.** A reader two years from now should not have to do archaeology to understand why we chose `layer3+4` hash policy over `layer2+3`.
+
+Example:
+
+```python
+# WHY: We hash on layer3+4 (not the bonding default of layer2)
+# because both bond members face the same logical LACP partner
+# (the ESI-LAG pair). Layer2 hashing collapses all traffic to
+# one slave; layer3+4 spreads flows by 5-tuple. See ADR-0014.
+parameters: dict[str, Any] = {
+    "mode": "802.3ad",
+    "transmit-hash-policy": "layer3+4",
+}
+```
+
+### 5.5 Naming
+
+- **Modules:** `snake_case`, descriptive. No `utils.py`, `helpers.py`, `common.py`, `misc.py`. Every module name is a noun describing what lives there.
+- **Public functions:** `verb_noun` form. `render_network_config`, `load_host_from_netbox`, `build_intent`.
+- **Private functions:** `_prefix` (single underscore).
+- **Constants:** `SCREAMING_SNAKE_CASE`, module-level only.
+- **Types:** `PascalCase`. `HostIntent`, `BondMember`, `RenderError`.
+- **Type aliases:** `PascalCase` followed by `Type` only when ambiguous. Prefer `AssetTag = NewType("AssetTag", str)` over `AssetTagType = ...`.
+
+### 5.6 Error handling
+
+- **Specific exception classes per failure scenario.** No bare `Exception` raises. Defined in `errors.py` per package.
+- **Errors carry context.** Exception messages include the operation being attempted and the relevant identifiers (asset tag, host name, etc.).
+- **No bare `except:`.** Specific catches only. Re-raise unless explicitly handled.
+- **Retry policies are configurable, not implicit.** Use `tenacity` for retry logic; configure timeouts, max attempts, and backoff explicitly.
+- **Errors at module boundaries are typed.** A function that calls Netbox should not let `requests.exceptions.HTTPError` leak out; wrap into `NetboxQueryError`.
+
+```python
+# src/host_config/netbox/errors.py
+class NetboxError(Exception):
+    """Base class for all Netbox-related errors."""
+
+class NetboxQueryError(NetboxError):
+    """Netbox query failed (timeout, 5xx, etc.)."""
+    def __init__(self, asset_tag: str, operation: str, cause: Exception) -> None:
+        super().__init__(
+            f"Netbox query failed for asset_tag={asset_tag} "
+            f"during operation={operation!r}: {cause}"
+        )
+        self.asset_tag = asset_tag
+        self.operation = operation
+        self.cause = cause
+```
+
+### 5.7 Concurrency and side effects
+
+- **Async is opt-in, not pervasive.** FastAPI routes are `async def`; downstream blocking I/O (pynetbox) runs in a thread pool via `asyncio.to_thread`. Don't make pure logic async.
+- **No global mutable state.** Configuration is passed in at startup; runtime state lives in well-defined objects.
+- **Time, randomness, and external state are injected.** Functions take `now: Callable[[], datetime]` arguments where time matters; tests substitute fixed values.
+
+---
+
+## 6. Testing strategy
+
+### 6.1 Pyramid composition
+
+Each milestone produces tests at every applicable level. The pyramid is the shape, not just the goal.
+
+| Level | % of suite (rough) | Scope | Speed | Network/Container |
+|---|---|---|---|---|
+| Unit | ~60% | Single function or tightly coupled function group | <50 ms each | None |
+| Component | ~25% | One module against real downstream container (Netbox, nginx) | <2 s each | testcontainers |
+| Integration | ~10% | Multiple modules wired together; mocks at the system edge | <10 s each | testcontainers |
+| E2E | ~5% | Full pipeline; gate-milestone tests | <5 min each | Full lab via OVS+QEMU |
+
+### 6.2 Test conventions
+
+- **File structure mirrors source.** `src/host_config/render/emitter.py` → `tests/unit/render/test_emitter.py`. Searchability matters.
+- **Test names: `test_<scenario>_<expected>`.** Examples: `test_missing_mac_raises_clear_error`, `test_idempotent_render_produces_same_bytes`. A reader scanning failed tests should know what broke from the name alone.
+- **Each function's docstring `Scenarios:` block enumerates required tests.** A new test must correspond to a scenario in the docstring; a new scenario must produce a test.
+- **Parametrize liberally.** Don't write 8 nearly-identical test functions; parametrize one.
+- **One assertion per test (soft rule).** Multi-assertion tests are OK when they describe one logical observation, but prefer splitting.
+
+### 6.3 Property-based testing (Hypothesis)
+
+For functions with non-trivial invariants — model validators, renderers, anything that should hold for "any valid input."
+
+- Generate arbitrary `HostIntent` objects; assert no IP duplications, MTU monotonicity (parent ≥ child), exactly one default gateway.
+- Generate arbitrary VLAN sub-interface configurations; assert renderer never emits invalid Netplan YAML (re-parseable by Netplan).
+- Generate arbitrary asset tags; assert the renderer never panics, only raises the documented exception types.
+
+### 6.4 Mutation testing (mutmut)
+
+Coverage tells you which lines ran; mutation testing tells you whether your tests would catch the bug if the code were broken.
+
+- Run weekly in CI (`mutation.yml` workflow).
+- Track mutation score over time (target: ≥75% by M5; ≥85% by M7).
+- Surviving mutants reviewed manually; usually either the mutant is equivalent (skip) or there's a missing test.
+- Not a merge gate v1; informative metric. Becomes a gate when scope stabilizes.
+
+### 6.5 Test infrastructure
+
+- **`testcontainers-python`** for Netbox / nginx in component and integration tests. Containers are reused across tests in a module via session-scoped fixtures where state isolation allows.
+- **`pytest-xdist`** for parallel execution across CPU cores.
+- **`pytest-timeout`** with global 30s cap (overrideable per test) to catch hangs.
+- **Fixtures live in `conftest.py` at the lowest common ancestor.** Don't duplicate.
+- **Markers:** `@pytest.mark.fast` (unit only; runs in pre-commit), `@pytest.mark.slow` (component+), `@pytest.mark.e2e` (full pipeline), `@pytest.mark.requires_kvm` (skipped on non-KVM CI).
+
+### 6.6 What we deliberately don't test
+
+- **Trivial getters/setters.** No.
+- **Pydantic's own serialization.** Pydantic has its own tests.
+- **Third-party library contracts.** Trust the contract; test our usage of it.
+- **Implementation details that aren't part of the contract.** Tests should survive refactors that don't change behavior.
+
+### 6.7 Coverage gates
+
+- **Line coverage:** ≥85% on `src/host_config/`, ≥70% on Ansible-linted infra.
+- **Branch coverage:** ≥80% on `src/host_config/`.
+- **Coverage drop blocks merge.** A PR cannot reduce overall coverage by more than 0.5% without explicit override approval.
+- **Coverage is a floor, not a ceiling.** Hitting 85% means the dimmer parts of the codebase need more tests; it doesn't mean you stop writing tests.
+
+---
+
+## 7. Observability strategy
+
+### 7.1 Logging philosophy
+
+- **Structured exclusively.** Every log line is key-value pairs (JSON in production, console-friendly in dev). No f-string interpolation into a single message string for variables.
+- **Logs tell a story.** A reader following a single request through the logs from receive to response should understand exactly what happened, in order, with timing.
+- **One source of truth for log config:** `src/host_config/logging_config.py`. All modules use `structlog.get_logger(__name__)`; the config module wires up processors, levels, and outputs.
+
+### 7.2 Log levels
+
+| Level | When to use |
+|---|---|
+| `TRACE` | Function entry/exit with arguments. Off in production; on for "wtf is happening" debugging. (Custom level; mapped to DEBUG-1.) |
+| `DEBUG` | Intermediate state inside non-trivial operations. Key decision points. Enable to follow a request through the system. |
+| `INFO` | Lifecycle events: process start, request received, request completed, cache miss/hit, render succeeded. Default level in production. |
+| `WARN` | Degraded operation. Will continue, but operator should know (e.g., Netbox query slow, cache eviction rate high). |
+| `ERROR` | Operation failed with bounded blast radius. Single request errored; system continues. |
+| `CRITICAL` | Process must exit or take drastic action. Rare. |
+
+### 7.3 Correlation IDs
+
+Every request gets:
+- `request_id` (UUID, generated in middleware, returned in response header `X-Request-Id`).
+- `asset_tag` (from URL path, bound into context for all logs in this request).
+- `render_id` (generated when rendering starts; binds the renderer subprocess's logs).
+
+Bound via `structlog.contextvars.bind_contextvars`; every log line in the request scope automatically includes these fields.
+
+### 7.4 Log fields by domain
+
+Standard fields every log includes (set by middleware/config):
+- `timestamp` (ISO 8601 UTC)
+- `level`
+- `logger` (module path)
+- `event` (the message identifier, short)
+- `request_id`, `asset_tag`, `render_id` (when applicable)
+
+Domain-specific:
+- **Renderer:** `template_name`, `output_bytes`, `duration_ms`, `golden_match` (bool)
+- **Netbox client:** `endpoint`, `params`, `duration_ms`, `status_code`, `result_count`
+- **Service middleware:** `method`, `path`, `status_code`, `duration_ms`, `user_agent`
+- **Cache:** `cache_key`, `hit` (bool), `age_seconds`
+
+### 7.5 Debug-level traceability requirement
+
+**Concrete acceptance criterion:** with `LOG_LEVEL=DEBUG` set, a single request to `/render/SN12345/network-config` produces logs that let an engineer reconstruct:
+
+1. Request received with what asset tag, what request_id.
+2. Cache check, hit/miss, reason.
+3. (If miss) Netbox query started, completed in X ms, returned record with what shape.
+4. Pydantic model construction started, validators passed.
+5. Template selection: which role, which template directory.
+6. Render started, completed in X ms, produced N bytes.
+7. Response sent with what status, what byte count, total request duration.
+
+This is testable: the test asserts the expected log events occur in order with the right key fields.
+
+### 7.6 Metrics (Prometheus)
+
+Exposed at `/metrics`. Following Prometheus conventions:
+
+- **Counters:**
+  - `host_config_requests_total{method, path, status}`
+  - `host_config_renders_total{role, outcome}` (outcome: success, validation_error, netbox_error, template_error)
+  - `host_config_cache_events_total{type}` (type: hit, miss, evict, error)
+- **Histograms:**
+  - `host_config_request_duration_seconds{method, path}`
+  - `host_config_netbox_query_duration_seconds{endpoint}`
+  - `host_config_render_duration_seconds{role}`
+- **Gauges:**
+  - `host_config_active_requests`
+  - `host_config_cache_size_bytes`
+
+Every metric is documented in `src/host_config/observability/metrics.py` with the rationale for its existence (what question does this answer?).
+
+### 7.7 Traces (OpenTelemetry)
+
+- FastAPI auto-instrumented via `opentelemetry-instrumentation-fastapi`.
+- Custom spans:
+  - `netbox.query` around every Netbox call (with `endpoint` and `asset_tag` attributes).
+  - `intent.build` around model construction.
+  - `render.template` around template rendering (with `role`, `template` attributes).
+- OTLP exporter pluggable via env var; no-op default in dev (avoids any external dep).
+
+### 7.8 Health endpoints
+
+- `/healthz` — liveness; returns 200 if the process is running.
+- `/readyz` — readiness; returns 200 only if Netbox is reachable AND the cache directory is writable. Returns 503 with a JSON body describing which check failed.
+
+---
+
+## 8. Workflow conventions
+
+- **Branch naming:** `<type>/<short-slug>` where type is one of `feat`, `fix`, `docs`, `chore`, `refactor`, `test`. Optional issue number suffix.
+- **Commit messages:** Conventional Commits format, enforced via `commitlint` pre-commit hook. Body required for non-trivial changes; references linked issue.
+- **PR title:** Same Conventional Commit format as the commit. Squash-merge preserves it.
+- **Code review:** Self-review acceptable for trivial changes (docs typos, dependency bumps); substantive changes require a deliberate "looks good" comment + green CI + signed commits.
+- **GPG signing:** Required on `main` (branch protection enforces).
+- **Issue labels:**
+  - `milestone:M0`–`milestone:M7.5`
+  - `area:infra`, `area:renderer`, `area:fixtures`, `area:docs`, `area:tests`, `area:observability`, `area:ci`
+  - `kind:feat`, `kind:test`, `kind:bug`, `kind:docs`, `kind:design`
+  - `priority:p0`–`p2`
+- **Definition of done:** Issue's acceptance criteria checked off; tests written; coverage doesn't regress; docstring/README/ADR/DESIGN.md updated where relevant; merged to `main`; CHANGELOG entry generated.
+
+### 8.1 ADR practice
+
+- **When to write an ADR:** Any decision that crosses module boundaries, affects public contracts, or chooses between credible alternatives. If you'd struggle to explain the choice to a new contributor in two minutes, write the ADR.
+- **Format:** Michael Nygard — Context, Decision, Consequences. Optional: Alternatives Considered.
+- **Immutable once landed.** To change a decision, write a new ADR that supersedes the old one. The old ADR stays in the repo with a "Superseded by ADR-NNNN" note.
+- **Numbered sequentially.** Filename: `0001-initial-stack-choices.md`.
+
+### 8.2 Pre-commit gates
+
+Every commit (locally and on CI re-check):
+- `ruff check` (lint)
+- `ruff format --check` (formatting)
+- `mypy --strict` on changed files
+- `pytest -m fast` (unit tests on changed modules)
+- `gitleaks` (secret scanning)
+- Commit message lint (`commitlint`)
+- File size check (no >1 MB files without explicit allow)
+- YAML/JSON validation on changed files
+
+### 8.3 CI gates
+
+Every PR:
+- All pre-commit checks repeated.
+- `mypy --strict` on full codebase.
+- Full `pytest` (unit + component + integration).
+- Coverage report; coverage drop > 0.5% blocks merge.
+- `pip-audit` (security advisory scan).
+- Conventional commit lint on PR title.
+- For `main` branch: signed commits enforced; e2e tests must pass.
+
+---
+
+## 9. Milestone plan
 
 8 horizontal layer milestones (M0–M7) + 7 integration gate milestones (M1.5–M7.5). Open-ended dates — milestones close when their scope is shipped.
 
 ### M0 — Repo bootstrap (layer)
 
-**Goal:** A new public repo at `gh:<user>/host-config` with all scaffolding, conventions, and CI in place. No application code yet.
+**Goal:** A new public repo at `gh:<user>/host-config` with all scaffolding, conventions, ADRs for initial choices, and CI in place. No application code yet — but everything needed to start writing it.
+
+**Issues (7):**
+
+| ID | Title | Scope |
+|---|---|---|
+| M0-1 | Initialize repo with license and base files | LICENSE (Apache-2.0), README skeleton, `.gitignore`, `.gitattributes`, `.python-version`, `pyproject.toml` (name, deps placeholders, tool sections), `CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, `.envrc.example`, `justfile` with placeholder targets |
+| M0-2 | Configure code quality tooling | `ruff` ruleset in `pyproject.toml`; `mypy` strict config; `pytest`/`pytest-cov` config; `.pre-commit-config.yaml` with all hooks (ruff, mypy, pytest -m fast, gitleaks, commitlint, file-size); `.editorconfig` |
+| M0-3 | Write `CODE_CONVENTIONS.md` | Authoritative version of §5 of this plan, lifted into the repo. Living document, edits via PR |
+| M0-4 | Set up mkdocs docs site | `mkdocs.yml` (Material theme), `docs/index.md`, `docs/architecture/` skeleton, `docs/adr/template.md` (Michael Nygard), `docs/runbooks/` skeleton, `mkdocstrings` config for API reference generation |
+| M0-5 | Write initial ADRs 0001–0011 | All 11 stack-choice ADRs listed in §11 of this plan. Each ADR follows the Nygard format. These document why we made each choice |
+| M0-6 | Configure CI workflows | `.github/workflows/ci.yml` (lint+type+unit+component+coverage); `docs.yml` (mkdocs build+deploy on main); placeholder `e2e.yml` and `mutation.yml`; Dependabot config (`.github/dependabot.yml`); issue and PR templates; CODEOWNERS |
+| M0-7 | Configure branch protection and signed commits | Branch protection rule on `main`: required checks, signed commits, 1 review on substantive PRs (self-review allowed for trivial). Documentation of the rule in `CONTRIBUTING.md` |
+
+### M1 — Netbox model + fixtures (layer)
+
+**Goal:** Local Netbox via Docker, with custom fields for our schema, populated with one B300 host and one CPU host. Every population step is logged at INFO; the fixture is idempotent.
 
 **Issues (4):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M0-1 | Initialize repo with Apache-2.0 license and base files | LICENSE, README skeleton, `.gitignore`, `.python-version`, `pyproject.toml` with project metadata + `uv` config |
-| M0-2 | Add code quality scaffolding | `ruff`, `mypy`, `pytest` config in `pyproject.toml`; `.pre-commit-config.yaml` with all hooks; `.editorconfig`; commitlint config |
-| M0-3 | Add docs scaffolding | `mkdocs.yml` with Material theme; `docs/index.md`; `docs/adr/template.md` (Michael Nygard); ADR-0001 capturing the stack choices (Python 3.12, uv, FastAPI, Terraform, Ansible) |
-| M0-4 | Add CI workflows and branch protection | `.github/workflows/{ci,docs}.yml` minimal — lint + type-check + docs build/deploy; Dependabot config; issue + PR templates; branch protection rules requiring signed commits + green CI on `main` |
+| M1-1 | Ansible role: `netbox-dev` | Brings up `netbox-docker` compose stack; idempotent; exposes Netbox on configurable port; includes DESIGN.md explaining role boundaries; logs every action |
+| M1-2 | Define Netbox custom field schema | `src/host_config/netbox/schema.py`: declares custom fields (`bf3_mode`, `roce_tc`, `numa_node`, `sriov_vfs`, `gpu_affinity`, `observed_mac`, `observed_firmware`) as typed Python definitions; idempotent `apply_schema` function. Full docstrings + Scenarios per function |
+| M1-3 | Fixture script: populate B300 + CPU hosts | `fixtures/netbox/populate.py`: idempotent loader reading from `fixtures/netbox/data/*.yaml`; full structured logging; documented Scenarios; raises typed errors on conflict |
+| M1-4 | Component tests for Netbox schema apply | `tests/component/netbox/test_schema.py`: spins Netbox container, applies schema twice, asserts idempotency; spins fresh container, asserts all custom fields exist |
 
-### M1 — Netbox model + fixtures (layer)
+### M1.5 — Gate: Netbox fixtures round-trip (integration)
 
-**Goal:** Local Netbox via Docker, with custom fields for our schema, populated with one B300 host and one CPU host.
-
-**Issues (3):**
-
-| ID | Title | Scope |
-|---|---|---|
-| M1-1 | Ansible role: netbox-dev | Role that brings up `netbox-docker` compose stack on the target host; idempotent; exposes Netbox on a known port |
-| M1-2 | Define Netbox custom fields via API | Python script using `pynetbox` to declare custom fields (`bf3_mode`, `roce_tc`, `numa_node`, `sriov_vfs`, `gpu_affinity`, `observed_mac`, `observed_firmware`); runs as a fixture-stage task |
-| M1-3 | Fixture script: populate test hosts | Python script that creates one B300 host (10 NICs, 8 GPUs, full IP/VLAN/cable map) and one CPU host (2 NICs, VLANs only); deterministic MACs; idempotent |
-
-### M1.5 — Gate: Netbox is queryable (integration)
-
-**Goal:** Prove the fixture script produces a queryable, schema-correct host.
+**Goal:** Prove fixture script produces a queryable, schema-correct host.
 
 **Issues (1):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M1.5-1 | Component test: Netbox fixture round-trip | `tests/component/test_netbox_fixtures.py`: brings up Netbox via docker-compose, runs fixtures, queries the B300 host back, asserts 10 interfaces / correct IPs / correct VLANs / all custom fields populated |
+| M1.5-1 | Integration test: Netbox fixture round-trip | `tests/integration/test_netbox_fixtures.py`: brings up Netbox, runs schema + populate, queries B300 host back via `pynetbox`, asserts 10 interfaces / correct IPs / correct VLANs / all custom fields populated; same for CPU host; runs in <30 s |
 
 ### M2 — Renderer service (layer)
 
-**Goal:** FastAPI service that renders Netplan + cloud-init seed for a host, given an asset tag.
+**Goal:** A FastAPI service that, given an asset tag, queries Netbox, builds a validated `HostIntent`, renders three cloud-init files, and returns them. Logging, metrics, traces all instrumented.
 
-**Issues (5):**
+**Issues (7):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M2-1 | Pydantic models for HostIntent | Strict-typed models: `HostIntent`, `BondMember`, `Bond`, `VlanChild`, `RoceUnderlay`, `SriovParent`; cross-field validators (exactly one default gateway; parent MTU ≥ max child MTU; etc.); jsonschema export |
-| M2-2 | Netbox loader → HostIntent | `host_config.netbox.load_host(asset_tag) -> HostIntent`; wraps pynetbox; maps Netbox records onto Pydantic models; raises if intent fields missing |
-| M2-3 | Jinja2 templates + emitter | Templates per role (`cpu`, `gpu-b300`) producing `meta-data`, `user-data`, `network-config`; ruamel.yaml for stable ordering; golden-file tests |
-| M2-4 | FastAPI service | Routes: `/render/{asset}/meta-data`, `/render/{asset}/user-data`, `/render/{asset}/network-config`, `/healthz`, `/readyz`; dependency injection for Netbox client; error handling; OpenAPI auto-doc |
-| M2-5 | Observability hooks | structlog with JSON in production; OpenTelemetry FastAPI instrumentation; Prometheus `/metrics` with request/latency/render-duration counters; no-op exporters by default |
+| M2-1 | Pydantic `HostIntent` models with strict typing | `src/host_config/models/`: `interface.py` (PhysIface, Bond, VlanChild, RoceUnderlay, SriovParent), `intent.py` (HostIntent), `validators.py` (cross-field invariants: one default gateway, MTU monotonicity, etc.); strict Pydantic config; full docstrings with Scenarios |
+| M2-2 | Netbox loader: record → HostIntent | `src/host_config/netbox/loaders.py`: pure function `load_host_intent(client, asset_tag) -> HostIntent`; raises `NetboxQueryError`, `IntentValidationError` with full context; structured logging at INFO/DEBUG |
+| M2-3 | Jinja template tree per role | `src/host_config/render/templates/{cpu,gpu-b300}/`: `meta-data.j2`, `user-data.j2`, `network-config.j2`; templates documented inline; rejects unknown variables (Jinja strict undefined) |
+| M2-4 | Renderer: intent → bytes | `src/host_config/render/emitter.py`: `render_for(intent, file_kind) -> bytes`; deterministic output via `ruamel.yaml` stable ordering; injected `now` for reproducibility; golden files in `src/host_config/render/golden/` |
+| M2-5 | FastAPI service skeleton | `src/host_config/service/app.py`, `routes.py`, `middleware.py`, `dependencies.py`: three render routes + healthz/readyz; request-id middleware; structlog context binding; full OpenAPI doc |
+| M2-6 | Observability — logs, metrics, traces | `src/host_config/observability/`: `metrics.py` (Prometheus collectors), `tracing.py` (OTel setup); `logging_config.py`; every external call instrumented; debug-level traceability acceptance test (per §7.5) |
+| M2-7 | Error hierarchy and recovery | `src/host_config/errors.py` + per-package `errors.py`: full exception hierarchy; FastAPI exception handlers translating typed errors to HTTP responses with consistent JSON envelope; tests for every error class |
 
-### M2.5 — Gate: HTTP render works (integration)
+### M2.5 — Gate: HTTP render against real Netbox (integration)
 
-**Goal:** Curl the three URLs against the live renderer and get the right content for the fixture host.
+**Goal:** End-to-end through HTTP, byte-equal to golden, with all observability artifacts produced.
 
 **Issues (1):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M2.5-1 | E2E component test: Netbox → Renderer → HTTP | Spin Netbox + renderer via docker-compose; populate fixtures; `curl http://localhost:8000/render/SN12345/network-config`; assert byte-equal to checked-in golden file |
+| M2.5-1 | Integration test: Netbox → Renderer → HTTP | `tests/integration/test_renderer_e2e.py`: spins Netbox + renderer via docker-compose; populates fixtures; curls `/render/SN12345/{meta-data,user-data,network-config}`; asserts byte-equal to checked-in golden files; asserts Prometheus metrics incremented; asserts log lines match expected sequence at DEBUG level |
 
 ### M3 — nginx proxy + cache (layer)
 
-**Goal:** nginx in front of the renderer, with `proxy_cache_path` providing the write-through cache.
+**Goal:** nginx fronts the renderer with `proxy_cache_path` write-through cache; first request renders, subsequent requests serve from cache; cache invalidates after TTL; Netbox-down still serves cached content.
 
-**Issues (3):**
+**Issues (4):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M3-1 | Ansible role: nginx-cache | Role that installs nginx, deploys our config with `proxy_cache_path`, sets up logging; idempotent; templated from variables |
-| M3-2 | Cache behavior tests | Component tests: first request renders + caches; second request serves from cache without hitting renderer; 5-min TTL re-renders; Netbox-down scenario serves stale cache; manual cache-purge endpoint (`PURGE` method) |
-| M3-3 | TLS/HTTPS stub for future signed-seed work | Placeholder config block + ADR documenting the future signed-seed path (HMAC headers; mTLS via smallstep); not enabled but reserved |
+| M3-1 | Ansible role: `nginx-cache` | Installs nginx; deploys our config with `proxy_cache_path`, logging, and a `PURGE` location for manual cache invalidation; idempotent; templated from variables; DESIGN.md |
+| M3-2 | Cache behavior component tests | `tests/component/nginx/test_cache.py`: tests warm/cold paths, TTL expiry, Netbox-down (renderer unavailable) fallback, manual purge endpoint |
+| M3-3 | Renderer cache-friendly headers | `Cache-Control`, `ETag`, `Last-Modified` returned by FastAPI; tested |
+| M3-4 | TLS/HTTPS placeholder + ADR | nginx config stub for TLS termination; ADR-0012 documenting the deferred signed-seed path (HMAC headers, mTLS via smallstep) so a future contributor doesn't reinvent it |
 
-### M3.5 — Gate: hybrid render via nginx (integration)
+### M3.5 — Gate: hybrid render via nginx cache (integration)
 
-**Goal:** Prove the full FastAPI + nginx cache stack behaves as designed across warm, cold, and degraded paths.
+**Goal:** Prove the cache layer behaves correctly across warm, cold, and degraded scenarios.
 
 **Issues (1):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M3.5-1 | E2E test: warm/cold/Netbox-down render paths | Test scenarios end-to-end including timing assertions (warm < 50ms; cold can take longer); Netbox-down behavior validated |
+| M3.5-1 | Integration test: nginx + renderer hybrid | E2E test exercising warm path (<50ms), cold path (full render path), TTL expiry, Netbox-down behavior; metrics assertions; log assertions |
 
 ### M4 — OVS + QEMU harness (layer)
 
-**Goal:** Reproducible local lab that spins up an OVS bridge with LACP + VLAN trunk and a QEMU VM plugged into it.
+**Goal:** Reproducible local lab that spins up an OVS bridge with LACP + VLAN trunk and a QEMU VM plugged into it. Boot a CPU host VM that pulls config from the renderer and applies it.
 
-**Issues (3):**
+**Issues (4):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M4-1 | Ansible role: ovs-harness | Installs OVS, creates bridge `br-test` with LACP partner config and VLAN trunks 100/200/300; tap interfaces pre-created for VM use |
-| M4-2 | QEMU launcher (Python) | `host_config.vms.launch(asset_tag)` reads Netbox MACs, constructs the QEMU command line with mgmt NIC + nsa/nsb (and later 8 E-W NICs), supplies `ds=nocloud-net` SMBIOS; deterministic per asset tag |
-| M4-3 | Cloud image preparation | Script that downloads Ubuntu 24.04 cloud image, optionally pre-installs lldpd / chrony / mlnx-ofed packages via libguestfs (so first boot is fast); image cached in `fixtures/vms/` |
+| M4-1 | Ansible role: `ovs-harness` | Installs OVS; creates bridge `br-test` with LACP partner config and VLAN trunks 100/200/300; tap interfaces pre-created; idempotent; DESIGN.md explaining the topology |
+| M4-2 | QEMU launcher (Python module) | `fixtures/vms/launch.py`: `launch_host(asset_tag) -> VMHandle`; reads Netbox MACs via the renderer's loader (DRY); constructs QEMU command with mgmt NIC + nsa/nsb; supplies SMBIOS; deterministic per asset tag; structured logging |
+| M4-3 | Cloud image preparation | `fixtures/vms/prepare_image.py`: downloads Ubuntu 24.04 cloud image, verifies checksum, optionally pre-installs packages via `virt-customize` so first boot is fast; image cached and gitignored |
+| M4-4 | `qemu-host` Ansible role | Installs QEMU/KVM/libvirt on the target host (Lima or DO Droplet); configures KVM permissions; idempotent |
 
 ### M4.5 — Gate: CPU host first-boot e2e (integration)
 
-**Goal:** A CPU host VM boots, cloud-init fetches the rendered seed, Netplan applies, bond + 3 VLANs come up correctly.
+**Goal:** A CPU host VM boots, cloud-init fetches the rendered seed via the nginx cache, Netplan applies, bond + 3 VLANs come up correctly.
 
 **Issues (1):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M4.5-1 | E2E test: CPU host full first-boot | Bring up Netbox + renderer + nginx + OVS + VM; assert `bond0` in LACP-up, three VLAN children up with correct IPs/MTUs/routes; cloud-init exit status 0; test finishes in <5 min |
+| M4.5-1 | E2E test: CPU host full first-boot | `tests/e2e/test_cpu_host_boot.py`: brings up full stack (Netbox + renderer + nginx + OVS + VM); asserts `bond0` LACP-up, three VLAN children up with correct IPs/MTUs/routes; cloud-init exit status 0; full e2e in <5 min |
 
 ### M5 — 8 E-W NICs + Soft-RoCE (layer)
 
-**Goal:** Extend the harness to the full B300-shaped 10-NIC VM with Soft-RoCE on the east-west NICs.
+**Goal:** Extend the harness to the full B300-shaped 10-NIC VM with Soft-RoCE on east-west NICs.
 
 **Issues (3):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M5-1 | Extend QEMU launcher for 10 NICs | Adds 8 E-W virtio NICs with deterministic MACs derived from Netbox; tap interfaces auto-created; verifies host kernel supports the topology |
-| M5-2 | Extend renderer for gpu-b300 role | Adds Jinja template paths for 8 RoCE underlay NIC stanzas with MTU 9000 + per-NIC IPs + `virtual-function-count: 16`; golden files added |
-| M5-3 | user-data: Soft-RoCE bring-up | Cloud-init user-data block that loads `rdma_rxe`, creates `rxe_gpuN` devices on each E-W NIC, raises `memlock` limits in `/etc/security/limits.d/rdma.conf` |
+| M5-1 | Extend launcher and OVS for 10 NICs | QEMU launcher adds 8 E-W virtio NICs with deterministic MACs derived from Netbox; OVS role parameterized for E-W tap interfaces (no VLAN trunk on those — they're independent IPv4 underlays) |
+| M5-2 | Renderer support for gpu-b300 role | Templates and emitter handle the full 10-NIC shape; golden files added for gpu-b300; tests for E-W NIC stanzas (MTU 9000, per-NIC IPs, `virtual-function-count: 16`) |
+| M5-3 | Cloud-init user-data: Soft-RoCE | user-data block loads `rdma_rxe` module, creates `rxe_gpuN` devices on each E-W NIC, raises `memlock` limits; idempotent (skips on re-run) |
 
 ### M5.5 — Gate: B300-shaped first-boot e2e (integration)
 
@@ -243,75 +693,135 @@ host-config/
 
 | ID | Title | Scope |
 |---|---|---|
-| M5.5-1 | E2E test: B300 host full first-boot + RDMA verbs | All 10 NICs up at correct MTUs/IPs; `ibv_devinfo` lists 8 rxe devices; `rping` between gpu0 and gpu1 succeeds end-to-end |
+| M5.5-1 | E2E test: B300 host full first-boot + RDMA verbs | All 10 NICs up at correct MTUs/IPs; `ibv_devinfo` lists 8 rxe devices; `rping` between gpu0 and gpu1 succeeds; documented as the canonical "is the lab working" smoke test |
 
-### M6 — Terraform + Ansible for DigitalOcean (layer)
+### M6 — OpenTofu + Ansible (DigitalOcean) (layer)
 
 **Goal:** One-command deploy of the lab to a DigitalOcean Droplet.
 
-**Issues (3):**
+**Issues (4):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M6-1 | Terraform module for DO Droplet | Provisions `s-4vcpu-8gb` Droplet, SSH key, firewall (SSH only), DO Spaces optional for cloud-image cache; outputs IPv4 + ready-to-run Ansible inventory |
-| M6-2 | Ansible playbook for full lab | Single `deploy-lab.yml` that wires together netbox-dev + renderer + nginx-cache + ovs-harness roles; idempotent; one-command from a fresh Droplet to a working lab |
-| M6-3 | Runbook: deploy lab to DO | `docs/runbooks/deploy-do.md` step-by-step: `terraform apply`, `ansible-playbook`, smoke test commands; expected costs and teardown procedure |
+| M6-1 | OpenTofu module for DO Droplet | `infra/opentofu/`: provisions `s-4vcpu-8gb` Droplet; SSH key, firewall (SSH only initially), optional DO Spaces for cloud-image cache; outputs IPv4 and a generated Ansible inventory file; DESIGN.md |
+| M6-2 | Ansible playbook for full lab | `infra/ansible/playbooks/deploy-lab.yml`: composes netbox-dev + renderer + nginx-cache + ovs-harness + qemu-host roles; idempotent end-to-end; one command from fresh Droplet to working lab |
+| M6-3 | Runbook: deploy lab to DO | `docs/runbooks/deploy-do.md`: step-by-step; `opentofu apply`, `ansible-playbook`, smoke test commands; expected costs; teardown procedure; troubleshooting common failures |
+| M6-4 | Just-target wrappers | `justfile` targets: `just lab-up` (opentofu + ansible), `just lab-down` (opentofu destroy), `just lab-test` (run e2e tests), `just lab-logs` (collect logs from Droplet) |
 
 ### M6.5 — Gate: lab works on DigitalOcean (integration)
 
-**Goal:** The full M4.5 + M5.5 e2e tests pass on a real Droplet, not just on Lima.
+**Goal:** The full M4.5 + M5.5 e2e tests pass on a real Droplet.
 
 **Issues (1):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M6.5-1 | E2E test on DO Droplet | Manual or scripted: spin Droplet, deploy lab, run e2e test suite, verify identical pass behavior, snapshot logs, teardown. Documented in the runbook as the verification step |
+| M6.5-1 | Manual + scripted verification on DO Droplet | Documented procedure: `just lab-up`, run e2e tests, snapshot logs, `just lab-down`. Verification recorded in `docs/runbooks/deploy-do.md` as the canonical acceptance step. Costs logged in the runbook |
 
 ### M7 — GitHub Actions CI for full e2e (layer)
 
-**Goal:** Every PR runs the entire test pyramid in <10 min.
+**Goal:** Every PR runs the full test pyramid in <10 minutes. mkdocs site deploys to GH Pages on `main`. Mutation testing runs weekly.
 
-**Issues (3):**
+**Issues (4):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M7-1 | `e2e.yml` workflow runs M4.5 + M5.5 on PR | KVM-enabled runners; pulls Netbox + builds renderer; runs OVS + QEMU + cloud-init e2e; reports timing; parallelization split if needed |
-| M7-2 | Coverage reporting + PR comments | `pytest-cov` reports uploaded; coverage delta posted to PR; failing coverage threshold blocks merge |
-| M7-3 | mkdocs site deploys to GH Pages on `main` | `docs.yml` builds the Material site, indexes ADRs and DESIGN files, deploys to `gh-pages` branch on every push to `main` |
+| M7-1 | `e2e.yml` workflow runs M4.5 + M5.5 on PR | KVM-enabled GHA runners; pulls Netbox + builds renderer; runs OVS + QEMU + cloud-init e2e; reports timing; parallelization across multiple jobs if total >10 min |
+| M7-2 | Coverage reporting + PR comments | `pytest-cov` reports uploaded; coverage delta posted to PR via Codecov or similar; failing coverage threshold blocks merge |
+| M7-3 | mkdocs site deploys to GH Pages | `docs.yml` builds Material site on every push to `main`; indexes ADRs and DESIGN files; mkdocstrings renders API reference from docstrings |
+| M7-4 | Mutation testing workflow | `mutation.yml` runs `mutmut` weekly; posts mutation score; tracks over time; surviving mutants reviewed via issues automatically opened by the workflow |
 
 ### M7.5 — Gate: CI is the source of truth (integration)
 
-**Goal:** Branch protection makes CI failures actually block merges; coverage drops block merges; mkdocs site stays live.
+**Goal:** Branch protection makes CI failures actually block merges; coverage drops block merges; the mkdocs site stays current.
 
 **Issues (2):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M7.5-1 | Branch protection finalized | Branch protection rule on `main`: required checks (lint+type-check+unit+component+integration+coverage), signed commits, 1 review on substantive PRs |
-| M7.5-2 | Test failure scenarios verified | Open a deliberately broken PR (failing test); verify it cannot merge. Open a PR that drops coverage; verify it cannot merge. Open a PR with bad commit message; verify pre-commit blocks |
+| M7.5-1 | Branch protection finalized | Rule on `main`: required checks (lint+type-check+unit+component+integration+coverage), signed commits, 1 review on substantive PRs; documented in CONTRIBUTING.md |
+| M7.5-2 | Failure-scenario verification | Deliberately open a PR with a failing test, a coverage drop, a bad commit message; verify each is blocked; document the expected error messages so future contributors recognize them |
 
-## Dependencies and ordering
+---
 
-Most milestones are strictly sequential; a few can parallelize:
+## 10. Dependencies and ordering
 
-- **M0 unblocks everything.**
-- **M1 and M2** can start in parallel after M0, since M2's renderer can mock its Netbox calls until M1 lands. M2.5 needs both.
-- **M3 depends on M2.** M3.5 depends on M3 and M2.
-- **M4 depends on M0 only** (the QEMU/OVS harness is independent of the renderer). M4.5 needs M3 + M4.
-- **M5 depends on M2 + M4.** M5.5 needs M5 + M3.
-- **M6 depends on everything M0–M5.** It's the deployment artifact.
-- **M7 depends on M6.** CI runs the same tests M6 deploys.
+```
+M0 ─┬─ M1 ──── M1.5 ─┐
+    │                │
+    └─ M2 ──── M2.5 ─┴─ M3 ──── M3.5 ─┐
+                                       │
+                  M4 (depends on M0) ──┴── M4.5 ─┐
+                                                  │
+                              M5 (M2+M4) ──── M5.5 ─┐
+                                                     │
+                                  M6 (M0..M5) ── M6.5 ─┐
+                                                        │
+                                          M7 (M6) ── M7.5
+```
 
-Critical path: M0 → M1 → M2 → M3 → M4 → M5 → M6 → M7. Roughly linear; parallelism is bounded by review capacity, not technical dependency.
+Critical path: M0 → M1 → M2 → M3 → M4 → M5 → M6 → M7.
+Parallelizable: M1 and M2 can proceed in parallel after M0 (M2 mocks Netbox calls until M1 lands).
+Bottleneck: review capacity, not dependencies.
 
-## Total issue count
+---
 
-~37 issues across 15 milestones (8 layer + 7 gate). Within the "larger chunks" granularity target.
+## 11. Decision log seed (initial ADRs)
 
-## Next steps after sign-off
+These ADRs ship in M0-5 to anchor the design from day one:
 
-1. Run `gh repo create <user>/host-config --public --license apache-2.0 --description "..."` from this session (with your confirmation).
-2. Create the milestones in the new repo via `gh api`.
-3. Seed all ~37 issues with titles, descriptions, acceptance criteria, labels, and milestone assignments from this plan.
-4. Open M0-1 as the first PR target.
-5. The new repo's README links back to this plan as the durable reference; this plan becomes immutable once seeded (future changes via ADRs in the new repo).
+| ADR | Subject |
+|---|---|
+| **0001** | Python 3.12 as the implementation language |
+| **0002** | `uv` as package and project manager |
+| **0003** | FastAPI + Pydantic v2 + Jinja2 for the renderer |
+| **0004** | `ruff` (lint+format) + `mypy --strict` as quality gates |
+| **0005** | `pytest` + Hypothesis + mutmut for testing |
+| **0006** | OpenTofu (not Terraform) for cloud IaC |
+| **0007** | Ansible for in-host configuration |
+| **0008** | `just` as the task runner |
+| **0009** | mkdocs Material + mkdocstrings for documentation |
+| **0010** | structlog + OpenTelemetry + Prometheus for observability |
+| **0011** | GitHub Actions for CI; GitHub Pages for docs hosting |
+| **0012** | Deferred: signed-seed delivery path (HMAC, mTLS) — recorded so it's not reinvented (lands in M3-4) |
+
+Future ADRs will arrive as decisions cross the bar — anything that crosses module boundaries, affects public contracts, or chooses between credible alternatives.
+
+---
+
+## 12. Issue count summary
+
+| Milestone | Issues | Type |
+|---|---|---|
+| M0 | 7 | Layer |
+| M1 | 4 | Layer |
+| M1.5 | 1 | Gate |
+| M2 | 7 | Layer |
+| M2.5 | 1 | Gate |
+| M3 | 4 | Layer |
+| M3.5 | 1 | Gate |
+| M4 | 4 | Layer |
+| M4.5 | 1 | Gate |
+| M5 | 3 | Layer |
+| M5.5 | 1 | Gate |
+| M6 | 4 | Layer |
+| M6.5 | 1 | Gate |
+| M7 | 4 | Layer |
+| M7.5 | 2 | Gate |
+| **Total** | **45** | |
+
+~45 issues across 15 milestones. Slightly higher than the previous draft's ~37 because we've added: dedicated observability work (M2-6), error-hierarchy issue (M2-7), TLS placeholder ADR (M3-4), QEMU role splitting (M4-4), `just`-target wrappers (M6-4), and the mutation testing workflow (M7-4). The increase corresponds to the higher durability bar; each addition is something a future maintainer will be glad we wrote.
+
+---
+
+## 13. Next steps after sign-off
+
+1. **You review this plan and push back.** Things to look for: principles that don't match your intent, conventions that are too lax or too strict, issues that are too big or too small, milestones with unclear acceptance criteria.
+2. **We iterate to "yes."**
+3. **I scaffold the repo** via `gh repo create <user>/host-config --public --license apache-2.0` from this session.
+4. **I create the 15 milestones** in the new repo via `gh api`.
+5. **I seed all 45 issues** with titles, descriptions, acceptance criteria, labels, milestones, and links back to this plan.
+6. **M0-1 becomes the first PR target.**
+7. **Execution begins** one issue at a time, with a quick review at each gate before moving to the next layer.
+
+This plan stays in the research repo as the durable reference. Changes to the plan after seeding happen via ADRs in the new repo.
