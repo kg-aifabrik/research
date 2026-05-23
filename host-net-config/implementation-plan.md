@@ -30,7 +30,7 @@ These are the load-bearing values. Every other decision in this plan derives fro
 8. **Boring technology wins.** Choose the technology that will still be supported, hireable-for, and patched in ten years. Resist novelty unless the alternative materially fails the durability test.
 9. **One way to do common things.** Every common operation (run tests, format code, build docs, deploy) has exactly one entry point. Multiple competing ways are technical debt the day they ship.
 10. **Quality is preserved, not retrofit.** Linting, type-checking, coverage gates, ADR-on-design-change discipline — all enforced from the first commit. Retrofitting them onto an established codebase is several engineer-years of work.
-11. **Leave no trace.** Every operation that provisions a resource is paired with the operation that destroys it. Every run starts with nothing and ends with nothing — no orphaned containers, no leftover Droplets, no half-applied OpenTofu state, no `/tmp` debris. Cleanup runs on failure as reliably as on success.
+11. **Leave no trace.** Every operation that provisions a resource is paired with the operation that destroys it. Every run starts with nothing and ends with nothing — no orphaned containers, no leftover Droplets, no `/tmp` debris. Cleanup runs on failure as reliably as on success.
 
 ---
 
@@ -47,18 +47,20 @@ These are the load-bearing values. Every other decision in this plan derives fro
 | Type checker | **mypy --strict** | More mature, broader ecosystem support, fewer edge cases than pyright. Slower CI but acceptable. ADR-0004 |
 | Test runner | **pytest** | The Python test standard. ADR-0005 |
 | Property-based testing | **Hypothesis** | For invariant-based testing of models and renderer. ADR-0005 |
-| Mutation testing | **mutmut** | Tracks test quality alongside coverage. ADR-0005 |
 | Test containers | **testcontainers-python** | For component tests against real Netbox / nginx containers. |
-| Infra-as-code (cloud) | **OpenTofu** (Terraform fork) | OpenTofu is the open-source-licensed fork of Terraform after HashiCorp's BUSL change. For a project meant to outlive HashiCorp's licensing decisions, OpenTofu is the safer pick. Functionally identical to Terraform 1.5; supports the same provider ecosystem. ADR-0006 |
-| Configuration management | **Ansible** | Massive ecosystem, idempotent by default, declarative roles, ubiquitous knowledge. ADR-0007 |
+| Provisioning + configuration | **Ansible** (with `community.digitalocean` for cloud provisioning) | Single tool covering both DO Droplet provisioning and in-host configuration. One mental model, one tool to install, one config style. ADR-0006 |
 | Container runtime (dev) | **Docker** | Broadest ecosystem; testcontainers integration is best. Could revisit Podman later. |
-| Secret management (dev) | **direnv + .envrc** (gitignored) + `.envrc.example` (committed) | Simple, no infra dependency for local dev. Production-grade secrets management is M-scope-later. |
-| Task runner | **just** | Cleaner than Make for non-build tasks; cross-platform; single-file. ADR-0008 |
-| Documentation | **GitHub-rendered Markdown** in `docs/`; SVG diagrams in `docs/diagrams/` (Excalidraw sources + exported SVG) | No build step, no hosting dependency, no separate doc framework to maintain. GH renders Markdown natively and the SVGs embed inline. Simpler is more durable. ADR-0009 |
-| Observability — logs | **structlog** | Structured logging is non-negotiable for production. structlog gives clean Python ergonomics. ADR-0010 |
-| Observability — metrics | **prometheus-client** | Plain Prometheus text format at `/metrics`; standard, no agent dependency. ADR-0010 |
-| Observability — traces | **OpenTelemetry SDK** with auto-instrumentation for FastAPI | OTLP exporter configurable; no-op by default. ADR-0010 |
-| CI | **GitHub Actions** | Same platform as the repo; KVM available on hosted runners; free tier sufficient. ADR-0011 |
+| Secret management (dev) | Gitignored **`.env`** file; `.env.example` committed; `just` targets source the file explicitly | Plain shell-sourced env file; no external tool dependency. README documents which variables are required and how to obtain each value. |
+| Task runner | **just** | Cleaner than Make for non-build tasks; cross-platform; single-file. ADR-0007 |
+| Documentation | **GitHub-rendered Markdown** in `docs/`; SVG diagrams in `docs/diagrams/` (Excalidraw sources + exported SVG) | No build step, no hosting dependency, no separate doc framework to maintain. GH renders Markdown natively and the SVGs embed inline. Simpler is more durable. ADR-0008 |
+| Observability — logs | **structlog** | Structured logging is non-negotiable for production. structlog gives clean Python ergonomics. ADR-0009 |
+| Observability — metrics | **prometheus-client** | Plain Prometheus text format at `/metrics`; standard, no agent dependency. ADR-0009 |
+| CI | **GitHub Actions** | Same platform as the repo; KVM available on hosted runners; free tier sufficient. ADR-0010 |
+
+**Deferred — future enhancements** (captured here so they're not lost):
+
+- **Distributed tracing via OpenTelemetry.** Add when a second service exists (e.g., the CNI module on top of host-config). For Tier 1, `structlog` correlation IDs already let us trace a single request through the one service we have.
+- **Mutation testing via `mutmut`.** Add when the code surface stabilizes (after M7.5). Until then, coverage + integration tests for user-facing scenarios are the quality bar.
 
 ---
 
@@ -78,7 +80,7 @@ host-config/
 ├── uv.lock                         # committed
 ├── .python-version
 ├── .pre-commit-config.yaml
-├── .envrc.example                  # template; real .envrc is gitignored
+├── .env.example                    # template; real .env is gitignored
 ├── .gitignore
 ├── .gitattributes                  # consistent line endings, binary marks
 │
@@ -86,8 +88,7 @@ host-config/
 │   ├── workflows/
 │   │   ├── ci.yml                  # lint, type-check, unit, component
 │   │   ├── e2e.yml                 # full pipeline e2e on PR
-│   │   ├── docs.yml                # mkdocs build + deploy on main
-│   │   ├── mutation.yml            # weekly mutation testing (mutmut)
+│   │   ├── docs-links.yml          # broken-link + missing-SVG checker
 │   │   └── deps.yml                # dependabot + uv lock refresh
 │   ├── ISSUE_TEMPLATE/             # layer-task.md, gate-test.md, bug.md, design-discussion.md
 │   ├── PULL_REQUEST_TEMPLATE.md
@@ -96,7 +97,7 @@ host-config/
 ├── docs/                           # GitHub-rendered Markdown
 │   ├── index.md                    # entry point (also linked from README)
 │   ├── architecture/               # systems overview, sequence flows, component contracts
-│   │   └── systems-overview.md     # the living architecture doc (mirrors ADR-0013)
+│   │   └── systems-overview.md     # the living architecture doc (mirrors ADR-0011)
 │   ├── adr/                        # 0001-..., 0002-..., immutable once landed
 │   │   └── template.md             # Michael Nygard format
 │   ├── runbooks/                   # operational playbooks
@@ -104,15 +105,10 @@ host-config/
 │       └── README.md               # how to author and export diagrams
 │
 ├── infra/
-│   ├── opentofu/                   # DO Droplet provisioning
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   ├── DESIGN.md
-│   │   └── README.md
-│   └── ansible/                    # in-host bootstrap
+│   └── ansible/                    # provisioning (DO Droplet) + in-host bootstrap
 │       ├── playbooks/
-│       │   └── deploy-lab.yml
+│       │   ├── provision.yml       # creates the Droplet via community.digitalocean
+│       │   └── deploy-lab.yml      # configures the Droplet (composes roles below)
 │       ├── roles/
 │       │   ├── netbox-dev/
 │       │   ├── renderer/
@@ -121,18 +117,15 @@ host-config/
 │       │   └── qemu-host/
 │       ├── inventory/
 │       │   └── digitalocean.yml
-│       ├── DESIGN.md
 │       └── README.md
 │
 ├── src/host_config/                # the renderer service (Python package)
 │   ├── __init__.py                 # version, package-level __all__
-│   ├── DESIGN.md                   # module-level design doc
 │   ├── errors.py                   # custom exception hierarchy
 │   ├── logging_config.py           # structlog setup, single source of truth
 │   ├── observability/
 │   │   ├── __init__.py
-│   │   ├── metrics.py              # Prometheus collectors
-│   │   └── tracing.py              # OTel setup
+│   │   └── metrics.py              # Prometheus collectors
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── intent.py               # HostIntent + role-specific variants
@@ -169,8 +162,7 @@ host-config/
 │   │   ├── render/
 │   │   └── service/
 │   ├── integration/                # cross-module
-│   ├── e2e/                        # full pipeline (gate-milestone tests)
-│   └── properties/                 # Hypothesis-based property tests
+│   └── e2e/                        # full pipeline (gate-milestone tests)
 │
 ├── fixtures/
 │   ├── netbox/
@@ -191,8 +183,8 @@ host-config/
 - **Source under `src/host_config/`** (not flat) — prevents accidental "tests/imports from project root work because they run from the repo dir" foot-gun. Forces installed-package semantics.
 - **Module-per-domain** (`models/`, `netbox/`, `render/`, `service/`, `observability/`) — each module has one reason to change.
 - **`errors.py` per package** — custom exceptions colocated with the code that raises them.
-- **`DESIGN.md` per module** — durable rationale for boundaries and trade-offs.
 - **`golden/` for renderer outputs** — checked-in expected bytes; every change to renderer requires updating goldens, which forces a review of output drift.
+- **Module-level design rationale lives in code** — module docstrings, function docstrings, and ADRs are the durable record. No separate `DESIGN.md` per module; the systems-overview doc (ADR-0011) and per-decision ADRs carry cross-module rationale.
 - **`docs/adr/`** — numbered, dated, immutable; this is the load-bearing "why we did it that way" record.
 - **`docs/diagrams/`** — SVG files (committed) alongside their Excalidraw sources, so anyone can edit and re-export. Referenced from MD via `![alt](../diagrams/foo.svg)`. See §8.4.
 - **`fixtures/` separated from `tests/`** — fixtures are reusable data; tests are the assertions.
@@ -388,14 +380,9 @@ For functions with non-trivial invariants — model validators, renderers, anyth
 - Generate arbitrary VLAN sub-interface configurations; assert renderer never emits invalid Netplan YAML (re-parseable by Netplan).
 - Generate arbitrary asset tags; assert the renderer never panics, only raises the documented exception types.
 
-### 6.4 Mutation testing (mutmut)
+### 6.4 Mutation testing — deferred
 
-Coverage tells you which lines ran; mutation testing tells you whether your tests would catch the bug if the code were broken.
-
-- Run weekly in CI (`mutation.yml` workflow).
-- Track mutation score over time (target: ≥75% by M5; ≥85% by M7).
-- Surviving mutants reviewed manually; usually either the mutant is equivalent (skip) or there's a missing test.
-- Not a merge gate v1; informative metric. Becomes a gate when scope stabilizes.
+Mutation testing (e.g., `mutmut`) is a meaningful test-quality signal but adds noise on early-stage code. **Add after M7.5**, once the code surface stabilizes. The quality bar until then is: coverage on key functions and flows + mandatory integration tests for user-facing scenarios (§6.8). Captured as a deferred enhancement so it isn't lost.
 
 ### 6.5 Test infrastructure
 
@@ -419,8 +406,8 @@ Coverage tells you which lines ran; mutation testing tells you whether your test
 - **Unit tests cover key functions and key flows.** "Key" is judgment-driven: anything with non-trivial logic, branching, error handling, or cross-module contracts. Trivial getters, Pydantic-emitted boilerplate, and pure delegation methods don't require dedicated unit tests.
 - **Every user-facing scenario has an integration test.** (See §6.8 below — this is the load-bearing rule.)
 - **Line coverage is reported, not gated at a single number.** We track it (target ~75% on `src/host_config/`; ~60% on Ansible-linted infra) but won't add filler tests just to hit a number. A PR-level *drop* of >2% is reviewed but not auto-blocked.
-- **Mutation score is the quality indicator** that complements coverage. A 100%-covered file with low mutation score has weak tests; coverage alone hides this.
 - **Reviewers may require tests for code that lacks them**, regardless of coverage number, if the code is non-trivial.
+- **Mutation testing** (`mutmut`) is a deferred quality enhancement (see §6.4) and will complement coverage once added.
 
 ### 6.8 User-facing scenarios — integration tests mandatory
 
@@ -534,14 +521,9 @@ Exposed at `/metrics`. Following Prometheus conventions:
 
 Every metric is documented in `src/host_config/observability/metrics.py` with the rationale for its existence (what question does this answer?).
 
-### 7.7 Traces (OpenTelemetry)
+### 7.7 Distributed tracing — deferred
 
-- FastAPI auto-instrumented via `opentelemetry-instrumentation-fastapi`.
-- Custom spans:
-  - `netbox.query` around every Netbox call (with `endpoint` and `asset_tag` attributes).
-  - `intent.build` around model construction.
-  - `render.template` around template rendering (with `role`, `template` attributes).
-- OTLP exporter pluggable via env var; no-op default in dev (avoids any external dep).
+OpenTelemetry instrumentation pays no rent in a single-service system; structured logs with correlation IDs already let an engineer follow a request end-to-end through the one process we have. **Add when a second service joins the system** (e.g., the CNI module). Captured here so it isn't lost; the future ADR will specify spans around `netbox.query`, `intent.build`, and `render.template`.
 
 ### 7.8 Health endpoints
 
@@ -562,7 +544,7 @@ Every metric is documented in `src/host_config/observability/metrics.py` with th
   - `area:infra`, `area:renderer`, `area:fixtures`, `area:docs`, `area:tests`, `area:observability`, `area:ci`
   - `kind:feat`, `kind:test`, `kind:bug`, `kind:docs`, `kind:design`
   - `priority:p0`–`p2`
-- **Definition of done:** Issue's acceptance criteria checked off; tests written; coverage doesn't regress; docstring/README/ADR/DESIGN.md updated where relevant; merged to `main`; CHANGELOG entry generated.
+- **Definition of done:** Issue's acceptance criteria checked off; tests written; coverage doesn't regress meaningfully; docstring/README/ADR updated where relevant; merged to `main`; CHANGELOG entry generated.
 
 ### 8.1 ADR practice
 
@@ -577,11 +559,12 @@ Every commit (locally and on CI re-check):
 - `ruff check` (lint)
 - `ruff format --check` (formatting)
 - `mypy --strict` on changed files
-- `pytest -m fast` (unit tests on changed modules)
 - `gitleaks` (secret scanning)
 - Commit message lint (`commitlint`)
 - File size check (no >1 MB files without explicit allow)
 - YAML/JSON validation on changed files
+
+Tests run in CI on push, not in pre-commit — keeps the local commit loop fast; CI catches regressions within ~30 seconds of push.
 
 ### 8.3 CI gates
 
@@ -608,14 +591,14 @@ Diagrams live in `docs/diagrams/`:
 
 ### 8.5 Secrets management
 
-- **Real secrets are never committed.** A gitignored `.envrc` file (loaded by direnv if available) holds local secrets — for example: `NETBOX_API_TOKEN`, `DIGITALOCEAN_TOKEN`, `SSH_KEY_FINGERPRINT`.
-- **`.envrc.example`** is committed. It lists every required variable with a placeholder value and a one-line comment explaining what it's for.
+- **Real secrets are never committed.** A gitignored `.env` file holds local secrets — for example: `NETBOX_API_TOKEN`, `DIGITALOCEAN_TOKEN`, `SSH_KEY_FINGERPRINT`.
+- **`.env.example`** is committed. It lists every required variable with a placeholder value and a one-line comment explaining what it's for.
 - **README.md** has a `## Configuration` section that:
   - Names each secret and its purpose.
   - Shows how to obtain it (e.g., "Get your DO token at <link>").
-  - Documents the local-file setup: `cp .envrc.example .envrc && $EDITOR .envrc`.
-  - Notes that direnv is optional but recommended.
-- **CI uses GitHub Actions secrets**, never `.envrc`. Required workflow secrets are documented in `docs/runbooks/ci-secrets.md`.
+  - Documents the local-file setup: `cp .env.example .env && $EDITOR .env`.
+- **`just` targets source the file explicitly** with `set -a; source .env; set +a` so every task runs with the env loaded. No external tool dependency.
+- **CI uses GitHub Actions secrets**, never `.env`. Required workflow secrets are documented in `docs/runbooks/ci-secrets.md`.
 
 ### 8.6 Resource lifecycle discipline ("leave no trace")
 
@@ -623,7 +606,7 @@ Principle 11 (§2) made concrete: every operation that brings a resource into ex
 
 - **Test fixtures**: use pytest `yield` fixtures or context managers; teardown runs on both success and exception. Component-test containers are torn down at session end via `addfinalizer`.
 - **Local shell wrappers (`just`)**: `just lab-up` and `just lab-down` are the inverse pair. `just lab` (no suffix) runs up → test → down with a `trap` ensuring `lab-down` runs even on script failure or SIGINT.
-- **OpenTofu**: state files are local but ephemeral; `just lab-down` always runs `opentofu destroy` and verifies via `doctl` (or the DO API) that no Droplet remains tagged with our workspace.
+- **Ansible provisioning**: `just lab-down` runs the inverse Ansible play (destroys the Droplet via the DO module) and verifies via the DO API that no Droplet remains tagged with our workspace.
 - **CI**: every workflow that provisions external resources has an `if: always()` teardown step. The DO-Droplet e2e workflow uses `always()` to call `just lab-down`.
 - **Verification step in the M6.5 gate** (see §9): explicitly list DO resources before and after a lab run; the difference must be zero.
 - **Local debris**: `just clean` removes `/tmp/seedsrv`, OVS bridges, tap interfaces, cached VM images. Documented in the README.
@@ -647,17 +630,15 @@ For navigability across the implementation plan and the issue tracker:
 
 **Goal:** A new public repo at `gh:<user>/host-config` with all scaffolding, conventions, ADRs for initial choices, and CI in place. No application code yet — but everything needed to start writing it.
 
-**Issues (7):**
+**Issues (5):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M0-1 | Initialize repo with license and base files | LICENSE (Apache-2.0), README skeleton, `.gitignore`, `.gitattributes`, `.python-version`, `pyproject.toml` (name, deps placeholders, tool sections), `CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, `.envrc.example`, `justfile` with placeholder targets |
-| M0-2 | Configure code quality tooling | `ruff` ruleset in `pyproject.toml`; `mypy` strict config; `pytest`/`pytest-cov` config; `.pre-commit-config.yaml` with all hooks (ruff, mypy, pytest -m fast, gitleaks, commitlint, file-size); `.editorconfig` |
-| M0-3 | Write `CODE_CONVENTIONS.md` | Authoritative version of §5 of this plan, lifted into the repo. Living document, edits via PR |
-| M0-4 | Set up `docs/` structure | `docs/index.md` (entry point, also linked from README); `docs/architecture/` skeleton with placeholder; `docs/adr/template.md` (Michael Nygard format); `docs/runbooks/` skeleton; `docs/diagrams/README.md` explaining the SVG+Excalidraw convention. No build tool — Markdown is rendered by GitHub |
-| M0-5 | Write initial ADRs 0001–0011 + 0013 | Twelve ADRs documented in §11: the eleven stack-choice ADRs plus ADR-0013 (systems overview). ADR-0013 includes the systems-overview SVG diagram and is mirrored as the living `docs/architecture/systems-overview.md`. ADR-0012 (deferred signed-seed path) ships later in M3-4 when its context lands |
-| M0-6 | Configure CI workflows | `.github/workflows/ci.yml` (lint+type+unit+component+coverage); `docs.yml` (mkdocs build+deploy on main); placeholder `e2e.yml` and `mutation.yml`; Dependabot config (`.github/dependabot.yml`); issue and PR templates; CODEOWNERS |
-| M0-7 | Configure branch protection and signed commits | Branch protection rule on `main`: required checks, signed commits, 1 review on substantive PRs (self-review allowed for trivial). Documentation of the rule in `CONTRIBUTING.md` |
+| M0-1 | Initialize repo with scaffolding and quality tooling | LICENSE (Apache-2.0), README skeleton, `.gitignore`, `.gitattributes`, `.python-version`, `pyproject.toml` (with `ruff`, `mypy --strict`, `pytest`/`pytest-cov` config), `CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, `.env.example`, `justfile` with placeholder targets, `.pre-commit-config.yaml` with all hooks (ruff, mypy, gitleaks, commitlint, file-size, yaml validation), `.editorconfig` |
+| M0-2 | Write `CODE_CONVENTIONS.md` | Authoritative version of §5 of this plan, lifted into the repo. Living document, edits via PR |
+| M0-3 | Set up `docs/` structure | `docs/index.md` (entry point, also linked from README); `docs/architecture/` skeleton with placeholder; `docs/adr/template.md` (Michael Nygard format); `docs/runbooks/` skeleton; `docs/diagrams/README.md` explaining the SVG+Excalidraw convention. No build tool — Markdown is rendered by GitHub |
+| M0-4 | Write initial ADRs 0001–0011 | The eleven ADRs documented in §11. ADR-0011 (systems overview) includes an SVG component diagram and an SVG sequence diagram, mirrored as the living `docs/architecture/systems-overview.md`. ADR-0012 (deferred signed-seed path) ships later in M3-4 when its context lands |
+| M0-5 | Configure CI workflows and branch protection | `.github/workflows/ci.yml` (lint+type+unit+component+coverage); placeholder `e2e.yml`; Dependabot config; issue and PR templates; CODEOWNERS. Branch protection rule on `main`: required checks, signed commits, 1 review on substantive PRs (self-review allowed for trivial). Documented in `CONTRIBUTING.md` |
 
 ### M1 — Netbox model + fixtures (layer)
 
@@ -667,7 +648,7 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M1-1 | Ansible role: `netbox-dev` | Brings up `netbox-docker` compose stack; idempotent; exposes Netbox on configurable port; includes DESIGN.md explaining role boundaries; logs every action |
+| M1-1 | Ansible role: `netbox-dev` | Brings up `netbox-docker` compose stack; idempotent; exposes Netbox on configurable port; role README explains boundaries and inputs; logs every action |
 | M1-2 | Define Netbox custom field schema | `src/host_config/netbox/schema.py`: declares custom fields (`bf3_mode`, `roce_tc`, `numa_node`, `sriov_vfs`, `gpu_affinity`, `observed_mac`, `observed_firmware`) as typed Python definitions; idempotent `apply_schema` function. Full docstrings + Scenarios per function |
 | M1-3 | Fixture script: populate B300 + CPU hosts | `fixtures/netbox/populate.py`: idempotent loader reading from `fixtures/netbox/data/*.yaml`; full structured logging; documented Scenarios; raises typed errors on conflict |
 | M1-4 | Component tests for Netbox schema apply | `tests/component/netbox/test_schema.py`: spins Netbox container, applies schema twice, asserts idempotency; spins fresh container, asserts all custom fields exist |
@@ -686,17 +667,16 @@ For navigability across the implementation plan and the issue tracker:
 
 **Goal:** A FastAPI service that, given an asset tag, queries Netbox, builds a validated `HostIntent`, renders three cloud-init files, and returns them. Logging, metrics, traces all instrumented.
 
-**Issues (7):**
+**Issues (6):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M2-1 | Pydantic `HostIntent` models with strict typing | `src/host_config/models/`: `interface.py` (PhysIface, Bond, VlanChild, RoceUnderlay, SriovParent), `intent.py` (HostIntent), `validators.py` (cross-field invariants: one default gateway, MTU monotonicity, etc.); strict Pydantic config; full docstrings with Scenarios |
+| M2-1 | Pydantic `HostIntent` models + error hierarchy | `src/host_config/models/`: `interface.py` (PhysIface, Bond, VlanChild, RoceUnderlay, SriovParent), `intent.py` (HostIntent), `validators.py` (cross-field invariants: one default gateway, MTU monotonicity, etc.); strict Pydantic config. Companion `src/host_config/errors.py` + per-package `errors.py`: full exception hierarchy with contextual messages; tests for every error class |
 | M2-2 | Netbox loader: record → HostIntent | `src/host_config/netbox/loaders.py`: pure function `load_host_intent(client, asset_tag) -> HostIntent`; raises `NetboxQueryError`, `IntentValidationError` with full context; structured logging at INFO/DEBUG |
 | M2-3 | Jinja template tree per role | `src/host_config/render/templates/{cpu,gpu-b300}/`: `meta-data.j2`, `user-data.j2`, `network-config.j2`; templates documented inline; rejects unknown variables (Jinja strict undefined) |
 | M2-4 | Renderer: intent → bytes | `src/host_config/render/emitter.py`: `render_for(intent, file_kind) -> bytes`; deterministic output via `ruamel.yaml` stable ordering; injected `now` for reproducibility; golden files in `src/host_config/render/golden/` |
-| M2-5 | FastAPI service skeleton | `src/host_config/service/app.py`, `routes.py`, `middleware.py`, `dependencies.py`: three render routes + healthz/readyz; request-id middleware; structlog context binding; full OpenAPI doc |
-| M2-6 | Observability — logs, metrics, traces | `src/host_config/observability/`: `metrics.py` (Prometheus collectors), `tracing.py` (OTel setup); `logging_config.py`; every external call instrumented; debug-level traceability acceptance test (per §7.5) |
-| M2-7 | Error hierarchy and recovery | `src/host_config/errors.py` + per-package `errors.py`: full exception hierarchy; FastAPI exception handlers translating typed errors to HTTP responses with consistent JSON envelope; tests for every error class |
+| M2-5 | FastAPI service | `src/host_config/service/app.py`, `routes.py`, `middleware.py`, `dependencies.py`: three render routes + `/healthz` + `/readyz`; request-id middleware; structlog context binding; FastAPI exception handlers translating typed errors to consistent JSON envelopes; full OpenAPI doc |
+| M2-6 | Observability — logs and metrics | `src/host_config/observability/metrics.py` (Prometheus collectors); `logging_config.py` (structlog setup); every external call timed and logged; debug-level traceability acceptance test (per §7.5). OpenTelemetry traces deferred (§7.7) |
 
 ### M2.5 — Gate: HTTP render against real Netbox (integration)
 
@@ -716,7 +696,7 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M3-1 | Ansible role: `nginx-cache` | Installs nginx; deploys our config with `proxy_cache_path`, logging, and a `PURGE` location for manual cache invalidation; idempotent; templated from variables; DESIGN.md |
+| M3-1 | Ansible role: `nginx-cache` | Installs nginx; deploys our config with `proxy_cache_path`, logging, and a `PURGE` location for manual cache invalidation; idempotent; templated from variables; role README documents inputs and outputs |
 | M3-2 | Cache behavior component tests | `tests/component/nginx/test_cache.py`: tests warm/cold paths, TTL expiry, Netbox-down (renderer unavailable) fallback, manual purge endpoint |
 | M3-3 | Renderer cache-friendly headers | `Cache-Control`, `ETag`, `Last-Modified` returned by FastAPI; tested |
 | M3-4 | TLS/HTTPS placeholder + ADR | nginx config stub for TLS termination; ADR-0012 documenting the deferred signed-seed path (HMAC headers, mTLS via smallstep) so a future contributor doesn't reinvent it |
@@ -739,7 +719,7 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M4-1 | Ansible role: `ovs-harness` | Installs OVS; creates bridge `br-test` with LACP partner config and VLAN trunks 100/200/300; tap interfaces pre-created; idempotent; DESIGN.md explaining the topology |
+| M4-1 | Ansible role: `ovs-harness` | Installs OVS; creates bridge `br-test` with LACP partner config and VLAN trunks 100/200/300; tap interfaces pre-created; idempotent; role README explains the topology with an SVG referenced from `docs/diagrams/` |
 | M4-2 | QEMU launcher (Python module) | `fixtures/vms/launch.py`: `launch_host(asset_tag) -> VMHandle`; reads Netbox MACs via the renderer's loader (DRY); constructs QEMU command with mgmt NIC + nsa/nsb; supplies SMBIOS; deterministic per asset tag; structured logging |
 | M4-3 | Cloud image preparation | `fixtures/vms/prepare_image.py`: downloads Ubuntu 24.04 cloud image, verifies checksum, optionally pre-installs packages via `virt-customize` so first boot is fast; image cached and gitignored |
 | M4-4 | `qemu-host` Ansible role | Installs QEMU/KVM/libvirt on the target host (Lima or DO Droplet); configures KVM permissions; idempotent |
@@ -776,18 +756,17 @@ For navigability across the implementation plan and the issue tracker:
 |---|---|---|
 | M5.5-1 | E2E test: B300 host full first-boot + RDMA verbs | All 10 NICs up at correct MTUs/IPs; `ibv_devinfo` lists 8 rxe devices; `rping` between gpu0 and gpu1 succeeds; documented as the canonical "is the lab working" smoke test |
 
-### M6 — OpenTofu + Ansible (DigitalOcean) (layer)
+### M6 — Ansible deployment to DigitalOcean (layer)
 
-**Goal:** One-command deploy of the lab to a DigitalOcean Droplet.
+**Goal:** One-command deploy of the lab to a DigitalOcean Droplet, with provisioning and configuration both handled by Ansible.
 
-**Issues (4):**
+**Issues (3):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M6-1 | OpenTofu module for DO Droplet | `infra/opentofu/`: provisions `s-4vcpu-8gb` Droplet; SSH key, firewall (SSH only initially), optional DO Spaces for cloud-image cache; outputs IPv4 and a generated Ansible inventory file; DESIGN.md |
-| M6-2 | Ansible playbook for full lab | `infra/ansible/playbooks/deploy-lab.yml`: composes netbox-dev + renderer + nginx-cache + ovs-harness + qemu-host roles; idempotent end-to-end; one command from fresh Droplet to working lab |
-| M6-3 | Runbook: deploy lab to DO | `docs/runbooks/deploy-do.md`: step-by-step; `opentofu apply`, `ansible-playbook`, smoke test commands; expected costs; teardown procedure; troubleshooting common failures |
-| M6-4 | Just-target wrappers | `justfile` targets: `just lab-up` (opentofu + ansible), `just lab-down` (opentofu destroy), `just lab-test` (run e2e tests), `just lab-logs` (collect logs from Droplet) |
+| M6-1 | Ansible: provision + configure | `infra/ansible/playbooks/provision.yml` (Droplet, SSH key, firewall, tags via `community.digitalocean`; idempotent — checks existing tagged resources before creating; outputs inventory). `infra/ansible/playbooks/deploy-lab.yml` (composes netbox-dev + renderer + nginx-cache + ovs-harness + qemu-host roles; idempotent end-to-end). One command from fresh state to working lab |
+| M6-2 | Runbook: deploy lab to DO | `docs/runbooks/deploy-do.md`: step-by-step; `ansible-playbook` invocations; smoke test commands; expected costs; teardown procedure; troubleshooting common failures |
+| M6-3 | `just` target wrappers | `justfile` targets: `just lab-up` (provision + configure), `just lab-down` (Ansible destroy play + DO API verification of zero resources), `just lab-test` (run e2e tests), `just lab-logs` (collect logs from Droplet), `just lab` (composes up → test → down with trap-on-exit) |
 
 ### M6.5 — Gate: lab works on DigitalOcean (integration)
 
@@ -804,14 +783,13 @@ For navigability across the implementation plan and the issue tracker:
 
 **Goal:** Every PR runs the full test pyramid in <10 minutes. mkdocs site deploys to GH Pages on `main`. Mutation testing runs weekly.
 
-**Issues (4):**
+**Issues (3):**
 
 | ID | Title | Scope |
 |---|---|---|
-| M7-1 | `e2e.yml` workflow runs M4.5 + M5.5 on PR | KVM-enabled GHA runners; pulls Netbox + builds renderer; runs OVS + QEMU + cloud-init e2e; reports timing; parallelization across multiple jobs if total >10 min |
-| M7-2 | Coverage reporting + PR comments | `pytest-cov` reports uploaded; coverage delta posted to PR via Codecov or similar; failing coverage threshold blocks merge |
+| M7-1 | `e2e.yml` workflow runs M4.5 + M5.5 on PR | KVM-enabled GHA runners; pulls Netbox + builds renderer; runs OVS + QEMU + cloud-init e2e; reports timing; parallelization across multiple jobs if total >10 min. Workflow includes `if: always()` teardown step per §8.6 |
+| M7-2 | Coverage reporting + PR comments | `pytest-cov` reports uploaded; coverage delta posted to PR via Codecov or similar; informational alert at >2% drop (not auto-block per §6.7) |
 | M7-3 | Docs link & diagram-reference checker | CI step that scans `docs/**/*.md` and `README.md` for broken internal Markdown links, missing SVG references, and ADRs not listed in the docs index. Runs on every PR; blocks merge on regressions |
-| M7-4 | Mutation testing workflow | `mutation.yml` runs `mutmut` weekly; posts mutation score; tracks over time; surviving mutants reviewed via issues automatically opened by the workflow |
 
 ### M7.5 — Gate: CI is the source of truth (integration)
 
@@ -850,7 +828,7 @@ Bottleneck: review capacity, not dependencies.
 
 ## 11. Decision log seed (initial ADRs)
 
-These ADRs ship in M0-5 to anchor the design from day one:
+These ADRs ship in M0-4 to anchor the design from day one:
 
 | ADR | Subject |
 |---|---|
@@ -858,17 +836,16 @@ These ADRs ship in M0-5 to anchor the design from day one:
 | **0002** | `uv` as package and project manager |
 | **0003** | FastAPI + Pydantic v2 + Jinja2 for the renderer |
 | **0004** | `ruff` (lint+format) + `mypy --strict` as quality gates |
-| **0005** | `pytest` + Hypothesis + mutmut for testing |
-| **0006** | OpenTofu (not Terraform) for cloud IaC |
-| **0007** | Ansible for in-host configuration |
-| **0008** | `just` as the task runner |
-| **0009** | GitHub-rendered Markdown for documentation (no separate doc framework); SVG diagrams in `docs/diagrams/` with Excalidraw sources |
-| **0010** | structlog + OpenTelemetry + Prometheus for observability |
-| **0011** | GitHub Actions for CI |
+| **0005** | `pytest` + Hypothesis for testing (mutation testing deferred per §6.4) |
+| **0006** | Ansible (with `community.digitalocean`) for both cloud provisioning and in-host configuration |
+| **0007** | `just` as the task runner |
+| **0008** | GitHub-rendered Markdown for documentation (no separate doc framework); SVG diagrams in `docs/diagrams/` with Excalidraw sources |
+| **0009** | structlog + Prometheus for observability (distributed tracing via OpenTelemetry deferred per §7.7) |
+| **0010** | GitHub Actions for CI |
+| **0011** | Systems overview: catalog of every component in the lab, the boundaries between them, and the interactions (request/response, fixture-time, deploy-time). Includes an SVG component diagram and one SVG sequence diagram for the canonical "render a host" flow. Mirrored as the living `docs/architecture/systems-overview.md` |
 | **0012** | Deferred: signed-seed delivery path (HMAC, mTLS) — recorded so it's not reinvented (lands in M3-4) |
-| **0013** | Systems overview: catalog of every component in the lab, the boundaries between them, and the interactions (request/response, fixture-time, deploy-time). Includes an SVG component diagram and one SVG sequence diagram for the canonical "render a host" flow. Mirrored as the living `docs/architecture/systems-overview.md` |
 
-Future ADRs will arrive as decisions cross the bar — anything that crosses module boundaries, affects public contracts, or chooses between credible alternatives.
+Future ADRs will arrive as decisions cross the bar — anything that crosses module boundaries, affects public contracts, or chooses between credible alternatives. Mutation testing (§6.4) and distributed tracing (§7.7) will each become their own ADR when the time comes.
 
 ---
 
@@ -876,10 +853,10 @@ Future ADRs will arrive as decisions cross the bar — anything that crosses mod
 
 | Milestone | Issues | Type |
 |---|---|---|
-| M0 | 7 | Layer |
+| M0 | 5 | Layer |
 | M1 | 4 | Layer |
 | M1.5 | 1 | Gate |
-| M2 | 7 | Layer |
+| M2 | 6 | Layer |
 | M2.5 | 1 | Gate |
 | M3 | 4 | Layer |
 | M3.5 | 1 | Gate |
@@ -887,13 +864,13 @@ Future ADRs will arrive as decisions cross the bar — anything that crosses mod
 | M4.5 | 1 | Gate |
 | M5 | 3 | Layer |
 | M5.5 | 1 | Gate |
-| M6 | 4 | Layer |
+| M6 | 3 | Layer |
 | M6.5 | 2 | Gate |
-| M7 | 4 | Layer |
+| M7 | 3 | Layer |
 | M7.5 | 2 | Gate |
-| **Total** | **46** | |
+| **Total** | **41** | |
 
-46 issues across 15 milestones, sized for "full-day to multi-day" chunks per issue.
+41 issues across 15 milestones, sized for "full-day to multi-day" chunks per issue.
 
 ---
 
@@ -903,7 +880,7 @@ Future ADRs will arrive as decisions cross the bar — anything that crosses mod
 2. **We iterate to "yes."**
 3. **I scaffold the repo** via `gh repo create <user>/host-config --public --license apache-2.0` from this session.
 4. **I create the 15 milestones** in the new repo via `gh api`.
-5. **I seed all 46 issues** with:
+5. **I seed all 41 issues** with:
    - Title and full description (from §9).
    - Acceptance criteria as checkbox list.
    - Labels (`milestone:Mx`, `area:...`, `kind:...`, `priority:...`).
