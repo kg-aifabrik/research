@@ -34,7 +34,7 @@ These are the load-bearing values. Every other decision in this plan derives fro
 
 ---
 
-## 3. Stack choices (revisited with the durability lens)
+## 3. Stack choices
 
 | Choice | Selection | Rationale |
 |---|---|---|
@@ -59,10 +59,6 @@ These are the load-bearing values. Every other decision in this plan derives fro
 | Observability — metrics | **prometheus-client** | Plain Prometheus text format at `/metrics`; standard, no agent dependency. ADR-0010 |
 | Observability — traces | **OpenTelemetry SDK** with auto-instrumentation for FastAPI | OTLP exporter configurable; no-op by default. ADR-0010 |
 | CI | **GitHub Actions** | Same platform as the repo; KVM available on hosted runners; free tier sufficient. ADR-0011 |
-
-**Changes from previous plan:**
-- Terraform → **OpenTofu**. OpenTofu is the right call for a project meant to outlive vendor licensing decisions; the migration cost is zero since the syntax is identical.
-- Dropped mkdocs / GH Pages. **GitHub-rendered Markdown is the documentation system.** Fewer moving parts, no build pipeline for docs, no doc-site outage risk. Diagrams are committed SVG files (Excalidraw sources alongside).
 
 ---
 
@@ -416,7 +412,7 @@ Coverage tells you which lines ran; mutation testing tells you whether your test
 - **Third-party library contracts.** Trust the contract; test our usage of it.
 - **Implementation details that aren't part of the contract.** Tests should survive refactors that don't change behavior.
 
-### 6.7 Coverage stance (balanced, not numeric-maximalist)
+### 6.7 Coverage stance
 
 **Principle:** test the things that matter. Don't game the coverage number.
 
@@ -897,7 +893,7 @@ Future ADRs will arrive as decisions cross the bar — anything that crosses mod
 | M7.5 | 2 | Gate |
 | **Total** | **46** | |
 
-~46 issues across 15 milestones. Increases over earlier draft come from the durability bar: dedicated observability work (M2-6), error-hierarchy issue (M2-7), TLS placeholder ADR (M3-4), QEMU role splitting (M4-4), `just`-target wrappers (M6-4), teardown integrity verification (M6.5-2), mutation testing workflow (M7-4), and the docs-link checker replacing the mkdocs deploy (M7-3 repurposed). Each addition is something a future maintainer will be glad we wrote.
+46 issues across 15 milestones, sized for "full-day to multi-day" chunks per issue.
 
 ---
 
