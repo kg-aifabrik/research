@@ -635,11 +635,11 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M0-1 | Initialize repo with scaffolding and quality tooling | `NOTICE.md` (proprietary internal-use declaration; no OSS license file), README skeleton, `.gitignore`, `.gitattributes`, `.python-version`, `pyproject.toml` (with `ruff`, `mypy --strict`, `pytest`/`pytest-cov` config), `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, `.env.example`, `justfile` with placeholder targets, `.pre-commit-config.yaml` with all hooks (ruff, mypy, gitleaks, commitlint, file-size, yaml validation), `.editorconfig` |
-| M0-2 | Write `CODE_CONVENTIONS.md` | Authoritative version of §5 of this plan, lifted into the repo. Living document, edits via PR |
-| M0-3 | Set up `docs/` structure | `docs/index.md` (entry point, also linked from README); `docs/architecture/` skeleton with placeholder; `docs/adr/template.md` (Michael Nygard format); `docs/runbooks/` skeleton; `docs/diagrams/README.md` explaining the SVG+Excalidraw convention. No build tool — Markdown is rendered by GitHub |
-| M0-4 | Write initial ADRs 0001–0011 | The eleven ADRs documented in §11. ADR-0011 (systems overview) includes an SVG component diagram and an SVG sequence diagram, mirrored as the living `docs/architecture/systems-overview.md`. ADR-0012 (deferred signed-seed path) ships later in M3-4 when its context lands |
-| M0-5 | Configure CI workflows and branch protection | `.github/workflows/ci.yml` (lint+type+unit+component+coverage); placeholder `e2e.yml`; Dependabot config; issue and PR templates; CODEOWNERS. Branch protection rule on `main`: required checks, signed commits, 1 review on substantive PRs (self-review allowed for trivial). Documented in `CONTRIBUTING.md` |
+| [M0-1](https://github.com/kg-aifabrik/host-config/issues/1) | Initialize repo with scaffolding and quality tooling | `NOTICE.md` (proprietary internal-use declaration; no OSS license file), README skeleton, `.gitignore`, `.gitattributes`, `.python-version`, `pyproject.toml` (with `ruff`, `mypy --strict`, `pytest`/`pytest-cov` config), `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, `.env.example`, `justfile` with placeholder targets, `.pre-commit-config.yaml` with all hooks (ruff, mypy, gitleaks, commitlint, file-size, yaml validation), `.editorconfig` |
+| [M0-2](https://github.com/kg-aifabrik/host-config/issues/2) | Write `CODE_CONVENTIONS.md` | Authoritative version of §5 of this plan, lifted into the repo. Living document, edits via PR |
+| [M0-3](https://github.com/kg-aifabrik/host-config/issues/3) | Set up `docs/` structure | `docs/index.md` (entry point, also linked from README); `docs/architecture/` skeleton with placeholder; `docs/adr/template.md` (Michael Nygard format); `docs/runbooks/` skeleton; `docs/diagrams/README.md` explaining the SVG+Excalidraw convention. No build tool — Markdown is rendered by GitHub |
+| [M0-4](https://github.com/kg-aifabrik/host-config/issues/4) | Write initial ADRs 0001–0011 | The eleven ADRs documented in §11. ADR-0011 (systems overview) includes an SVG component diagram and an SVG sequence diagram, mirrored as the living `docs/architecture/systems-overview.md`. ADR-0012 (deferred signed-seed path) ships later in M3-4 when its context lands |
+| [M0-5](https://github.com/kg-aifabrik/host-config/issues/5) | Configure CI workflows and branch protection | `.github/workflows/ci.yml` (lint+type+unit+component+coverage); placeholder `e2e.yml`; Dependabot config; issue and PR templates; CODEOWNERS. Branch protection rule on `main`: required checks, signed commits, 1 review on substantive PRs (self-review allowed for trivial). Documented in `CONTRIBUTING.md` |
 
 ### M1 — Netbox model + fixtures (layer)
 
@@ -649,10 +649,10 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M1-1 | Ansible role: `netbox-dev` | Brings up `netbox-docker` compose stack; idempotent; exposes Netbox on configurable port; role README explains boundaries and inputs; logs every action |
-| M1-2 | Define Netbox custom field schema | `src/host_config/netbox/schema.py`: declares custom fields (`bf3_mode`, `roce_tc`, `numa_node`, `sriov_vfs`, `gpu_affinity`, `observed_mac`, `observed_firmware`) as typed Python definitions; idempotent `apply_schema` function. Full docstrings + Scenarios per function |
-| M1-3 | Fixture script: populate B300 + CPU hosts | `fixtures/netbox/populate.py`: idempotent loader reading from `fixtures/netbox/data/*.yaml`; full structured logging; documented Scenarios; raises typed errors on conflict |
-| M1-4 | Component tests for Netbox schema apply | `tests/component/netbox/test_schema.py`: spins Netbox container, applies schema twice, asserts idempotency; spins fresh container, asserts all custom fields exist |
+| [M1-1](https://github.com/kg-aifabrik/host-config/issues/6) | Ansible role: `netbox-dev` | Brings up `netbox-docker` compose stack; idempotent; exposes Netbox on configurable port; role README explains boundaries and inputs; logs every action |
+| [M1-2](https://github.com/kg-aifabrik/host-config/issues/7) | Define Netbox custom field schema | `src/host_config/netbox/schema.py`: declares custom fields (`bf3_mode`, `roce_tc`, `numa_node`, `sriov_vfs`, `gpu_affinity`, `observed_mac`, `observed_firmware`) as typed Python definitions; idempotent `apply_schema` function. Full docstrings + Scenarios per function |
+| [M1-3](https://github.com/kg-aifabrik/host-config/issues/8) | Fixture script: populate B300 + CPU hosts | `fixtures/netbox/populate.py`: idempotent loader reading from `fixtures/netbox/data/*.yaml`; full structured logging; documented Scenarios; raises typed errors on conflict |
+| [M1-4](https://github.com/kg-aifabrik/host-config/issues/9) | Component tests for Netbox schema apply | `tests/component/netbox/test_schema.py`: spins Netbox container, applies schema twice, asserts idempotency; spins fresh container, asserts all custom fields exist |
 
 ### M1.5 — Gate: Netbox fixtures round-trip (integration)
 
@@ -662,7 +662,7 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M1.5-1 | Integration test: Netbox fixture round-trip | `tests/integration/test_netbox_fixtures.py`: brings up Netbox, runs schema + populate, queries B300 host back via `pynetbox`, asserts 10 interfaces / correct IPs / correct VLANs / all custom fields populated; same for CPU host; runs in <30 s |
+| [M1.5-1](https://github.com/kg-aifabrik/host-config/issues/10) | Integration test: Netbox fixture round-trip | `tests/integration/test_netbox_fixtures.py`: brings up Netbox, runs schema + populate, queries B300 host back via `pynetbox`, asserts 10 interfaces / correct IPs / correct VLANs / all custom fields populated; same for CPU host; runs in <30 s |
 
 ### M2 — Renderer service (layer)
 
@@ -672,12 +672,12 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M2-1 | Pydantic `HostIntent` models + error hierarchy | `src/host_config/models/`: `interface.py` (PhysIface, Bond, VlanChild, RoceUnderlay, SriovParent), `intent.py` (HostIntent), `validators.py` (cross-field invariants: one default gateway, MTU monotonicity, etc.); strict Pydantic config. Companion `src/host_config/errors.py` + per-package `errors.py`: full exception hierarchy with contextual messages; tests for every error class |
-| M2-2 | Netbox loader: record → HostIntent | `src/host_config/netbox/loaders.py`: pure function `load_host_intent(client, asset_tag) -> HostIntent`; raises `NetboxQueryError`, `IntentValidationError` with full context; structured logging at INFO/DEBUG |
-| M2-3 | Jinja template tree per role | `src/host_config/render/templates/{cpu,gpu-b300}/`: `meta-data.j2`, `user-data.j2`, `network-config.j2`; templates documented inline; rejects unknown variables (Jinja strict undefined) |
-| M2-4 | Renderer: intent → bytes | `src/host_config/render/emitter.py`: `render_for(intent, file_kind) -> bytes`; deterministic output via `ruamel.yaml` stable ordering; injected `now` for reproducibility; golden files in `src/host_config/render/golden/` |
-| M2-5 | FastAPI service | `src/host_config/service/app.py`, `routes.py`, `middleware.py`, `dependencies.py`: three render routes + `/healthz` + `/readyz`; request-id middleware; structlog context binding; FastAPI exception handlers translating typed errors to consistent JSON envelopes; full OpenAPI doc |
-| M2-6 | Observability — logs and metrics | `src/host_config/observability/metrics.py` (Prometheus collectors); `logging_config.py` (structlog setup); every external call timed and logged; debug-level traceability acceptance test (per §7.5). OpenTelemetry traces deferred (§7.7) |
+| [M2-1](https://github.com/kg-aifabrik/host-config/issues/11) | Pydantic `HostIntent` models + error hierarchy | `src/host_config/models/`: `interface.py` (PhysIface, Bond, VlanChild, RoceUnderlay, SriovParent), `intent.py` (HostIntent), `validators.py` (cross-field invariants: one default gateway, MTU monotonicity, etc.); strict Pydantic config. Companion `src/host_config/errors.py` + per-package `errors.py`: full exception hierarchy with contextual messages; tests for every error class |
+| [M2-2](https://github.com/kg-aifabrik/host-config/issues/12) | Netbox loader: record → HostIntent | `src/host_config/netbox/loaders.py`: pure function `load_host_intent(client, asset_tag) -> HostIntent`; raises `NetboxQueryError`, `IntentValidationError` with full context; structured logging at INFO/DEBUG |
+| [M2-3](https://github.com/kg-aifabrik/host-config/issues/13) | Jinja template tree per role | `src/host_config/render/templates/{cpu,gpu-b300}/`: `meta-data.j2`, `user-data.j2`, `network-config.j2`; templates documented inline; rejects unknown variables (Jinja strict undefined) |
+| [M2-4](https://github.com/kg-aifabrik/host-config/issues/14) | Renderer: intent → bytes | `src/host_config/render/emitter.py`: `render_for(intent, file_kind) -> bytes`; deterministic output via `ruamel.yaml` stable ordering; injected `now` for reproducibility; golden files in `src/host_config/render/golden/` |
+| [M2-5](https://github.com/kg-aifabrik/host-config/issues/15) | FastAPI service | `src/host_config/service/app.py`, `routes.py`, `middleware.py`, `dependencies.py`: three render routes + `/healthz` + `/readyz`; request-id middleware; structlog context binding; FastAPI exception handlers translating typed errors to consistent JSON envelopes; full OpenAPI doc |
+| [M2-6](https://github.com/kg-aifabrik/host-config/issues/16) | Observability — logs and metrics | `src/host_config/observability/metrics.py` (Prometheus collectors); `logging_config.py` (structlog setup); every external call timed and logged; debug-level traceability acceptance test (per §7.5). OpenTelemetry traces deferred (§7.7) |
 
 ### M2.5 — Gate: HTTP render against real Netbox (integration)
 
@@ -687,7 +687,7 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M2.5-1 | Integration test: Netbox → Renderer → HTTP | `tests/integration/test_renderer_e2e.py`: spins Netbox + renderer via docker-compose; populates fixtures; curls `/render/SN12345/{meta-data,user-data,network-config}`; asserts byte-equal to checked-in golden files; asserts Prometheus metrics incremented; asserts log lines match expected sequence at DEBUG level |
+| [M2.5-1](https://github.com/kg-aifabrik/host-config/issues/17) | Integration test: Netbox → Renderer → HTTP | `tests/integration/test_renderer_e2e.py`: spins Netbox + renderer via docker-compose; populates fixtures; curls `/render/SN12345/{meta-data,user-data,network-config}`; asserts byte-equal to checked-in golden files; asserts Prometheus metrics incremented; asserts log lines match expected sequence at DEBUG level |
 
 ### M3 — nginx proxy + cache (layer)
 
@@ -697,10 +697,10 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M3-1 | Ansible role: `nginx-cache` | Installs nginx; deploys our config with `proxy_cache_path`, logging, and a `PURGE` location for manual cache invalidation; idempotent; templated from variables; role README documents inputs and outputs |
-| M3-2 | Cache behavior component tests | `tests/component/nginx/test_cache.py`: tests warm/cold paths, TTL expiry, Netbox-down (renderer unavailable) fallback, manual purge endpoint |
-| M3-3 | Renderer cache-friendly headers | `Cache-Control`, `ETag`, `Last-Modified` returned by FastAPI; tested |
-| M3-4 | TLS/HTTPS placeholder + ADR | nginx config stub for TLS termination; ADR-0012 documenting the deferred signed-seed path (HMAC headers, mTLS via smallstep) so a future contributor doesn't reinvent it |
+| [M3-1](https://github.com/kg-aifabrik/host-config/issues/18) | Ansible role: `nginx-cache` | Installs nginx; deploys our config with `proxy_cache_path`, logging, and a `PURGE` location for manual cache invalidation; idempotent; templated from variables; role README documents inputs and outputs |
+| [M3-2](https://github.com/kg-aifabrik/host-config/issues/19) | Cache behavior component tests | `tests/component/nginx/test_cache.py`: tests warm/cold paths, TTL expiry, Netbox-down (renderer unavailable) fallback, manual purge endpoint |
+| [M3-3](https://github.com/kg-aifabrik/host-config/issues/20) | Renderer cache-friendly headers | `Cache-Control`, `ETag`, `Last-Modified` returned by FastAPI; tested |
+| [M3-4](https://github.com/kg-aifabrik/host-config/issues/21) | TLS/HTTPS placeholder + ADR | nginx config stub for TLS termination; ADR-0012 documenting the deferred signed-seed path (HMAC headers, mTLS via smallstep) so a future contributor doesn't reinvent it |
 
 ### M3.5 — Gate: hybrid render via nginx cache (integration)
 
@@ -710,7 +710,7 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M3.5-1 | Integration test: nginx + renderer hybrid | E2E test exercising warm path (<50ms), cold path (full render path), TTL expiry, Netbox-down behavior; metrics assertions; log assertions |
+| [M3.5-1](https://github.com/kg-aifabrik/host-config/issues/22) | Integration test: nginx + renderer hybrid | E2E test exercising warm path (<50ms), cold path (full render path), TTL expiry, Netbox-down behavior; metrics assertions; log assertions |
 
 ### M4 — OVS + QEMU harness (layer)
 
@@ -720,10 +720,10 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M4-1 | Ansible role: `ovs-harness` | Installs OVS; creates bridge `br-test` with LACP partner config and VLAN trunks 100/200/300; tap interfaces pre-created; idempotent; role README explains the topology with an SVG referenced from `docs/diagrams/` |
-| M4-2 | QEMU launcher (Python module) | `fixtures/vms/launch.py`: `launch_host(asset_tag) -> VMHandle`; reads Netbox MACs via the renderer's loader (DRY); constructs QEMU command with mgmt NIC + nsa/nsb; supplies SMBIOS; deterministic per asset tag; structured logging |
-| M4-3 | Cloud image preparation | `fixtures/vms/prepare_image.py`: downloads Ubuntu 24.04 cloud image, verifies checksum, optionally pre-installs packages via `virt-customize` so first boot is fast; image cached and gitignored |
-| M4-4 | `qemu-host` Ansible role | Installs QEMU/KVM/libvirt on the target host (Lima or DO Droplet); configures KVM permissions; idempotent |
+| [M4-1](https://github.com/kg-aifabrik/host-config/issues/23) | Ansible role: `ovs-harness` | Installs OVS; creates bridge `br-test` with LACP partner config and VLAN trunks 100/200/300; tap interfaces pre-created; idempotent; role README explains the topology with an SVG referenced from `docs/diagrams/` |
+| [M4-2](https://github.com/kg-aifabrik/host-config/issues/24) | QEMU launcher (Python module) | `fixtures/vms/launch.py`: `launch_host(asset_tag) -> VMHandle`; reads Netbox MACs via the renderer's loader (DRY); constructs QEMU command with mgmt NIC + nsa/nsb; supplies SMBIOS; deterministic per asset tag; structured logging |
+| [M4-3](https://github.com/kg-aifabrik/host-config/issues/25) | Cloud image preparation | `fixtures/vms/prepare_image.py`: downloads Ubuntu 24.04 cloud image, verifies checksum, optionally pre-installs packages via `virt-customize` so first boot is fast; image cached and gitignored |
+| [M4-4](https://github.com/kg-aifabrik/host-config/issues/26) | `qemu-host` Ansible role | Installs QEMU/KVM/libvirt on the target host (Lima or DO Droplet); configures KVM permissions; idempotent |
 
 ### M4.5 — Gate: CPU host first-boot e2e (integration)
 
@@ -733,7 +733,7 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M4.5-1 | E2E test: CPU host full first-boot | `tests/e2e/test_cpu_host_boot.py`: brings up full stack (Netbox + renderer + nginx + OVS + VM); asserts `bond0` LACP-up, three VLAN children up with correct IPs/MTUs/routes; cloud-init exit status 0; full e2e in <5 min |
+| [M4.5-1](https://github.com/kg-aifabrik/host-config/issues/27) | E2E test: CPU host full first-boot | `tests/e2e/test_cpu_host_boot.py`: brings up full stack (Netbox + renderer + nginx + OVS + VM); asserts `bond0` LACP-up, three VLAN children up with correct IPs/MTUs/routes; cloud-init exit status 0; full e2e in <5 min |
 
 ### M5 — 8 E-W NICs + Soft-RoCE (layer)
 
@@ -743,9 +743,9 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M5-1 | Extend launcher and OVS for 10 NICs | QEMU launcher adds 8 E-W virtio NICs with deterministic MACs derived from Netbox; OVS role parameterized for E-W tap interfaces (no VLAN trunk on those — they're independent IPv4 underlays) |
-| M5-2 | Renderer support for gpu-b300 role | Templates and emitter handle the full 10-NIC shape; golden files added for gpu-b300; tests for E-W NIC stanzas (MTU 9000, per-NIC IPs, `virtual-function-count: 16`) |
-| M5-3 | Cloud-init user-data: Soft-RoCE | user-data block loads `rdma_rxe` module, creates `rxe_gpuN` devices on each E-W NIC, raises `memlock` limits; idempotent (skips on re-run) |
+| [M5-1](https://github.com/kg-aifabrik/host-config/issues/28) | Extend launcher and OVS for 10 NICs | QEMU launcher adds 8 E-W virtio NICs with deterministic MACs derived from Netbox; OVS role parameterized for E-W tap interfaces (no VLAN trunk on those — they're independent IPv4 underlays) |
+| [M5-2](https://github.com/kg-aifabrik/host-config/issues/29) | Renderer support for gpu-b300 role | Templates and emitter handle the full 10-NIC shape; golden files added for gpu-b300; tests for E-W NIC stanzas (MTU 9000, per-NIC IPs, `virtual-function-count: 16`) |
+| [M5-3](https://github.com/kg-aifabrik/host-config/issues/30) | Cloud-init user-data: Soft-RoCE | user-data block loads `rdma_rxe` module, creates `rxe_gpuN` devices on each E-W NIC, raises `memlock` limits; idempotent (skips on re-run) |
 
 ### M5.5 — Gate: B300-shaped first-boot e2e (integration)
 
@@ -755,7 +755,7 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M5.5-1 | E2E test: B300 host full first-boot + RDMA verbs | All 10 NICs up at correct MTUs/IPs; `ibv_devinfo` lists 8 rxe devices; `rping` between gpu0 and gpu1 succeeds; documented as the canonical "is the lab working" smoke test |
+| [M5.5-1](https://github.com/kg-aifabrik/host-config/issues/31) | E2E test: B300 host full first-boot + RDMA verbs | All 10 NICs up at correct MTUs/IPs; `ibv_devinfo` lists 8 rxe devices; `rping` between gpu0 and gpu1 succeeds; documented as the canonical "is the lab working" smoke test |
 
 ### M6 — Ansible deployment to DigitalOcean (layer)
 
@@ -765,9 +765,9 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M6-1 | Ansible: provision + configure | `infra/ansible/playbooks/provision.yml` (Droplet, SSH key, firewall, tags via `community.digitalocean`; idempotent — checks existing tagged resources before creating; outputs inventory). `infra/ansible/playbooks/deploy-lab.yml` (composes netbox-dev + renderer + nginx-cache + ovs-harness + qemu-host roles; idempotent end-to-end). One command from fresh state to working lab |
-| M6-2 | Runbook: deploy lab to DO | `docs/runbooks/deploy-do.md`: step-by-step; `ansible-playbook` invocations; smoke test commands; expected costs; teardown procedure; troubleshooting common failures |
-| M6-3 | `just` target wrappers | `justfile` targets: `just lab-up` (provision + configure), `just lab-down` (Ansible destroy play + DO API verification of zero resources), `just lab-test` (run e2e tests), `just lab-logs` (collect logs from Droplet), `just lab` (composes up → test → down with trap-on-exit) |
+| [M6-1](https://github.com/kg-aifabrik/host-config/issues/32) | Ansible: provision + configure | `infra/ansible/playbooks/provision.yml` (Droplet, SSH key, firewall, tags via `community.digitalocean`; idempotent — checks existing tagged resources before creating; outputs inventory). `infra/ansible/playbooks/deploy-lab.yml` (composes netbox-dev + renderer + nginx-cache + ovs-harness + qemu-host roles; idempotent end-to-end). One command from fresh state to working lab |
+| [M6-2](https://github.com/kg-aifabrik/host-config/issues/33) | Runbook: deploy lab to DO | `docs/runbooks/deploy-do.md`: step-by-step; `ansible-playbook` invocations; smoke test commands; expected costs; teardown procedure; troubleshooting common failures |
+| [M6-3](https://github.com/kg-aifabrik/host-config/issues/34) | `just` target wrappers | `justfile` targets: `just lab-up` (provision + configure), `just lab-down` (Ansible destroy play + DO API verification of zero resources), `just lab-test` (run e2e tests), `just lab-logs` (collect logs from Droplet), `just lab` (composes up → test → down with trap-on-exit) |
 
 ### M6.5 — Gate: lab works on DigitalOcean (integration)
 
@@ -777,8 +777,8 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M6.5-1 | E2E verification on DO Droplet | Documented procedure: `just lab-up`, run e2e tests, snapshot logs, `just lab-down`. Verification recorded in `docs/runbooks/deploy-do.md` as the canonical acceptance step. Costs logged in the runbook |
-| M6.5-2 | Teardown integrity test | Capture DO resource inventory before `just lab-up`; verify the diff after `just lab-down` is zero — no Droplets, volumes, snapshots, firewalls, SSH keys, DNS records remain tagged with our workspace. Includes a deliberately failed `lab-up` to verify cleanup still runs (trap-on-exit pattern). Result documented in the runbook |
+| [M6.5-1](https://github.com/kg-aifabrik/host-config/issues/35) | E2E verification on DO Droplet | Documented procedure: `just lab-up`, run e2e tests, snapshot logs, `just lab-down`. Verification recorded in `docs/runbooks/deploy-do.md` as the canonical acceptance step. Costs logged in the runbook |
+| [M6.5-2](https://github.com/kg-aifabrik/host-config/issues/36) | Teardown integrity test | Capture DO resource inventory before `just lab-up`; verify the diff after `just lab-down` is zero — no Droplets, volumes, snapshots, firewalls, SSH keys, DNS records remain tagged with our workspace. Includes a deliberately failed `lab-up` to verify cleanup still runs (trap-on-exit pattern). Result documented in the runbook |
 
 ### M7 — GitHub Actions CI for full e2e (layer)
 
@@ -788,9 +788,9 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M7-1 | `e2e.yml` workflow runs M4.5 + M5.5 on PR | KVM-enabled GHA runners; pulls Netbox + builds renderer; runs OVS + QEMU + cloud-init e2e; reports timing; parallelization across multiple jobs if total >10 min. Workflow includes `if: always()` teardown step per §8.6 |
-| M7-2 | Coverage reporting + PR comments | `pytest-cov` reports uploaded; coverage delta posted to PR via Codecov or similar; informational alert at >2% drop (not auto-block per §6.7) |
-| M7-3 | Docs link & diagram-reference checker | CI step that scans `docs/**/*.md` and `README.md` for broken internal Markdown links, missing SVG references, and ADRs not listed in the docs index. Runs on every PR; blocks merge on regressions |
+| [M7-1](https://github.com/kg-aifabrik/host-config/issues/37) | `e2e.yml` workflow runs M4.5 + M5.5 on PR | KVM-enabled GHA runners; pulls Netbox + builds renderer; runs OVS + QEMU + cloud-init e2e; reports timing; parallelization across multiple jobs if total >10 min. Workflow includes `if: always()` teardown step per §8.6 |
+| [M7-2](https://github.com/kg-aifabrik/host-config/issues/38) | Coverage reporting + PR comments | `pytest-cov` reports uploaded; coverage delta posted to PR via Codecov or similar; informational alert at >2% drop (not auto-block per §6.7) |
+| [M7-3](https://github.com/kg-aifabrik/host-config/issues/39) | Docs link & diagram-reference checker | CI step that scans `docs/**/*.md` and `README.md` for broken internal Markdown links, missing SVG references, and ADRs not listed in the docs index. Runs on every PR; blocks merge on regressions |
 
 ### M7.5 — Gate: CI is the source of truth (integration)
 
@@ -800,8 +800,8 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M7.5-1 | Branch protection finalized | Rule on `main`: required checks (lint+type-check+unit+component+integration+coverage), signed commits, 1 review on substantive PRs; documented in CONTRIBUTING.md |
-| M7.5-2 | Failure-scenario verification | Deliberately open a PR with a failing test, a coverage drop, a bad commit message; verify each is blocked; document the expected error messages so future contributors recognize them |
+| [M7.5-1](https://github.com/kg-aifabrik/host-config/issues/40) | Branch protection finalized | Rule on `main`: required checks (lint+type-check+unit+component+integration+coverage), signed commits, 1 review on substantive PRs; documented in CONTRIBUTING.md |
+| [M7.5-2](https://github.com/kg-aifabrik/host-config/issues/41) | Failure-scenario verification | Deliberately open a PR with a failing test, a coverage drop, a bad commit message; verify each is blocked; document the expected error messages so future contributors recognize them |
 
 ---
 
