@@ -8,7 +8,7 @@
 
 ## 1. Charter
 
-`host-config` is a **public, Apache-2.0** GitHub repository under the same user account as this research repo. It holds the production-grade code, infrastructure, and deployment configuration for the host network configuration pipeline described in [`baremetal-network-overview.md`](baremetal-network-overview.md) and tested per [`test-strategy.md`](test-strategy.md).
+`host-config` is a **private** GitHub repository under the same user account as this research repo, for **internal enterprise use only** (no open-source license; a short `NOTICE.md` declares proprietary internal use). It holds the production-grade code, infrastructure, and deployment configuration for the host network configuration pipeline described in [`baremetal-network-overview.md`](baremetal-network-overview.md) and tested per [`test-strategy.md`](test-strategy.md).
 
 **Initial scope (this plan):** Tier 1 only — Netbox model + fixtures, on-demand renderer service, nginx cache layer, OVS+QEMU test harness, cloud-init NoCloud integration, Soft-RoCE for east-west verbs validation, and a deployable lab on a DigitalOcean Droplet.
 
@@ -31,6 +31,7 @@ These are the load-bearing values. Every other decision in this plan derives fro
 9. **One way to do common things.** Every common operation (run tests, format code, build docs, deploy) has exactly one entry point. Multiple competing ways are technical debt the day they ship.
 10. **Quality is preserved, not retrofit.** Linting, type-checking, coverage gates, ADR-on-design-change discipline — all enforced from the first commit. Retrofitting them onto an established codebase is several engineer-years of work.
 11. **Leave no trace.** Every operation that provisions a resource is paired with the operation that destroys it. Every run starts with nothing and ends with nothing — no orphaned containers, no leftover Droplets, no `/tmp` debris. Cleanup runs on failure as reliably as on success.
+12. **Lower layers do not know about higher layers.** The renderer is asked to produce a host config for an asset tag and it does — full stop. Whether the caller is testing, dry-running, first-time provisioning, re-provisioning after RMA, or anything else is the caller's concern. The renderer never queries, infers, or refuses based on caller-domain concepts (lifecycle status, intent type, environment). This discipline lets the upper layers evolve independently and lets the renderer be embedded into systems we haven't designed yet.
 
 ---
 
@@ -40,7 +41,7 @@ These are the load-bearing values. Every other decision in this plan derives fro
 |---|---|---|
 | Language | **Python 3.12** | Mature, stable, broad ecosystem for both web service and infrastructure scripting. 3.13's free-threaded mode is interesting but ecosystem support is partial. Pin to 3.12 for ecosystem maturity. ADR-0001 |
 | Package manager | **uv** | Single tool covering env, deps, lockfile, run, project. Replaces pip+venv+pip-tools+poetry+pipx with one fast, well-engineered binary. Maintained by Astral (also `ruff` makers). ADR-0002 |
-| Web framework | **FastAPI** | Pydantic-native, async, generates OpenAPI from types automatically. The "obvious choice" for production Python HTTP services in 2026. ADR-0003 |
+| Web framework | **FastAPI** | Pydantic-native, async, generates OpenAPI from types automatically. The "obvious choice" for production Python HTTP services in 2026. All consumer-facing routes are versioned under `/v1/` from day one; operational endpoints (`/healthz`, `/readyz`, `/metrics`) are unversioned and treated as forever-stable. ADR-0003 |
 | Validation / models | **Pydantic v2** | The de-facto Python schema framework. Already pervasive; integrates with FastAPI. Strict mode + custom validators give us strong invariants. ADR-0003 |
 | Templating | **Jinja2** | Boring, ubiquitous, mature. ADR-0003 |
 | Linter + formatter | **ruff** | Replaces flake8 + isort + pyupgrade + black with one fast tool. Astral-maintained, actively developed. ADR-0004 |
@@ -69,7 +70,7 @@ These are the load-bearing values. Every other decision in this plan derives fro
 ```
 host-config/
 ├── README.md                       # what this is, prereqs, quickstart, links
-├── LICENSE                         # Apache-2.0
+├── NOTICE.md                       # proprietary internal use; no OSS license
 ├── CHANGELOG.md                    # auto-generated from conventional commits
 ├── CODE_OF_CONDUCT.md              # Contributor Covenant 2.1
 ├── CONTRIBUTING.md                 # how to contribute, dev setup, PR flow
@@ -416,14 +417,14 @@ Every scenario in this list **must** have at least one integration test. New use
 User-facing surfaces:
 
 1. **HTTP renderer endpoints.** Each route × happy path × representative error paths.
-   - `GET /render/<asset>/meta-data` for `cpu` role → 200 with valid YAML.
-   - `GET /render/<asset>/user-data` for `gpu-b300` role → 200 with valid cloud-config.
-   - `GET /render/<asset>/network-config` for both roles → 200 with byte-equal-to-golden output.
-   - `GET /render/<unknown>/*` → 404 with structured error JSON.
-   - `GET /render/<asset>/*` with Netbox down → appropriate 5xx + error JSON; logs preserve context.
-   - `GET /healthz` → 200 while running.
-   - `GET /readyz` → 200 when Netbox reachable, 503 with reason when not.
-   - `GET /metrics` → 200 with valid Prometheus exposition format.
+   - `GET /v1/render/<asset>/meta-data` for `cpu` role → 200 with valid YAML.
+   - `GET /v1/render/<asset>/user-data` for `gpu-b300` role → 200 with valid cloud-config.
+   - `GET /v1/render/<asset>/network-config` for both roles → 200 with byte-equal-to-golden output.
+   - `GET /v1/render/<unknown>/*` → 404 with structured error JSON.
+   - `GET /v1/render/<asset>/*` with Netbox down → appropriate 5xx + error JSON; logs preserve context.
+   - `GET /healthz` → 200 while running. (Unversioned; forever-stable.)
+   - `GET /readyz` → 200 when Netbox reachable, 503 with reason when not. (Unversioned.)
+   - `GET /metrics` → 200 with valid Prometheus exposition format. (Unversioned.)
 2. **nginx cache behavior** for each endpoint.
    - Cold path: first request renders.
    - Warm path: second request within TTL serves from cache, renderer not invoked.
@@ -634,7 +635,7 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| M0-1 | Initialize repo with scaffolding and quality tooling | LICENSE (Apache-2.0), README skeleton, `.gitignore`, `.gitattributes`, `.python-version`, `pyproject.toml` (with `ruff`, `mypy --strict`, `pytest`/`pytest-cov` config), `CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, `.env.example`, `justfile` with placeholder targets, `.pre-commit-config.yaml` with all hooks (ruff, mypy, gitleaks, commitlint, file-size, yaml validation), `.editorconfig` |
+| M0-1 | Initialize repo with scaffolding and quality tooling | `NOTICE.md` (proprietary internal-use declaration; no OSS license file), README skeleton, `.gitignore`, `.gitattributes`, `.python-version`, `pyproject.toml` (with `ruff`, `mypy --strict`, `pytest`/`pytest-cov` config), `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, `.env.example`, `justfile` with placeholder targets, `.pre-commit-config.yaml` with all hooks (ruff, mypy, gitleaks, commitlint, file-size, yaml validation), `.editorconfig` |
 | M0-2 | Write `CODE_CONVENTIONS.md` | Authoritative version of §5 of this plan, lifted into the repo. Living document, edits via PR |
 | M0-3 | Set up `docs/` structure | `docs/index.md` (entry point, also linked from README); `docs/architecture/` skeleton with placeholder; `docs/adr/template.md` (Michael Nygard format); `docs/runbooks/` skeleton; `docs/diagrams/README.md` explaining the SVG+Excalidraw convention. No build tool — Markdown is rendered by GitHub |
 | M0-4 | Write initial ADRs 0001–0011 | The eleven ADRs documented in §11. ADR-0011 (systems overview) includes an SVG component diagram and an SVG sequence diagram, mirrored as the living `docs/architecture/systems-overview.md`. ADR-0012 (deferred signed-seed path) ships later in M3-4 when its context lands |
@@ -834,7 +835,7 @@ These ADRs ship in M0-4 to anchor the design from day one:
 |---|---|
 | **0001** | Python 3.12 as the implementation language |
 | **0002** | `uv` as package and project manager |
-| **0003** | FastAPI + Pydantic v2 + Jinja2 for the renderer |
+| **0003** | FastAPI + Pydantic v2 + Jinja2 for the renderer. Includes the API versioning policy: consumer-facing routes under `/v1/`; operational endpoints (`/healthz`, `/readyz`, `/metrics`) unversioned and forever-stable; major-version bumps for breaking changes with N-1 support window; minor changes are additive only |
 | **0004** | `ruff` (lint+format) + `mypy --strict` as quality gates |
 | **0005** | `pytest` + Hypothesis for testing (mutation testing deferred per §6.4) |
 | **0006** | Ansible (with `community.digitalocean`) for both cloud provisioning and in-host configuration |
@@ -878,7 +879,7 @@ Future ADRs will arrive as decisions cross the bar — anything that crosses mod
 
 1. **You review this plan and push back.** Things to look for: principles that don't match your intent, conventions that are too lax or too strict, issues that are too big or too small, milestones with unclear acceptance criteria.
 2. **We iterate to "yes."**
-3. **I scaffold the repo** via `gh repo create <user>/host-config --public --license apache-2.0` from this session.
+3. **I scaffold the repo** via `gh repo create <user>/host-config --private` from this session. No OSS license; `NOTICE.md` declares proprietary internal use.
 4. **I create the 15 milestones** in the new repo via `gh api`.
 5. **I seed all 41 issues** with:
    - Title and full description (from §9).
