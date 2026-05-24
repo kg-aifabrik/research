@@ -535,11 +535,11 @@ OpenTelemetry instrumentation pays no rent in a single-service system; structure
 
 ## 8. Workflow conventions
 
-- **Branch naming:** `<type>/<short-slug>` where type is one of `feat`, `fix`, `docs`, `chore`, `refactor`, `test`. Optional issue number suffix.
-- **Commit messages:** Conventional Commits format, enforced via `commitlint` pre-commit hook. Body required for non-trivial changes; references linked issue.
-- **PR title:** Same Conventional Commit format as the commit. Squash-merge preserves it.
-- **Code review:** Self-review acceptable for trivial changes (docs typos, dependency bumps); substantive changes require a deliberate "looks good" comment + green CI + signed commits.
-- **GPG signing:** Required on `main` (branch protection enforces).
+- **Solo-dev direct-to-main workflow.** The repo has a single contributor in v1. Commits land **directly on `main`** with `Closes #N` in the message so issues auto-close. No feature branches; no PRs; no review ceremony. When a second contributor joins, this is the first convention to revisit (via a new ADR).
+- **Tests-before-commit discipline.** New code lands with new tests; `just lint && just typecheck && just test` must pass locally before every commit. This local discipline replaces PR review at v1 scale.
+- **Commit messages:** Conventional Commits format, enforced via `commitlint` pre-commit hook. Body required for non-trivial changes; reference linked issue with `Closes #N`.
+- **No commit signing.** Repo is private; access-controlled at the GitHub layer; signing adds friction without proportional security value at v1.
+- **PR/review template** kept available in `.github/` for future use when a second contributor joins, but not exercised in v1.
 - **Issue labels:**
   - `milestone:M0`–`milestone:M7.5`
   - `area:infra`, `area:renderer`, `area:fixtures`, `area:docs`, `area:tests`, `area:observability`, `area:ci`
@@ -578,7 +578,7 @@ Every PR:
 - `pip-audit` (security advisory scan).
 - Conventional commit lint on PR title.
 - Broken-link check on `docs/` Markdown and SVG references.
-- For `main` branch: signed commits enforced; e2e tests must pass.
+- On push to `main`: e2e tests must pass (CI runs the same suite as PRs).
 
 ### 8.4 SVG diagram convention
 
@@ -639,7 +639,7 @@ For navigability across the implementation plan and the issue tracker:
 | [M0-2](https://github.com/kg-aifabrik/host-config/issues/2) | Write `CODE_CONVENTIONS.md` | Authoritative version of §5 of this plan, lifted into the repo. Living document, edits via PR |
 | [M0-3](https://github.com/kg-aifabrik/host-config/issues/3) | Set up `docs/` structure | `docs/index.md` (entry point, also linked from README); `docs/architecture/` skeleton with placeholder; `docs/adr/template.md` (Michael Nygard format); `docs/runbooks/` skeleton; `docs/diagrams/README.md` explaining the SVG+Excalidraw convention. No build tool — Markdown is rendered by GitHub |
 | [M0-4](https://github.com/kg-aifabrik/host-config/issues/4) | Write initial ADRs 0001–0011 | The eleven ADRs documented in §11. ADR-0011 (systems overview) includes an SVG component diagram and an SVG sequence diagram, mirrored as the living `docs/architecture/systems-overview.md`. ADR-0012 (deferred signed-seed path) ships later in M3-4 when its context lands |
-| [M0-5](https://github.com/kg-aifabrik/host-config/issues/5) | Configure CI workflows and branch protection | `.github/workflows/ci.yml` (lint+type+unit+component+coverage); placeholder `e2e.yml`; Dependabot config; issue and PR templates; CODEOWNERS. Branch protection rule on `main`: required checks, signed commits, 1 review on substantive PRs (self-review allowed for trivial). Documented in `CONTRIBUTING.md` |
+| [M0-5](https://github.com/kg-aifabrik/host-config/issues/5) | Configure CI workflows and branch protection | `.github/workflows/ci.yml` (lint+type+unit+component+coverage); placeholder `e2e.yml`; Dependabot config; issue + PR templates (for future use); CODEOWNERS. Branch protection rule on `main`: required CI checks must pass; linear history; no force-push. No review requirement, no signed commits (solo-dev workflow). Documented in `CONTRIBUTING.md` |
 
 ### M1 — Netbox model + fixtures (layer)
 
@@ -800,7 +800,7 @@ For navigability across the implementation plan and the issue tracker:
 
 | ID | Title | Scope |
 |---|---|---|
-| [M7.5-1](https://github.com/kg-aifabrik/host-config/issues/40) | Branch protection finalized | Rule on `main`: required checks (lint+type-check+unit+component+integration+coverage), signed commits, 1 review on substantive PRs; documented in CONTRIBUTING.md |
+| [M7.5-1](https://github.com/kg-aifabrik/host-config/issues/40) | Branch protection finalized | Rule on `main`: required CI checks (lint+type-check+unit+component+integration+coverage); linear history; no force-push. No review or signing requirements at v1 (solo-dev). Documented in `CONTRIBUTING.md` |
 | [M7.5-2](https://github.com/kg-aifabrik/host-config/issues/41) | Failure-scenario verification | Deliberately open a PR with a failing test, a coverage drop, a bad commit message; verify each is blocked; document the expected error messages so future contributors recognize them |
 
 ---
