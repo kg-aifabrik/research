@@ -2,6 +2,12 @@
 
 This repo holds research notes organized by area. Each subdirectory under the root is a research **area** containing one or more **topics**. Example: a `kubernetes-federation` area might contain topics on the open-source landscape, on neo-cloud deployments, etc.
 
+## Related implementation repos
+
+Some research areas in this repo are being actively implemented in companion repos. When a session lands here but the user's question is about *implementation* rather than research, hop over:
+
+- **[`host-net-config/`](host-net-config/)** is being implemented in **[`kg-aifabrik/host-config`](https://github.com/kg-aifabrik/host-config)**. The [implementation plan](host-net-config/implementation-plan.md) in this repo is the durable design contract; milestone progress and code live in `host-config`. See that repo's `CLAUDE.md` for its workflow conventions (solo-dev direct-to-main, Conventional Commits, full test pyramid, the issue-closing ritual).
+
 ## Workflow
 
 When the user asks for new research, the first thing to determine is which area folder it belongs in:
