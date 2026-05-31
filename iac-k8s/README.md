@@ -14,8 +14,8 @@ Tooling to build **any** hardened, highly-available, regional GKE cluster and ma
 - **D2 — CIS GKE L2 is the default floor.** Module bakes in CIS Level 2 for all clusters; no looser baseline known. Workload exceptions via audited Kyverno exceptions, not a lower floor. See [02](02-security-standard.md#decision-cis-gke-l2-as-the-default-floor-d2).
 - **D3 — Standard mode, COS default, Ubuntu opt-in per pool.** Factory builds Standard (not Autopilot) clusters with Container-Optimized OS on every pool by default; `image_type` is a per-pool input so an Ubuntu pool can sit alongside COS when a workload needs it (that pool owns its OS patching). See [03](03-day2-operations.md#decision-standard-mode-cos-default-ubuntu-opt-in-per-pool-d3).
 - **D4 — No unsigned images, no break-glass.** Binary Authorization enforce-only; every image needs a valid cosign signature/attestation, no exceptions even in incidents. Emergency path = re-deploy a previously-signed image, never admit unsigned. Makes the signing pipeline a tier-0 dependency. See [02](02-security-standard.md#decision-no-unsigned-images-no-break-glass-d4).
+- **D5 — Stateful add-ons as separate companion modules.** Consumer state (e.g. Rafay's durable Cloud SQL/GCS) lives in separate optional modules composed alongside the cluster, not in the `gke-cluster` module — independent lifecycle so data outlives cluster rebuilds; cluster module stays single-purpose. See [01](01-provisioning-and-iac.md#decision-stateful-add-ons-as-separate-companion-modules-d5).
 
 ## Open threads
 - **Which GKE-native controls are mandatory vs recommended** within the L2 (D2) floor — finalize and encode as the module's defaults.
-- **Per-consumer stateful add-ons** — generic module option (e.g. Rafay's durable Cloud SQL/GCS) vs consumer-owned; drives recovery runbooks.
 - **Multi-site fleet evolution** — Config Sync chosen partly for fleet-scale; revisit when North Star multi-site lands.

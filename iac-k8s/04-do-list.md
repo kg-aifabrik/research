@@ -25,7 +25,7 @@ Delivers **R8**. The concrete build inventory across buckets, each task tagged *
 | **`gke-cluster` parameterized module** (the core deliverable — builds *any* hardened HA cluster from a values entry) | [NEW] wraps [REUSE] | thin wrapper over [`safer-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/blob/main/modules/safer-cluster/README.md) (pins CIS + GKE hardening guide) exposing a values contract + upgrade profile |
 | Reference instantiations (FOP, Mgmt Plane) as `clusters.yaml`/tfvars entries | [NEW] | proves the factory; each new cluster = one entry, no new code |
 | `fleet` register clusters, enable Config Sync + Policy Controller (per cluster) | [REUSE] | `google_gke_hub_feature` ([guide](https://cloud.google.com/blog/topics/anthos/using-terraform-to-enable-config-sync-on-a-gke-cluster)) |
-| Optional per-consumer stateful add-on (e.g. Rafay durable Cloud SQL/GCS) | [NEW] | module option; survives controller reinstall (objectives R) |
+| Separate companion modules `stateful-cloudsql` / `stateful-gcs` (CMEK + backups) — composed by consumers, **not** in the cluster module (D5) | [NEW] | independent lifecycle; survives cluster rebuild + controller reinstall (objectives R) |
 | CI: GitHub Actions + WIF, per-layer plan/apply, `prevent_destroy` on stateful | [NEW] | keyless; idempotent build/teardown; same pipeline for every cluster |
 
 ## Bucket 2 — Security standard (per [02](02-security-standard.md))

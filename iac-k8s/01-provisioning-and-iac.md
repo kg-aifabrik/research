@@ -96,6 +96,14 @@ A single **reusable, parameterized** Terraform composition. Foundation layers ru
 
 The core module exposes a **values contract** (e.g. a `clusters.yaml` or per-env tfvars). Standing up the FOP cluster, the Mgmt Plane cluster, or the Nth cluster is adding an entry — no new code. Idempotent build/teardown (the recurring acceptance criterion in the objectives doc) is inherent to Terraform remote state; `prevent_destroy` guards stateful resources.
 
+### Decision: stateful add-ons as separate companion modules (D5)
+
+**Decided** — persistent state a consumer needs outside the cluster (e.g. the Rafay Controller's durable DB/object store, which must survive controller reinstall) is **not** baked into the `gke-cluster` module. Instead, ship **separate optional companion modules** (`stateful-cloudsql`, `stateful-gcs` — Cloud SQL HA / GCS with CMEK + backups baked in) that a consumer composes *alongside* the cluster in its own Terraform.
+
+- **Cluster module stays single-purpose** — "produce a hardened, HA cluster," nothing else.
+- **Independent lifecycle** — data infra lives in the consumer's own state, so the FOP's Rafay state **outlives a cluster rebuild**; `terraform destroy` of a cluster never touches it.
+- **Reuse without coupling** — the companion modules give every consumer the same hardened Cloud SQL/GCS pattern (no hand-rolling), but the cluster module carries no DB knowledge.
+
 ## HA configuration
 
 Baked into the module so **every** cluster inherits it:
