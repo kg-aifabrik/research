@@ -9,9 +9,11 @@ Tooling to build **any** hardened, highly-available, regional GKE cluster and ma
 - **Lifecycle by profile:** reusable upgrade profiles (`conservative` = Stable/Extended, `balanced` = Regular) set release channel + maintenance windows as a parameter; security patches auto-apply, feature upgrades are deferrable. Node OS = Container-Optimized OS = near-zero OS patch burden. **Standard is the default mode, Autopilot opt-in.** See [03](03-day2-operations.md).
 - **Build inventory:** heavy reuse of terraform-google-modules + k8s-hardening; net-new = the parameterized module + CI/WIF, the Config Sync policy package, GitOps bootstrap, supply-chain, upgrade profiles, and ratifying the hardening profile. See [04](04-do-list.md).
 
+## Decisions
+- **D1 — Mixed-sensitivity node pools, one cluster.** Sensitive vs non-sensitive workloads run on separate node pools (confidential vs standard) sharing a control plane, via a per-pool `confidential` flag + taints + Kyverno placement enforcement. Revisit two-cluster separation only for a hard regulatory/tenancy boundary. See [02](02-security-standard.md#decision-mixed-sensitivity-node-pools-d1).
+
 ## Open threads
 - **Ratify the GKE hardening profile** — CIS L1 vs L2; which GKE-native controls are mandatory vs recommended; encode as the module's default.
-- **Confidential GKE Nodes as a profile option?** Needed where a cluster handles sensitive end-user data (e.g. Mgmt Plane).
 - **Autopilot support depth** — how far to support Autopilot as a module mode given DaemonSet/host-access limits for observability agents.
 - **Binary Authorization break-glass policy** — emergency unsigned-image admission without weakening steady state.
 - **Per-consumer stateful add-ons** — generic module option (e.g. Rafay's durable Cloud SQL/GCS) vs consumer-owned; drives recovery runbooks.

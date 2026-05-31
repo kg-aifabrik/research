@@ -42,7 +42,7 @@ This is exactly what the repo's [`SETUP-HYPERSCALER.md`](https://github.com/AI-F
 | **Workload** | PSS labels, Kyverno (no-privileged, no-hostPath, runAsNonRoot, drop-caps, no-priv-esc, ro-rootfs, seccomp, limits) | Config Sync (Tier-1 manifests + `kyverno-policies/`) | k8s-hardening [reuse] |
 | | Default SA automount off | Config Sync (`02-disable-default-sa-automount.yaml`) | k8s-hardening [reuse] |
 | **Nodes** | Shielded GKE Nodes (Secure Boot + vTPM + integrity monitoring) | Terraform | GKE-native [new] |
-| | Confidential GKE Nodes (AMD SEV) — for tenant-data planes | Terraform per node-pool | GKE-native [new, evaluate] |
+| | Confidential GKE Nodes (AMD SEV / Intel TDX) — **per node pool** | Terraform per-pool `confidential` flag | GKE-native [new] |
 | | Container-Optimized OS node image | Terraform `image_type=COS_CONTAINERD` | [new] |
 | **Secrets** | Application-layer secrets encryption (Cloud KMS CMEK) + re-encrypt existing | Terraform `database_encryption` + Tier-3 re-encrypt | GKE-native + k8s-hardening Tier-3 [new] |
 | **Supply chain** | Binary Authorization (signed-image admission) | Terraform `binary_authorization` + policy | GKE-native [new] |
@@ -64,6 +64,15 @@ Run the k8s-hardening pipeline against every factory-built cluster in CI, with t
 - Add **GKE Security Posture** (free) for managed vuln + misconfig findings
 - **Config Sync** enforces drift back to the Git baseline continuously — a config that drifts off-standard self-heals
 
-Open items to ratify with security: the exact CIS profile level (L1 vs L2), whether Confidential Nodes are mandatory for the Mgmt Plane (handles end-user data), and the Binary Authorization break-glass policy.
+Open items to ratify with security: the exact CIS profile level (L1 vs L2) and the Binary Authorization break-glass policy.
+
+## Decision: mixed-sensitivity node pools (D1)
+
+**Decided** — handle sensitive vs non-sensitive workloads with **mixed node pools in one cluster**, not separate clusters, for current needs. Revisit per-cluster separation only if a hard regulatory/tenancy boundary emerges.
+
+- **Confidential GKE Nodes are enabled per node pool** (GA "mixed node pool" support): a confidential pool (AMD SEV / Intel TDX, memory encrypted in-use) + a standard pool share one control plane ([docs](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/confidential-gke-nodes), [GA announcement](https://cloud.google.com/blog/products/identity-security/announcing-general-availability-of-confidential-gke-nodes)).
+- **Module shape:** a `node_pools` list where each pool carries `confidential: true|false` + taints/labels + machine type, replacing any cluster-wide confidential toggle.
+- **Placement enforcement:** taint the confidential pool + matching toleration/nodeSelector on sensitive workloads; **Kyverno** policy rejects `data-class=sensitive` pods that don't target it (reuse k8s-hardening). Separate namespaces + NetworkPolicy + distinct Workload Identity SAs per class.
+- **Accepted limit:** the **control plane is a shared trust boundary** — mixed pools give strong data-in-use isolation and lower ops overhead, but not the blast-radius/RBAC/upgrade separation of two clusters. Sufficient for now.
 
 Sources: [AI-Fabrik/k8s-hardening](https://github.com/AI-Fabrik/k8s-hardening), [SETUP-HYPERSCALER.md](https://github.com/AI-Fabrik/k8s-hardening/blob/main/docs/SETUP-HYPERSCALER.md), [Autopilot overview](https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview), [safer-cluster module](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/blob/main/modules/safer-cluster/README.md).
