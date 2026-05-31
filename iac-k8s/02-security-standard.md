@@ -4,9 +4,9 @@ The FOP Hardening Standard, profiled for **managed GKE**. Requirements & Assumpt
 
 ## Executive Summary
 
-On managed GKE the hardening standard is **three layers**: (1) the **CIS GKE Benchmark** workload controls — exactly the [`AI-Fabrik/k8s-hardening`](https://github.com/AI-Fabrik/k8s-hardening) **Tier-1** manifests + Kyverno policies, reused verbatim; (2) a defined set of **GKE-native controls** the k8s-hardening repo already lists as "beyond CIS" (Workload Identity, Binary Authorization, Shielded/Confidential nodes, private cluster, Dataplane V2, Cloud KMS secrets encryption, audit logs); (3) **org/identity controls** (WIF-only, OIDC for human kubectl, org policy constraints). **Tier-2 (control-plane/etcd/kubelet node hardening) is Google's responsibility** under the shared-responsibility model and is *not* ours to implement — this is the single biggest difference from the self-managed clusters k8s-hardening was built for.
+The standard is **baked into the reusable cluster module**, so every cluster the factory produces is hardened identically — not hand-secured per cluster. On managed GKE it is **three layers**: (1) the **CIS GKE Benchmark** workload controls — exactly the [`AI-Fabrik/k8s-hardening`](https://github.com/AI-Fabrik/k8s-hardening) **Tier-1** manifests + Kyverno policies, reused verbatim; (2) a defined set of **GKE-native controls** the k8s-hardening repo already lists as "beyond CIS" (Workload Identity, Binary Authorization, Shielded/Confidential nodes, private cluster, Dataplane V2, Cloud KMS secrets encryption, audit logs); (3) **org/identity controls** (WIF-only, OIDC for human kubectl, org policy constraints). **Tier-2 (control-plane/etcd/kubelet node hardening) is Google's responsibility** under the shared-responsibility model and is *not* ours to implement — this is the single biggest difference from the self-managed clusters k8s-hardening was built for.
 
-Conformance is proven continuously by **kube-bench `gke-1.6.0`** + **kubescape** (reused from k8s-hardening) + the free **GKE Security Posture** dashboard, gated in CI and drift-enforced by Config Sync.
+Because the controls live in the module + Config Sync policy package, **conformance is a property of the factory, not a per-cluster checklist**. It is proven continuously by **kube-bench `gke-1.6.0`** + **kubescape** (reused from k8s-hardening) + the free **GKE Security Posture** dashboard, gated in CI and drift-enforced by Config Sync on every cluster.
 
 **What we must evolve (the standards to ratify):**
 
@@ -57,7 +57,7 @@ GKE **Autopilot enforces much of this by default** — Workload Identity on, met
 
 ## Conformance gate (S5)
 
-Run the k8s-hardening pipeline against each cluster in CI, with the GKE benchmark override:
+Run the k8s-hardening pipeline against every factory-built cluster in CI, with the GKE benchmark override:
 
 - `scan/kube-bench-job.yaml` → `--benchmark gke-1.6.0`
 - `harden.py all --skip-tier2` → baseline + Tier-1 apply + validate, emitting `delta.md` as audit evidence

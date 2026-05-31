@@ -4,25 +4,25 @@ Delivers **R6** (version lifecycle) and **R7** (host OS), and resolves the **Sta
 
 ## Executive Summary
 
-| | FOP cluster (Rafay Controller) | Mgmt Plane cluster |
-|---|---|---|
-| **Release channel** | **Stable** (or Extended for tighter change control) | **Regular** |
-| **Cluster mode** | **Standard** | **Standard** (Autopilot viable) |
-| **Node image** | Container-Optimized OS (COS) | COS |
-| **Upgrade control** | Maintenance window + exclusions; surge upgrade | Same |
+Lifecycle is managed by **reusable upgrade profiles** — a parameter on the cluster module, not a per-cluster decision. Two profiles cover the current needs; new clusters pick one:
+
+| Profile | Release channel | Cluster mode | Node image | Upgrade control | Example consumer |
+|---|---|---|---|---|---|
+| **`conservative`** | **Stable** (or Extended for tighter change control) | **Standard** | Container-Optimized OS (COS) | Maintenance window + exclusions; surge upgrade | FOP / Rafay Controller |
+| **`balanced`** | **Regular** | **Standard** (Autopilot viable) | COS | Same | Management Plane |
 
 **Mandatory security patching is automatic** via the release channel — GKE auto-upgrades the control plane (always) and node pools (auto-upgrade on, default in channels) to patched versions; you *cannot* opt out of security patches on a regional cluster, only *schedule* them. **Feature/minor-version upgrades are channel-gated** and deferrable: the **Extended channel** gives up to ~24 months on a minor version, auto-applying only same-minor patches ([release channels](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/release-channels)). **Host-OS management is near-zero** — COS is a Google-maintained, auto-patched, read-only-rootfs immutable image; you only inherit OS-patching burden if you force the **Ubuntu** node image or run standalone **GCE VMs** (then VM Manager + the OS Hardening Standard apply).
 
-**Standard vs Autopilot verdict — choose Standard for the FOP because:** (1) Rafay tenant isolation and any host-access debugging need node-level control Autopilot forbids (no SSH, no host-path DaemonSets); (2) Shielded/Confidential node-pool choices and custom node config are explicit; (3) it matches `mgmt-plane-setup`'s costing. Autopilot is *defensible for the Mgmt Plane* (less Day-2 node work, security-hardened by default) but its DaemonSet/host-access constraints can bite observability agents — so we standardize on Standard for both unless the Mgmt Plane proves to need nothing host-level.
+**Standard vs Autopilot verdict — the factory defaults to Standard, exposes Autopilot as a mode parameter, because:** (1) any consumer needing tenant isolation or host-access debugging (e.g. Rafay) requires node-level control Autopilot forbids (no SSH, no host-path DaemonSets); (2) Shielded/Confidential node-pool choices and custom node config are explicit under Standard; (3) it matches `mgmt-plane-setup`'s costing. Autopilot is *defensible for consumers that need nothing host-level* (less Day-2 node work, security-hardened by default), but its DaemonSet/host-access constraints can bite observability agents — so Standard is the default profile and Autopilot is opt-in per consumer.
 
 ## Release channels
 
 | Channel | Lag after upstream | Auto-upgrades | Use for |
 |---|---|---|---|
 | Rapid | ~4–8 wks | minor + patch | never (prod) |
-| Regular | ~8–12 wks | minor + patch | **Mgmt Plane** |
-| Stable | ~12–16 wks | minor + patch (high-priority) | **FOP** |
-| Extended | older minors, ~24mo total support | **patch-only within minor** | FOP if minor-version churn must be frozen |
+| Regular | ~8–12 wks | minor + patch | `balanced` profile |
+| Stable | ~12–16 wks | minor + patch (high-priority) | `conservative` profile |
+| Extended | older minors, ~24mo total support | **patch-only within minor** | `conservative` when minor-version churn must be frozen |
 
 GKE gives ~24 months total support per minor (≈14mo standard + ≈10mo extended); after that, forced upgrade ([versioning & support](https://docs.cloud.google.com/kubernetes-engine/versioning)). **Version skew:** control plane upgrades first; node pools must stay within the supported skew of the control plane — GKE enforces and will not let nodes lag indefinitely.
 

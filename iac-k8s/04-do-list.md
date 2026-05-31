@@ -22,10 +22,11 @@ Delivers **R8**. The concrete build inventory across buckets, each task tagged *
 | `10-projects` per-plane projects + API enablement | [REUSE] | `terraform-google-modules/project-factory` |
 | `20-network` VPC, subnets w/ secondary ranges, **regional Cloud NAT**, firewall | [REUSE] | `terraform-google-modules/network` |
 | `30-kms` key rings/keys (secrets, state) | [REUSE] | `terraform-google-modules/kms` |
-| `40-gke` two regional clusters (FOP, Mgmt) | [REUSE] | [`safer-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/blob/main/modules/safer-cluster/README.md) submodule (pins CIS + GKE hardening guide) |
-| `50-fleet` register clusters, enable Config Sync + Policy Controller | [REUSE] | `google_gke_hub_feature` ([guide](https://cloud.google.com/blog/topics/anthos/using-terraform-to-enable-config-sync-on-a-gke-cluster)) |
-| `60-data` Rafay Controller durable state (Cloud SQL/GCS) | [NEW] | survives controller reinstall (objectives R) |
-| CI: GitHub Actions + WIF, per-layer plan/apply, `prevent_destroy` on stateful | [NEW] | keyless; idempotent build/teardown |
+| **`gke-cluster` parameterized module** (the core deliverable — builds *any* hardened HA cluster from a values entry) | [NEW] wraps [REUSE] | thin wrapper over [`safer-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/blob/main/modules/safer-cluster/README.md) (pins CIS + GKE hardening guide) exposing a values contract + upgrade profile |
+| Reference instantiations (FOP, Mgmt Plane) as `clusters.yaml`/tfvars entries | [NEW] | proves the factory; each new cluster = one entry, no new code |
+| `fleet` register clusters, enable Config Sync + Policy Controller (per cluster) | [REUSE] | `google_gke_hub_feature` ([guide](https://cloud.google.com/blog/topics/anthos/using-terraform-to-enable-config-sync-on-a-gke-cluster)) |
+| Optional per-consumer stateful add-on (e.g. Rafay durable Cloud SQL/GCS) | [NEW] | module option; survives controller reinstall (objectives R) |
+| CI: GitHub Actions + WIF, per-layer plan/apply, `prevent_destroy` on stateful | [NEW] | keyless; idempotent build/teardown; same pipeline for every cluster |
 
 ## Bucket 2 — Security standard (per [02](02-security-standard.md))
 
@@ -44,19 +45,19 @@ Delivers **R8**. The concrete build inventory across buckets, each task tagged *
 
 | Task | Tag | Notes |
 |---|---|---|
-| Config Sync root-sync repo (hardening baseline) | [NEW] | structure repo; sources k8s-hardening manifests |
-| ArgoCD install (via Config Sync) | [REUSE] | OSS |
-| ArgoCD App-of-Apps for Rafay Controller (FOP) + Mgmt Plane | [NEW] | per-cluster projects/RBAC; Rafay as isolated tenant |
+| Config Sync root-sync **policy package** (hardening baseline) applied to all factory clusters | [NEW] | structure repo; sources k8s-hardening manifests; authored once |
+| Reusable `app-bootstrap` (ArgoCD install via Config Sync) | [REUSE] | OSS; identical per cluster |
+| Per-consumer ArgoCD App-of-Apps (e.g. Rafay Controller, Mgmt Plane) | [NEW] | consumer points at own app repo; Rafay as isolated tenant |
 
 ## Bucket 4 — Day 2 (per [03](03-day2-operations.md))
 
 | Task | Tag | Notes |
 |---|---|---|
-| Release-channel + maintenance window/exclusion config | [NEW] | Terraform `maintenance_policy`; FOP=Stable/Extended, Mgmt=Regular |
+| Reusable upgrade **profiles** (`conservative`/`balanced`): release channel + maintenance window/exclusion | [NEW] | Terraform `maintenance_policy` as a module input, not per-cluster config |
 | Surge-upgrade + PDBs for Rafay/stateful | [NEW] | quorum-safe node upgrades |
 | Node OS = COS everywhere (no OS patch treadmill) | [NEW] | Terraform `image_type` |
 | VM Manager OS patch mgmt for any standalone GCE VMs | [NEW] | only if GCE VMs exist |
-| Staggered upgrade rollout FOP↔Mgmt | [NEW] | runbook |
+| Staggered upgrade rollout across clusters (canary one before the rest) | [NEW] | runbook |
 | Remediation/recovery + scale runbooks (Rafay, NetBox, head node) | [NEW] | objectives P1; builds on drift-heal + TF re-apply |
 
 ## Net-new vs reuse at a glance
