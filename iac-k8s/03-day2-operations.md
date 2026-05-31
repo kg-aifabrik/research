@@ -49,6 +49,14 @@ GKE gives ~24 months total support per minor (≈14mo standard + ≈10mo extende
 
 **Recommendation:** keep all GKE node pools on **COS** — it removes the OS patch treadmill and satisfies most of the OS hardening intent out of the box. Reserve the OS Hardening Standard + VM Manager for the few GCE VMs (if any) the FOP needs. This aligns the GKE-node OS story with the bare-metal OS Hardening Standard work without duplicating it.
 
+## Decision: Standard mode, COS default, Ubuntu opt-in per pool (D3)
+
+**Decided** — the factory builds **Standard-mode** clusters (not Autopilot) with **Container-Optimized OS as the default node image** on every pool.
+
+- **Why not Autopilot:** Standard + COS already delivers Autopilot's most enticing benefit — a Google-hardened, auto-patched, immutable OS — while keeping the node-level control that D1 (per-pool Confidential nodes), Rafay tenant isolation, and host-level agents require. Autopilot forbids per-pool Confidential nodes and host-access DaemonSets, so it cannot support the chosen design.
+- **COS vs Autopilot are orthogonal:** COS is the OS; Autopilot is the management mode. On Standard, Google still maintains and auto-patches the COS image via node auto-upgrade.
+- **Ubuntu as opt-in:** `image_type` is a per-node-pool input. A workload needing custom kernel modules/packages gets a dedicated **Ubuntu** pool (taints/labels + nodeSelector) alongside COS pools in the same cluster. That pool forfeits Google OS auto-patching — the **OS Hardening Standard + patch cadence apply to it alone**. Default everything to COS; carve out Ubuntu only on demonstrated need.
+
 ## Day-2 recovery & scaling (cross-ref)
 
 The objectives doc's *Remediation & recovery playbooks* (P1) for FOP components (Rafay Controller, head node, NetBox) build on this: maintenance windows + Config Sync drift-heal + Terraform re-apply give the idempotent recovery primitive; runbooks wrap them. Out of scope for this report — flagged in the [do-list](04-do-list.md).
