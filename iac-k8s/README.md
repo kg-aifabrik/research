@@ -1,12 +1,12 @@
 # iac-k8s
 
-Tooling to build **any** hardened, highly-available, regional GKE cluster and manage its lifecycle with mostly automation — a reusable **cluster factory**, not a fixed set of clusters. The FOP (Rafay Controller) and Management Plane are the first reference consumers; later site/tenant clusters reuse the same path.
+Tooling to build a hardened, highly-available, regional GKE cluster and manage its lifecycle with mostly automation — a reusable **cluster factory**. Its two consumers are the **FOP** (which hosts the Rafay Controller as a workload) and the **Management Plane**; there is one FOP for the foreseeable future (D6) and the multi-site fleet is owned by Rafay, outside this scope. Reusability is for repeatable, standardized rebuilds — not GKE-cluster fan-out.
 
 - **Goal = reusable tooling.** A parameterized **Terraform** cluster module (built on `safer-cluster`) + a **Config Sync** guardrail policy package + a reusable **ArgoCD** app-bootstrap. A new cluster is one values entry in Git, not new code. See [01](01-provisioning-and-iac.md).
 - **Day-0 manual, once per org:** ~12 steps (org, billing, seed project, WIF) via `terraform-google-bootstrap`; no downloaded SA keys — Workload Identity Federation for CI.
 - **HA by default:** every factory cluster is regional (3-AZ), surviving one AZ failure (C3.2); size/mode are inputs.
 - **Security baked in:** the standard = CIS GKE Benchmark (reuse [`AI-Fabrik/k8s-hardening`](https://github.com/AI-Fabrik/k8s-hardening) Tier-1 + scans) + GKE-native controls + supply-chain + WIF/OIDC, enforced on every cluster by the module + Config Sync. Tier-2 node hardening is Google's job on managed GKE. See [02](02-security-standard.md).
-- **Lifecycle by profile:** reusable upgrade profiles (`conservative` = Stable/Extended, `balanced` = Regular) set release channel + maintenance windows as a parameter; security patches auto-apply, feature upgrades are deferrable. Node OS = Container-Optimized OS = near-zero OS patch burden. **Standard is the default mode, Autopilot opt-in.** See [03](03-day2-operations.md).
+- **Lifecycle by profile:** reusable upgrade profiles (`conservative` = Stable/Extended, `balanced` = Regular) set release channel + maintenance windows as a parameter; security patches auto-apply, feature upgrades are deferrable. Node OS = Container-Optimized OS = near-zero OS patch burden. **Standard mode (not Autopilot); COS default with Ubuntu opt-in per pool (D3).** See [03](03-day2-operations.md).
 - **Build inventory:** heavy reuse of terraform-google-modules + k8s-hardening; net-new = the parameterized module + CI/WIF, the Config Sync policy package, GitOps bootstrap, supply-chain, upgrade profiles, and ratifying the hardening profile. See [04](04-do-list.md).
 
 ## Decisions
@@ -15,7 +15,7 @@ Tooling to build **any** hardened, highly-available, regional GKE cluster and ma
 - **D3 — Standard mode, COS default, Ubuntu opt-in per pool.** Factory builds Standard (not Autopilot) clusters with Container-Optimized OS on every pool by default; `image_type` is a per-pool input so an Ubuntu pool can sit alongside COS when a workload needs it (that pool owns its OS patching). See [03](03-day2-operations.md#decision-standard-mode-cos-default-ubuntu-opt-in-per-pool-d3).
 - **D4 — No unsigned images, no break-glass.** Binary Authorization enforce-only; every image needs a valid cosign signature/attestation, no exceptions even in incidents. Emergency path = re-deploy a previously-signed image, never admit unsigned. Makes the signing pipeline a tier-0 dependency. See [02](02-security-standard.md#decision-no-unsigned-images-no-break-glass-d4).
 - **D5 — Stateful add-ons as separate companion modules.** Consumer state (e.g. Rafay's durable Cloud SQL/GCS) lives in separate optional modules composed alongside the cluster, not in the `gke-cluster` module — independent lifecycle so data outlives cluster rebuilds; cluster module stays single-purpose. See [01](01-provisioning-and-iac.md#decision-stateful-add-ons-as-separate-companion-modules-d5).
+- **D6 — One FOP; Rafay owns the site fleet.** One FOP for the foreseeable future, hosting Rafay as a workload; Rafay manages the multi-site k8s fleet, which is outside `iac-k8s` scope. The factory targets a small stable set of GKE clusters (FOP + Mgmt Plane); no GKE-level fleet/multi-site machinery is built here. See [01](01-provisioning-and-iac.md#decision-one-fop-rafay-owns-the-site-fleet-d6).
 
 ## Open threads
 - **Which GKE-native controls are mandatory vs recommended** within the L2 (D2) floor — finalize and encode as the module's defaults.
-- **Multi-site fleet evolution** — Config Sync chosen partly for fleet-scale; revisit when North Star multi-site lands.

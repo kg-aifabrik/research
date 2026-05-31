@@ -14,11 +14,11 @@ This is the anchor report for the `iac-k8s` area. It carries the canonical **Req
 
 ## Executive Summary
 
-The deliverable is a **reusable cluster factory**, not a fixed pair of clusters: a parameterized **Terraform** blueprint (built on the maintained [`safer-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/blob/main/modules/safer-cluster/README.md) submodule, which pins to the GKE Hardening Guide + CIS) that stands up **any hardened, regional GKE cluster** from a small config input, paired with a **Config Sync** policy package (guardrails) and an **ArgoCD** app template (workloads). A new cluster — FOP, Management Plane, or future site/tenant cluster — is one declarative instantiation in Git. Roughly **a dozen day-0 steps are unavoidably manual** (org, billing, seed project + state bucket, Workload Identity Federation); everything after is reproducible from the factory.
+The deliverable is a **reusable cluster factory** — valued for repeatable, standardized, idempotent rebuilds, not for spinning up many clusters (see [D6](#decision-one-fop-rafay-owns-the-site-fleet-d6): one FOP for the foreseeable future). It is a parameterized **Terraform** blueprint (built on the maintained [`safer-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/blob/main/modules/safer-cluster/README.md) submodule, which pins to the GKE Hardening Guide + CIS) that stands up **any hardened, regional GKE cluster** from a small config input, paired with a **Config Sync** policy package (guardrails) and an **ArgoCD** app template (workloads). A new cluster — FOP, Management Plane, or future site/tenant cluster — is one declarative instantiation in Git. Roughly **a dozen day-0 steps are unavoidably manual** (org, billing, seed project + state bucket, Workload Identity Federation); everything after is reproducible from the factory.
 
 **Toolchain recommendation — prefer Terraform + Config Sync (+ ArgoCD for apps) over Terraform + ArgoCD-only or Terraform + Config Connector because:**
-1. **Config Sync is free with GKE and fleet-native** — a policy package authored once auto-applies to every cluster the factory produces, scaling cleanly to the multi-site North Star (C2.2).
-2. **Clean split of concerns** — Config Sync owns *platform guardrails* (hardening baseline, Kyverno policy, namespaces); ArgoCD owns *apps* (Rafay Controller, Mgmt Plane, …) with the rollback/sync-wave UX app teams expect.
+1. **Config Sync is free with GKE and drift-enforcing** — the hardening policy package is authored once and continuously reconciled on the FOP and Mgmt clusters; an off-standard change self-heals. *(Note: per [D6](#decision-one-fop-rafay-owns-the-site-fleet-d6), GKE-level fleet fan-out is not a driver — Rafay owns the multi-site fleet. At this 2-cluster scale, consolidating on ArgoCD-only is a defensible simplification; the split below is preferred for the drift-heal guarantee, not for scale.)*
+2. **Clean split of concerns** — Config Sync owns *platform guardrails* (hardening baseline, Kyverno policy, namespaces); ArgoCD owns *apps* (Rafay Controller, Mgmt Plane) with the rollback/sync-wave UX app teams expect.
 3. **Terraform stays the substrate tool** — Config Connector (managing GCP via in-cluster CRDs) creates a bootstrap chicken-and-egg and per-cluster coupling that fights the "one reusable module" goal.
 
 > **Anti-pattern flagged:** the brief mentions "download API key." Do **not** download long-lived service-account JSON keys for CI. Use **Workload Identity Federation** (GitHub Actions OIDC → GCP) — keyless, no secret to leak or rotate. Part of the [security standard](02-security-standard.md).
@@ -72,7 +72,7 @@ Use the [`terraform-google-modules/bootstrap`](https://github.com/terraform-goog
 | In-cluster config / policy | Config Sync (fleet feature) | ArgoCD | KCC + whatever |
 | GCP resources as code | HCL | HCL | k8s CRDs in-cluster |
 | Cost | Free with GKE | Self-hosted (free OSS) | Free |
-| Reuse across many clusters (the goal) | **Native (fleet, one policy pkg)** | Per-cluster HA control plane | Per-cluster operator |
+| Consistent baseline across the few clusters | **Native (one policy pkg, drift-heal)** | Per-cluster HA control plane | Per-cluster operator |
 | Bootstrap coupling | Low | Low | **High** (cluster manages its own cloud deps) |
 | App-delivery UX (rollbacks, waves, UI) | Basic | **Rich** | n/a |
 | Drift enforcement | Yes (continuous reconcile) | Yes | Yes |
@@ -95,6 +95,15 @@ A single **reusable, parameterized** Terraform composition. Foundation layers ru
 | `app-bootstrap` | install ArgoCD, point at the consumer's app repo | per cluster |
 
 The core module exposes a **values contract** (e.g. a `clusters.yaml` or per-env tfvars). Standing up the FOP cluster, the Mgmt Plane cluster, or the Nth cluster is adding an entry — no new code. Idempotent build/teardown (the recurring acceptance criterion in the objectives doc) is inherent to Terraform remote state; `prevent_destroy` guards stateful resources.
+
+### Decision: one FOP, Rafay owns the site fleet (D6)
+
+**Decided** — there is **one FOP for the foreseeable future**, hosting the **Rafay Controller as a workload**. Rafay manages the multi-site fleet — the k8s clusters at each on-prem site. That fleet lifecycle is the **Rafay/site domain, outside `iac-k8s` scope** (A2).
+
+- **Implication:** `iac-k8s` targets a **small, stable set of hyperscaler GKE clusters** — the FOP cluster + the Management Plane cluster — not a growing GKE fleet.
+- **Reusability still matters** for repeatability, the enforced security standard, and clean teardown/rebuild — *not* for fan-out.
+- **No GKE-level fleet/multi-site machinery** (cross-site failover, multi-FOP federation, fleet-wide dashboards) is built here; each site is its own failure domain (C3.1) and Rafay owns the cross-site story.
+- **Toolchain consequence:** Config Sync's fleet-scale advantage is moot at this size; it stays for drift enforcement and the guardrail/app split, not scale (see Toolchain recommendation).
 
 ### Decision: stateful add-ons as separate companion modules (D5)
 
