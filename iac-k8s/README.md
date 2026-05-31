@@ -11,9 +11,9 @@ Tooling to build **any** hardened, highly-available, regional GKE cluster and ma
 
 ## Decisions
 - **D1 — Mixed-sensitivity node pools, one cluster.** Sensitive vs non-sensitive workloads run on separate node pools (confidential vs standard) sharing a control plane, via a per-pool `confidential` flag + taints + Kyverno placement enforcement. Revisit two-cluster separation only for a hard regulatory/tenancy boundary. See [02](02-security-standard.md#decision-mixed-sensitivity-node-pools-d1).
+- **D2 — CIS GKE L2 is the default floor.** Module bakes in CIS Level 2 for all clusters; no looser baseline known. Workload exceptions via audited Kyverno exceptions, not a lower floor. See [02](02-security-standard.md#decision-cis-gke-l2-as-the-default-floor-d2).
 
 ## Open threads
-- **Ratify the GKE hardening profile** — CIS L1 vs L2; which GKE-native controls are mandatory vs recommended; encode as the module's default.
 - **Autopilot support depth** — how far to support Autopilot as a module mode given DaemonSet/host-access limits for observability agents.
 - **Binary Authorization break-glass policy** — emergency unsigned-image admission without weakening steady state.
 - **Per-consumer stateful add-ons** — generic module option (e.g. Rafay's durable Cloud SQL/GCS) vs consumer-owned; drives recovery runbooks.

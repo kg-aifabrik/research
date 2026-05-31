@@ -64,7 +64,11 @@ Run the k8s-hardening pipeline against every factory-built cluster in CI, with t
 - Add **GKE Security Posture** (free) for managed vuln + misconfig findings
 - **Config Sync** enforces drift back to the Git baseline continuously — a config that drifts off-standard self-heals
 
-Open items to ratify with security: the exact CIS profile level (L1 vs L2) and the Binary Authorization break-glass policy.
+Open items to ratify with security: the Binary Authorization break-glass policy.
+
+## Decision: CIS GKE L2 as the default floor (D2)
+
+**Decided** — the module bakes in **CIS GKE Benchmark Level 2** as the hardening floor for every cluster. No looser-baseline consumer is known; all current consumers (FOP, Mgmt Plane) are security-sensitive infrastructure planes that can absorb L2 strictness. Per-workload exceptions are handled via explicit, audited Kyverno policy exceptions — not by lowering the cluster floor. If a future consumer genuinely needs L1, add it as an opt-down flag then.
 
 ## Decision: mixed-sensitivity node pools (D1)
 
