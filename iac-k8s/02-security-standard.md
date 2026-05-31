@@ -64,7 +64,13 @@ Run the k8s-hardening pipeline against every factory-built cluster in CI, with t
 - Add **GKE Security Posture** (free) for managed vuln + misconfig findings
 - **Config Sync** enforces drift back to the Git baseline continuously — a config that drifts off-standard self-heals
 
-Open items to ratify with security: the Binary Authorization break-glass policy.
+## Decision: no unsigned images, no break-glass (D4)
+
+**Decided** — Binary Authorization is **enforce-only with no break-glass exception**. Every image admitted to any factory cluster must carry a valid cosign signature/attestation; unsigned images are rejected, period — including in incidents.
+
+- **Operational implication:** the "emergency" path is **sign-and-ship or roll back to a previously-signed image**, never "admit unsigned." This makes the CI signing pipeline a tier-0 dependency — it must be highly available, and a known-good signed image must always be re-deployable.
+- **No `ALWAYS_ALLOW` admission rule, no per-namespace exemptions** for unsigned content. (Narrow allowlists for *signed* third-party base images are fine; the bar is "signed by a trusted attestor," not "unsigned but exempt.")
+- Implemented via GKE-native Binary Authorization enforce mode + Kyverno `verifyImages` as defense-in-depth.
 
 ## Decision: CIS GKE L2 as the default floor (D2)
 
