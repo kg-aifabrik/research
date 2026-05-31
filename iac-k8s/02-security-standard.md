@@ -76,6 +76,25 @@ Run the k8s-hardening pipeline against every factory-built cluster in CI, with t
 
 **Decided** — the module bakes in **CIS GKE Benchmark Level 2** as the hardening floor for every cluster. No looser-baseline consumer is known; all current consumers (FOP, Mgmt Plane) are security-sensitive infrastructure planes that can absorb L2 strictness. Per-workload exceptions are handled via explicit, audited Kyverno policy exceptions — not by lowering the cluster floor. If a future consumer genuinely needs L1, add it as an opt-down flag then.
 
+## Decision: GKE-native controls all mandatory except Confidential nodes (D7)
+
+**Decided** — within the CIS L2 floor (D2), the module makes **all GKE-native controls mandatory defaults**, with one exception:
+
+| Control | Default |
+|---|---|
+| Private cluster (private nodes + private endpoint) + master authorized networks | **Mandatory** |
+| Workload Identity (no node-SA cloud roles) | **Mandatory** |
+| Shielded GKE Nodes (Secure Boot + vTPM + integrity monitoring) | **Mandatory** |
+| Dataplane V2 + default-deny NetworkPolicy | **Mandatory** |
+| Cloud KMS application-layer secrets encryption (CMEK) | **Mandatory** |
+| Binary Authorization enforce (no break-glass, per [D4](#decision-no-unsigned-images-no-break-glass-d4)) | **Mandatory** |
+| Cloud Audit Logs (Admin + Data Access) | **Mandatory** |
+| Confidential GKE Nodes | **Per node pool by data class** (per [D1](#decision-mixed-sensitivity-node-pools-d1)) — the only non-blanket control |
+| OIDC IdP for human kubectl access | **Mandatory** |
+| No downloadable SA keys (org policy) | **Mandatory** |
+
+The mandatory controls are not parameters a consumer can switch off; they are baked into the module. Confidential nodes are the sole per-pool toggle because they carry cost/perf overhead and are only warranted for sensitive data classes.
+
 ## Decision: mixed-sensitivity node pools (D1)
 
 **Decided** — handle sensitive vs non-sensitive workloads with **mixed node pools in one cluster**, not separate clusters, for current needs. Revisit per-cluster separation only if a hard regulatory/tenancy boundary emerges.
