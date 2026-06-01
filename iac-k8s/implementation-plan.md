@@ -128,7 +128,7 @@ GitHub **Actions API** (`workflow_dispatch`, runs, artifacts) + **PR API** + **G
 
 ## Cost controls
 
-Spot VMs · `e2-small` for system/general pools · single region · ephemeral (destroy after each test) · budget alert. The Confidential pool (`n2d-standard-2`) adds cost while up — bring it up only for the toggle test.
+**All node pools on Spot** (incl. the Confidential `n2d-standard-2` pool, which supports Spot) · `e2-small` for system/general pools · **`us-central1`** (GCP's lowest-cost US region — us-west1 ≈ +5%, us-east4 ≈ +8%; no cheaper option, and the management fee + Cloud NAT are region-flat) · ephemeral (destroy after each test) · budget alert. The Confidential pool adds cost while up — bring it up only for the toggle test.
 
 ### Approx cost per hour (while running)
 
@@ -145,7 +145,7 @@ Spot VMs · `e2-small` for system/general pools · single region · ephemeral (d
 | Total — same on **on-demand** (no Spot) | | ≈ $0.40 / hr |
 | Total — **without** Confidential pool (M1 base / M2 steady, Spot) | | ≈ $0.20 / hr |
 
-Caveats: us-central1, approximate list prices, **excludes** network egress / NAT data-processing and Cloud Logging/Monitoring ingestion beyond free tiers; the ~$0.10/hr management fee is the floor regardless of node count. With **ephemeral teardown**, a full build → test → destroy cycle lands in **low single-digit dollars**.
+Caveats: us-central1, approximate list prices, **excludes** network egress / NAT data-processing and Cloud Logging/Monitoring ingestion beyond free tiers; the ~$0.10/hr management fee is the floor regardless of node count. Spot nodes can be **preempted** (acceptable for a POC; not for production planes). With **ephemeral teardown**, a full build → test → destroy cycle lands in **low single-digit dollars**.
 
 ## Rough sequencing
 
