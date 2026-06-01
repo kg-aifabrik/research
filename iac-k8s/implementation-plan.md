@@ -80,7 +80,7 @@ Do once, by hand; everything after is automated. (R1 scoped to the POC.)
 
 1. **ArgoCD bootstrap (D10):** Terraform/Helm installs ArgoCD on the M1 cluster; an App-of-Apps points at the guardrail repo.
 2. **Guardrail App (sync wave 0, self-heal):** ArgoCD syncs the [`AI-Fabrik/k8s-hardening`](https://github.com/AI-Fabrik/k8s-hardening) **Tier-1 manifests + Kyverno policies** verbatim (PSS, default-deny NetworkPolicy, RBAC, SA-automount-off).
-3. **Conformance report:** run the k8s-hardening **scan pipeline** — `kube-bench` (`gke-1.6.0`), `kubescape` — capturing a **baseline** (pre-sync) and **validate** (post-sync) scan, emitting `delta.md` + `scores.json` **stored locally** — as a **GitHub Actions artifact** and committed to a `reports/` folder in the repo (no GCS for the POC). Overlay **GKE Security Posture** findings.
+3. **Conformance report:** run the k8s-hardening **scan pipeline** — `kube-bench` (`gke-1.6.0`), `kubescape` — capturing a **baseline** (pre-sync) and **validate** (post-sync) scan, emitting `delta.md` + `scores.json` **committed to the `iac-gke` code repo's `reports/` folder** (store of record for the POC; no GCS). Overlay **GKE Security Posture** findings.
 
 ### Validation
 
@@ -101,7 +101,7 @@ Do once, by hand; everything after is automated. (R1 scoped to the POC.)
 - **Backend (FastAPI):**
   - `POST /clusters`, `POST /clusters/{id}/nodepools` (incl. `confidential: true`) → edit `poc.tfvars`, open a **PR** via the GitHub API.
   - `GET /runs/{id}` → poll the Actions run; return plan diff (from artifact) + status. `POST /runs/{id}/approve` → approve the Environment / merge to apply.
-  - `POST /hardening` → trigger the M2 ArgoCD sync + scan; `GET /reports/{id}` → fetch the rendered `delta.md`/`scores.json` from the GitHub artifact / repo `reports/` folder.
+  - `POST /hardening` → trigger the M2 ArgoCD sync + scan; `GET /reports/{id}` → fetch the rendered `delta.md`/`scores.json` from the `iac-gke` repo `reports/` folder via the GitHub API.
   - `GET /inventory` → live reads from the GKE API + Terraform state.
   - Auth: single-operator OIDC login (full RBAC is future).
 - **Frontend (React):** create-cluster / add-node-pool (Confidential checkbox) forms, plan-diff viewer with **Approve**, run-status, **deploy-hardening** action, scan-report viewer, inventory list.
@@ -137,7 +137,7 @@ Spot VMs · `e2-small` for system/general pools · single region · ephemeral (d
 ## Resolved POC parameters
 
 - **Single sandbox project** for all three milestones (incl. console resources) — isolation deferred.
-- **Report stored locally** — GitHub Actions artifact + repo `reports/` folder; console reads via the GitHub API.
+- **Report committed to the `iac-gke` code repo** (`reports/` folder) as store of record; console reads via the GitHub API.
 - **Binary Authorization audit-only** for the POC (enabled, logging, not blocking); enforce later (D4).
 
 All open questions resolved — plan is ready to expand into execution detail (repo scaffolds, workflow skeletons, task breakdown) on your go.
