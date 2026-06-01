@@ -76,6 +76,8 @@ Do once, by hand; everything after is automated. (R1 scoped to the POC.) **Copy-
 
 ## Phase 2 — M2: Deploy hardening + generate report
 
+**Detailed runbook:** [m2-runbook.md](m2-runbook.md).
+
 ### Steps (automated)
 
 1. **ArgoCD bootstrap (D10):** Terraform/Helm installs ArgoCD on the M1 cluster; an App-of-Apps points at the guardrail repo.
