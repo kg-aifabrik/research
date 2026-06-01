@@ -2,16 +2,17 @@
 
 Manual prerequisites you run **once**, then hand the values in [§ Handoff to Phase 1](#handoff-to-phase-1) to Claude to scaffold and run Phase 1. Companion to the [implementation plan](implementation-plan.md).
 
-> Adjust the variables to taste. Examples assume GitHub org `AI-Fabrik` (same as `k8s-hardening`). All commands are idempotent-ish; re-running mostly errors harmlessly if a resource exists.
+> GitHub org is `kg-aifabrik`. All commands are idempotent-ish; re-running mostly errors harmlessly if a resource exists.
 
 ```bash
 # ---- variables ----
-export PROJECT_ID="aifabrik-iac-poc"
+export PROJECT_ID="k8s-iac-poc"
+export PROJECT_NUMBER="783778742587"
 export REGION="us-central1"
 export STATE_BUCKET="gs://${PROJECT_ID}-tfstate"
-export BILLING_ACCOUNT="XXXXXX-XXXXXX-XXXXXX"   # gcloud billing accounts list
-export GH_REPO="AI-Fabrik/iac-gke"             # the Terraform/workflows repo
-export SA_NAME="iac-ci"
+export BILLING_ACCOUNT="00194B-D8781C-58A140"
+export GH_REPO="kg-aifabrik/iac-gke-poc"        # Terraform/workflows repo
+export SA_NAME="k8s-iac-poc-ci"
 ```
 
 ### 1. Project + billing
@@ -75,10 +76,10 @@ echo "CI_SA=${SA}"
 
 ### 6. GitHub repos
 ```bash
-gh repo create AI-Fabrik/iac-gke --private --description "iac-k8s: Terraform + GitHub Actions (POC)"
-gh repo create AI-Fabrik/iac-console --private --description "iac-k8s: operator console (POC)"
+gh repo create kg-aifabrik/iac-gke-poc --private --description "iac-k8s: Terraform + GitHub Actions (POC)"
+gh repo create kg-aifabrik/iac-console-poc --private --description "iac-k8s: operator console (POC)"
 ```
-Also create a GitHub **Environment** named `poc-apply` on `iac-gke` with **yourself as a required reviewer** (Settings → Environments) — this is the apply approval gate. *(Or grant Claude admin on the repo and it'll create it via `gh api`.)*
+Also create a GitHub **Environment** named `poc-apply` on `iac-gke-poc` with **yourself as a required reviewer** (Settings → Environments) — this is the apply approval gate. *(Or grant Claude admin on the repo and it'll create it via `gh api`.)*
 
 ### 7. Budget alert
 Easiest via Console (Billing → Budgets & alerts): scope to `$PROJECT_ID`, amount e.g. **$50**, alerts at 50/90/100%. (CLI: `gcloud billing budgets create` — beta.)
@@ -86,9 +87,10 @@ Easiest via Console (Billing → Budgets & alerts): scope to `$PROJECT_ID`, amou
 ### 8. Local tooling (on the machine Claude will use)
 ```bash
 brew install --cask google-cloud-sdk
-brew install terraform kubernetes-cli gh
+brew tap hashicorp/tap && brew install hashicorp/tap/terraform   # terraform is NOT in homebrew-core (BSL relicense)
+brew install kubernetes-cli gh
 gcloud auth login && gcloud auth application-default login
-gh auth login        # with repo + workflow scopes, push access to AI-Fabrik/iac-gke
+gh auth login        # with repo + workflow scopes, push access to kg-aifabrik/iac-gke-poc
 gcloud config set project "$PROJECT_ID"
 ```
 
@@ -96,17 +98,29 @@ gcloud config set project "$PROJECT_ID"
 
 ## Handoff to Phase 1
 
-When done, give Claude these (the runbook prints the derived ones):
+Derived values (already known from your inputs — confirm once Phase 0 commands succeed):
+
+```
+PROJECT_ID    = k8s-iac-poc
+PROJECT_NUMBER= 783778742587
+REGION        = us-central1
+STATE_BUCKET  = gs://k8s-iac-poc-tfstate
+CI_SA         = k8s-iac-poc-ci@k8s-iac-poc.iam.gserviceaccount.com
+WIF_PROVIDER  = projects/783778742587/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+REPOS         = kg-aifabrik/iac-gke-poc , kg-aifabrik/iac-console-poc
+```
+
+Checklist to confirm to Claude:
 
 - [ ] **Project ID** and **Project Number**
 - [ ] **Region** (`us-central1`)
 - [ ] **Terraform state bucket** name
 - [ ] **WIF provider** full resource name (`WIF_PROVIDER` printed in step 5)
 - [ ] **CI service account** email (`CI_SA` printed in step 5)
-- [ ] **GitHub repo URLs** — `iac-gke`, `iac-console`
-- [ ] `gh` is authenticated locally with **push access** to `iac-gke` (so Claude can scaffold, push, and open PRs)
+- [ ] **GitHub repo URLs** — `kg-aifabrik/iac-gke-poc`, `kg-aifabrik/iac-console-poc`
+- [ ] `gh` is authenticated locally with **push access** to `iac-gke-poc` (so Claude can scaffold, push, and open PRs)
 - [ ] `terraform`, `kubectl`, `gcloud` installed; `gcloud` authenticated to the project
-- [ ] `poc-apply` **Environment** exists on `iac-gke` with you as required reviewer (or Claude has repo admin to create it)
+- [ ] `poc-apply` **Environment** exists on `iac-gke-poc` with you as required reviewer (or Claude has repo admin to create it)
 
 ### What Claude does in Phase 1 (for reference)
-Scaffold `iac-gke` (foundation + `gke-cluster` module + `poc.tfvars`), add the `plan`/`apply`/`destroy` GitHub Actions workflows wired to the WIF provider + CI SA, open a PR (you see the plan), and on approval the `apply` workflow builds the cluster — then validate (zones, pools, Confidential, COS) and test teardown.
+Scaffold `iac-gke-poc` (foundation + `gke-cluster` module + `poc.tfvars`), add the `plan`/`apply`/`destroy` GitHub Actions workflows wired to the WIF provider + CI SA, open a PR (you see the plan), and on approval the `apply` workflow builds the cluster — then validate (zones, pools, Confidential, COS) and test teardown.
