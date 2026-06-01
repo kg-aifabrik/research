@@ -151,6 +151,11 @@ Caveats: us-central1, approximate list prices, **excludes** network egress / NAT
 
 `Phase 0 (manual)` → `M1 cluster + workflows + validation` → `M2 ArgoCD + hardening + report` → `M3 console backend` → `M3 frontend` → `M3 end-to-end demo`. Each milestone is demoable before the next begins.
 
+## Progress log
+
+- **Phase 0** — complete & verified (project `k8s-iac-poc`, WIF, state bucket, CI SA, repos, `poc-apply` env). One WIF repo-name typo found & fixed during handoff.
+- **Phase 1 / M1** — scaffolded in [`kg-aifabrik/iac-gke-poc`](https://github.com/kg-aifabrik/iac-gke-poc): Terraform (regional cluster, COS, `system`/`general`/`confidential` pools, D7 hardening, BinAuthz audit-only) + `plan`/`apply`/`destroy` workflows. **PR #1 plan green via WIF: 19 to add.** Awaiting operator review → merge → approve apply.
+
 ## Resolved POC parameters
 
 - **Single sandbox project** for all three milestones (incl. console resources) — isolation deferred.
