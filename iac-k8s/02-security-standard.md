@@ -6,7 +6,7 @@ The FOP Hardening Standard, profiled for **managed GKE**. Requirements & Assumpt
 
 The standard is **baked into the reusable cluster module**, so every cluster the factory produces is hardened identically — not hand-secured per cluster. On managed GKE it is **three layers**: (1) the **CIS GKE Benchmark** workload controls — exactly the [`AI-Fabrik/k8s-hardening`](https://github.com/AI-Fabrik/k8s-hardening) **Tier-1** manifests + Kyverno policies, reused verbatim; (2) a defined set of **GKE-native controls** the k8s-hardening repo already lists as "beyond CIS" (Workload Identity, Binary Authorization, Shielded/Confidential nodes, private cluster, Dataplane V2, Cloud KMS secrets encryption, audit logs); (3) **org/identity controls** (WIF-only, OIDC for human kubectl, org policy constraints). **Tier-2 (control-plane/etcd/kubelet node hardening) is Google's responsibility** under the shared-responsibility model and is *not* ours to implement — this is the single biggest difference from the self-managed clusters k8s-hardening was built for.
 
-Because the controls live in the module + Config Sync policy package, **conformance is a property of the factory, not a per-cluster checklist**. It is proven continuously by **kube-bench `gke-1.6.0`** + **kubescape** (reused from k8s-hardening) + the free **GKE Security Posture** dashboard, gated in CI and drift-enforced by Config Sync on every cluster.
+Because the controls live in the module + the ArgoCD-synced policy package, **conformance is a property of the factory, not a per-cluster checklist**. It is proven continuously by **kube-bench `gke-1.6.0`** + **kubescape** (reused from k8s-hardening) + the free **GKE Security Posture** dashboard, gated in CI and drift-enforced by ArgoCD auto-sync + self-heal on every cluster.
 
 **What we must evolve (the standards to ratify):**
 
@@ -16,13 +16,13 @@ Because the controls live in the module + Config Sync policy package, **conforma
 | S2 | **Node OS standard** for the GKE node image | Container-Optimized OS default; OS Hardening Standard only if Ubuntu image is forced |
 | S3 | **Supply-chain standard** — Binary Authorization policy + cosign signing + attestations for FOP/Mgmt images | k8s-hardening Tier-3 image-signing stub |
 | S4 | **Identity standard** — WIF-only (no SA keys), Workload Identity for pods, OIDC IdP for human access | k8s-hardening Tier-3 OIDC stub |
-| S5 | **Conformance & drift gate** — kube-bench gke + kubescape + Security Posture, enforced in CI + Config Sync | k8s-hardening scan pipeline |
+| S5 | **Conformance & drift gate** — kube-bench gke + kubescape + Security Posture, enforced in CI + ArgoCD self-heal | k8s-hardening scan pipeline |
 
 ## Shared-responsibility split on managed GKE
 
 | k8s-hardening tier | Self-managed (kubeadm) | Managed GKE | Our action |
 |---|---|---|---|
-| **Tier 1** — workload posture (PSS, NetworkPolicy, Kyverno, RBAC, SA automount) | Ours | **Ours** | **Reuse verbatim** via Config Sync |
+| **Tier 1** — workload posture (PSS, NetworkPolicy, Kyverno, RBAC, SA automount) | Ours | **Ours** | **Reuse verbatim** via ArgoCD (D10) |
 | **Tier 2** — API server / KCM / scheduler / etcd / kubelet flags | Ours (Ansible+SSH) | **Google's** | N/A — no SSH; Google applies CIS 1.x–4.x baseline |
 | **Tier 3** — cert rotation, secret re-encryption, OIDC, image signing | Manual | Mixed | Cert rotation = Google; **OIDC, image signing, KMS re-encrypt = ours** |
 | **GKE-native** (beyond CIS) | n/a | **Ours** | **New** — express as Terraform flags + org policy |
@@ -38,9 +38,9 @@ This is exactly what the repo's [`SETUP-HYPERSCALER.md`](https://github.com/AI-F
 | | No downloadable SA keys | Org policy `iam.disableServiceAccountKeyCreation` | [new] |
 | **Network** | Private nodes + private endpoint | Terraform `enable_private_nodes` | GKE-native [new] |
 | | Master authorized networks | Terraform | GKE-native [new] |
-| | Default-deny NetworkPolicy + Dataplane V2 | Config Sync (Tier-1 `01-default-deny-netpol.yaml`) + cluster flag | k8s-hardening [reuse] |
-| **Workload** | PSS labels, Kyverno (no-privileged, no-hostPath, runAsNonRoot, drop-caps, no-priv-esc, ro-rootfs, seccomp, limits) | Config Sync (Tier-1 manifests + `kyverno-policies/`) | k8s-hardening [reuse] |
-| | Default SA automount off | Config Sync (`02-disable-default-sa-automount.yaml`) | k8s-hardening [reuse] |
+| | Default-deny NetworkPolicy + Dataplane V2 | ArgoCD (Tier-1 `01-default-deny-netpol.yaml`) + cluster flag | k8s-hardening [reuse] |
+| **Workload** | PSS labels, Kyverno (no-privileged, no-hostPath, runAsNonRoot, drop-caps, no-priv-esc, ro-rootfs, seccomp, limits) | ArgoCD (Tier-1 manifests + `kyverno-policies/`) | k8s-hardening [reuse] |
+| | Default SA automount off | ArgoCD (`02-disable-default-sa-automount.yaml`) | k8s-hardening [reuse] |
 | **Nodes** | Shielded GKE Nodes (Secure Boot + vTPM + integrity monitoring) | Terraform | GKE-native [new] |
 | | Confidential GKE Nodes (AMD SEV / Intel TDX) — **per node pool** | Terraform per-pool `confidential` flag | GKE-native [new] |
 | | Container-Optimized OS node image | Terraform `image_type=COS_CONTAINERD` | [new] |
@@ -62,7 +62,7 @@ Run the k8s-hardening pipeline against every factory-built cluster in CI, with t
 - `scan/kube-bench-job.yaml` → `--benchmark gke-1.6.0`
 - `harden.py all --skip-tier2` → baseline + Tier-1 apply + validate, emitting `delta.md` as audit evidence
 - Add **GKE Security Posture** (free) for managed vuln + misconfig findings
-- **Config Sync** enforces drift back to the Git baseline continuously — a config that drifts off-standard self-heals
+- **ArgoCD** auto-sync + self-heal enforces drift back to the Git baseline continuously — a config that drifts off-standard self-heals (D10)
 
 ## Decision: no unsigned images, no break-glass (D4)
 

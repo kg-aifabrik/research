@@ -12,7 +12,7 @@ A one-page picture of the GKE cluster factory + operator console for team brains
 
 1. **Bootstrap once.** ~12 manual day-0 steps (org, billing, seed project, WIF) hand off to Terraform, which builds the GCP foundation and the factory. No downloadable keys — Workload Identity Federation.
 2. **Build clusters from the factory.** The parameterized `gke-cluster` Terraform module stamps out hardened, regional (3-AZ) clusters from a values entry. Security is baked in (D2 CIS L2, D7 all GKE-native controls mandatory). Mixed node pools (D1): standard + confidential (per data class) + optional Ubuntu.
-3. **Deliver config & apps via GitOps.** Config Sync continuously reconciles the guardrail policy package (reused from `k8s-hardening`) and self-heals drift; ArgoCD deploys the workloads — Rafay Controller on the FOP, operator functions on the Management Plane.
+3. **Deliver config & apps via GitOps.** **ArgoCD is the single GitOps engine** (D10): a guardrail App syncs the policy package (reused from `k8s-hardening`) at sync wave 0 with self-heal, then app Apps deploy the workloads — Rafay Controller on the FOP, operator functions on the Management Plane.
 4. **Operate through the console.** Everything the operator does is **intent, not direct mutation** (D8): a console action edits declared config → opens a PR → plan → approve → apply. Scans, posture, inventory, and upgrade status flow back as reads.
 
 ## Trust & scope boundaries
@@ -38,7 +38,7 @@ sequenceDiagram
   UI->>Exe: apply
   Exe->>GCP: create node pool (confidential)
   GCP-->>UI: status + updated inventory
-  Note over GCP: Config Sync keeps guardrails enforced throughout
+  Note over GCP: ArgoCD auto-sync + self-heal keeps guardrails enforced throughout
 ```
 
 ## Open item for the brainstorm

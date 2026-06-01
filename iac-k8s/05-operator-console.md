@@ -4,15 +4,15 @@ A self-service operator UX over the cluster factory — run a security-posture s
 
 ## Executive Summary
 
-The console is an **intent + visibility layer, not a second mutation path.** Every action that changes a cluster lands as a change to declared config that the existing pipeline applies (Terraform via PR, or Config Sync repo) — so IaC and Config Sync drift-heal stay authoritative and nothing the UX does causes out-of-band drift. The UX adds richer *reads* (scan reports, posture, inventory, run status) and a friendly *front door* to intent (forms that open PRs, render plan diffs, gate approval). Built as a **custom FastAPI + React** app, hosted as an operator-facing surface on the Management Plane, gated by the operator RBAC and audited via Git history + API logs.
+The console is an **intent + visibility layer, not a second mutation path.** Every action that changes a cluster lands as a change to declared config that the existing pipeline applies (Terraform via PR, or the ArgoCD GitOps repo) — so IaC and ArgoCD self-heal stay authoritative and nothing the UX does causes out-of-band drift. The UX adds richer *reads* (scan reports, posture, inventory, run status) and a friendly *front door* to intent (forms that open PRs, render plan diffs, gate approval). Built as a **custom FastAPI + React** app, hosted as an operator-facing surface on the Management Plane, gated by the operator RBAC and audited via Git history + API logs.
 
 **Action lanes:**
 
 | Action type | Example | How it flows |
 |---|---|---|
 | Mutating infra | add node pool; flip `confidential: true` (D1/D7) | UX edits `clusters.yaml`/tfvars → **PR** → `terraform plan` → UX renders diff → approve → apply |
-| Mutating policy | Kyverno exception, guardrail tweak | UX → **PR to Config Sync repo** → reconcile |
-| Operational / read | run posture scan & view report; view inventory | UX triggers scan Job (k8s-hardening) → store report → render; live reads from GKE / GCP Security Posture / TF state / ArgoCD / Config Sync |
+| Mutating policy | Kyverno exception, guardrail tweak | UX → **PR to the ArgoCD guardrail repo** → sync |
+| Operational / read | run posture scan & view report; view inventory | UX triggers scan Job (k8s-hardening) → store report → render; live reads from GKE / GCP Security Posture / TF state / ArgoCD sync status |
 
 ## Requirements
 
@@ -31,11 +31,11 @@ flowchart TD
   UX[React operator console] --> API[FastAPI backend: auth/RBAC + audit + action router]
   API -->|infra change| GIT[PR to clusters.yaml / tfvars]
   GIT --> TF[terraform plan -> diff in UX -> approve -> apply]
-  API -->|policy change| CS[PR to Config Sync repo -> reconcile]
+  API -->|policy change| CS[PR to ArgoCD guardrail repo -> sync]
   API -->|run scan| JOB[kube-bench / kubescape Job - k8s-hardening]
   JOB --> ART[(report store: GCS)]
   ART --> API
-  API -->|live reads| SRC[GKE API · GCP Security Posture · TF state · ArgoCD / Config Sync status · inventory]
+  API -->|live reads| SRC[GKE API · GCP Security Posture · TF state · ArgoCD sync status · inventory]
   SRC --> UX
   ART --> UX
 ```
@@ -47,7 +47,7 @@ flowchart TD
 
 ## Why intent-not-mutation is non-negotiable
 
-A console that ran `gcloud`/`kubectl` directly would fight every D-series decision: Config Sync would revert its in-cluster changes, Terraform state would drift from reality, and there'd be no plan/approve gate or audit trail. Routing all mutations through declared config preserves drift-heal, gives a reviewable plan diff before anything changes, and makes the Git history the audit log for free — satisfying the objectives doc's *Operator RBAC* and feeding *Observability* and *Inventory*.
+A console that ran `gcloud`/`kubectl` directly would fight every D-series decision: ArgoCD self-heal would revert its in-cluster changes, Terraform state would drift from reality, and there'd be no plan/approve gate or audit trail. Routing all mutations through declared config preserves drift-heal, gives a reviewable plan diff before anything changes, and makes the Git history the audit log for free — satisfying the objectives doc's *Operator RBAC* and feeding *Observability* and *Inventory*.
 
 ## Decisions
 

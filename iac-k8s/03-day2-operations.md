@@ -59,6 +59,6 @@ GKE gives ~24 months total support per minor (≈14mo standard + ≈10mo extende
 
 ## Day-2 recovery & scaling (cross-ref)
 
-The objectives doc's *Remediation & recovery playbooks* (P1) for FOP components (Rafay Controller, head node, NetBox) build on this: maintenance windows + Config Sync drift-heal + Terraform re-apply give the idempotent recovery primitive; runbooks wrap them. Out of scope for this report — flagged in the [do-list](04-do-list.md).
+The objectives doc's *Remediation & recovery playbooks* (P1) for FOP components (Rafay Controller, head node, NetBox) build on this: maintenance windows + ArgoCD self-heal + Terraform re-apply give the idempotent recovery primitive; runbooks wrap them. Out of scope for this report — flagged in the [do-list](04-do-list.md).
 
 Sources: [GKE release channels](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/release-channels), [GKE versioning & support](https://docs.cloud.google.com/kubernetes-engine/versioning), [choose cluster mode](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/choose-cluster-mode), [Autopilot overview](https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview).

@@ -14,11 +14,11 @@ This is the anchor report for the `iac-k8s` area. It carries the canonical **Req
 
 ## Executive Summary
 
-The deliverable is a **reusable cluster factory** — valued for repeatable, standardized, idempotent rebuilds, not for spinning up many clusters (see [D6](#decision-one-fop-rafay-owns-the-site-fleet-d6): one FOP for the foreseeable future). It is a parameterized **Terraform** blueprint (built on the maintained [`safer-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/blob/main/modules/safer-cluster/README.md) submodule, which pins to the GKE Hardening Guide + CIS) that stands up **any hardened, regional GKE cluster** from a small config input, paired with a **Config Sync** policy package (guardrails) and an **ArgoCD** app template (workloads). A new cluster — FOP, Management Plane, or future site/tenant cluster — is one declarative instantiation in Git. Roughly **a dozen day-0 steps are unavoidably manual** (org, billing, seed project + state bucket, Workload Identity Federation); everything after is reproducible from the factory.
+The deliverable is a **reusable cluster factory** — valued for repeatable, standardized, idempotent rebuilds, not for spinning up many clusters (see [D6](#decision-one-fop-rafay-owns-the-site-fleet-d6): one FOP for the foreseeable future). It is a parameterized **Terraform** blueprint (built on the maintained [`safer-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/blob/main/modules/safer-cluster/README.md) submodule, which pins to the GKE Hardening Guide + CIS) that stands up **any hardened, regional GKE cluster** from a small config input, with **ArgoCD** as the single GitOps engine delivering both the guardrail policy package and the workloads (self-healing drift). A new cluster — FOP, Management Plane, or future site/tenant cluster — is one declarative instantiation in Git. Roughly **a dozen day-0 steps are unavoidably manual** (org, billing, seed project + state bucket, Workload Identity Federation); everything after is reproducible from the factory.
 
-**Toolchain recommendation — prefer Terraform + Config Sync (+ ArgoCD for apps) over Terraform + ArgoCD-only or Terraform + Config Connector because:**
-1. **Config Sync is free with GKE and drift-enforcing** — the hardening policy package is authored once and continuously reconciled on the FOP and Mgmt clusters; an off-standard change self-heals. *(Note: per [D6](#decision-one-fop-rafay-owns-the-site-fleet-d6), GKE-level fleet fan-out is not a driver — Rafay owns the multi-site fleet. At this 2-cluster scale, consolidating on ArgoCD-only is a defensible simplification; the split below is preferred for the drift-heal guarantee, not for scale.)*
-2. **Clean split of concerns** — Config Sync owns *platform guardrails* (hardening baseline, Kyverno policy, namespaces); ArgoCD owns *apps* (Rafay Controller, Mgmt Plane) with the rollback/sync-wave UX app teams expect.
+**Toolchain recommendation — Terraform + ArgoCD as the single GitOps engine, over Config Sync or Config Connector, because (D10):**
+1. **One OSS tool, no GKE Enterprise fee** — ArgoCD delivers *both* the guardrail policy package and the workloads; its auto-sync + self-heal gives the same drift remediation as Config Sync, without the GKE Enterprise subscription the managed Config Sync variant carries.
+2. **Fleet-scale was Config Sync's only real edge, and [D6](#decision-one-fop-rafay-owns-the-site-fleet-d6) removed it** — Rafay owns the multi-site fleet, so the small GKE footprint doesn't need Config Sync's fleet fan-out. One engine is simpler to operate and reason about.
 3. **Terraform stays the substrate tool** — Config Connector (managing GCP via in-cluster CRDs) creates a bootstrap chicken-and-egg and per-cluster coupling that fights the "one reusable module" goal.
 
 > **Anti-pattern flagged:** the brief mentions "download API key." Do **not** download long-lived service-account JSON keys for CI. Use **Workload Identity Federation** (GitHub Actions OIDC → GCP) — keyless, no secret to leak or rotate. Part of the [security standard](02-security-standard.md).
@@ -66,19 +66,19 @@ Use the [`terraform-google-modules/bootstrap`](https://github.com/terraform-goog
 
 ## IaC toolchain comparison
 
-| Dimension | **Terraform + Config Sync** *(rec.)* | Terraform + ArgoCD only | Terraform + Config Connector |
+| Dimension | **Terraform + ArgoCD** *(rec., D10)* | Terraform + Config Sync | Terraform + Config Connector |
 |---|---|---|---|
 | GCP substrate provisioning | Terraform | Terraform | Terraform (bootstrap) then KCC CRDs |
-| In-cluster config / policy | Config Sync (fleet feature) | ArgoCD | KCC + whatever |
+| In-cluster config / policy | ArgoCD (guardrails **and** apps) | Config Sync (fleet feature) | KCC + whatever |
 | GCP resources as code | HCL | HCL | k8s CRDs in-cluster |
-| Cost | Free with GKE | Self-hosted (free OSS) | Free |
-| Consistent baseline across the few clusters | **Native (one policy pkg, drift-heal)** | Per-cluster HA control plane | Per-cluster operator |
+| Cost | **OSS, free** | Free OSS, **or GKE Enterprise fee for the managed variant** | Free |
+| Single GitOps engine | **Yes** | No (apps still need ArgoCD/other) | No |
+| Drift enforcement | Yes (auto-sync + self-heal) | Yes (continuous reconcile) | Yes |
+| App-delivery UX (rollbacks, waves, UI) | **Rich** | Basic | n/a |
 | Bootstrap coupling | Low | Low | **High** (cluster manages its own cloud deps) |
-| App-delivery UX (rollbacks, waves, UI) | Basic | **Rich** | n/a |
-| Drift enforcement | Yes (continuous reconcile) | Yes | Yes |
-| Skill match (k8s-hardening uses kubectl/Kyverno YAML) | **High** | High | Medium (KCC mental model) |
+| Skill match (k8s-hardening uses kubectl/Kyverno YAML) | High | High | Medium (KCC mental model) |
 
-**Verdict:** Terraform for the substrate; **Config Sync** for the hardening/guardrail layer (it syncs the [`k8s-hardening` Tier-1 manifests + Kyverno policies](https://github.com/AI-Fabrik/k8s-hardening/tree/main/tier1-manifests) verbatim to every factory cluster); **ArgoCD** for per-consumer application stacks. Enable Config Sync via Terraform's `google_gke_hub_feature` ([worked example](https://cloud.google.com/blog/topics/anthos/using-terraform-to-enable-config-sync-on-a-gke-cluster)).
+**Verdict (D10):** Terraform for the substrate; **ArgoCD as the single GitOps engine** for *both* the hardening/guardrail layer (it syncs the [`k8s-hardening` Tier-1 manifests + Kyverno policies](https://github.com/AI-Fabrik/k8s-hardening/tree/main/tier1-manifests) verbatim, with auto-sync + self-heal for drift remediation) and per-consumer application stacks. Config Sync is dropped: its only edge was fleet-scale fan-out, which [D6](#decision-one-fop-rafay-owns-the-site-fleet-d6) removed (Rafay owns the multi-site fleet), and its managed variant carries a GKE Enterprise fee.
 
 ## The cluster factory
 
@@ -91,8 +91,7 @@ A single **reusable, parameterized** Terraform composition. Foundation layers ru
 | `20-network` | VPC, regional subnets w/ Pod/Service secondary ranges, **regional Cloud NAT**, firewall | per project |
 | `30-kms` | key rings/keys (secrets, state) | per project |
 | **`gke-cluster` (the core module)** | **the parameterized hardened cluster blueprint** — private nodes + endpoint, Workload Identity, Dataplane V2, Shielded nodes, Binary Authorization, KMS secrets encryption, authorized networks | **per cluster, any count** |
-| `fleet` | register cluster to fleet; attach Config Sync + Policy Controller | per cluster |
-| `app-bootstrap` | install ArgoCD, point at the consumer's app repo | per cluster |
+| `app-bootstrap` | install ArgoCD (Terraform/Helm), then point an App-of-Apps at the guardrail repo + the consumer's app repo | per cluster |
 
 The core module exposes a **values contract** (e.g. a `clusters.yaml` or per-env tfvars). Standing up the FOP cluster, the Mgmt Plane cluster, or the Nth cluster is adding an entry — no new code. Idempotent build/teardown (the recurring acceptance criterion in the objectives doc) is inherent to Terraform remote state; `prevent_destroy` guards stateful resources.
 
@@ -103,7 +102,7 @@ The core module exposes a **values contract** (e.g. a `clusters.yaml` or per-env
 - **Implication:** `iac-k8s` targets a **small, stable set of hyperscaler GKE clusters** — the FOP cluster + the Management Plane cluster — not a growing GKE fleet.
 - **Reusability still matters** for repeatability, the enforced security standard, and clean teardown/rebuild — *not* for fan-out.
 - **No GKE-level fleet/multi-site machinery** (cross-site failover, multi-FOP federation, fleet-wide dashboards) is built here; each site is its own failure domain (C3.1) and Rafay owns the cross-site story.
-- **Toolchain consequence:** Config Sync's fleet-scale advantage is moot at this size; it stays for drift enforcement and the guardrail/app split, not scale (see Toolchain recommendation).
+- **Toolchain consequence:** Config Sync's fleet-scale advantage is moot at this size, so the design uses **ArgoCD only** ([D10](#decision-argocd-as-the-single-gitops-engine-d10)) — one OSS engine for guardrails and apps, no GKE Enterprise fee.
 
 ### Decision: stateful add-ons as separate companion modules (D5)
 
@@ -129,15 +128,20 @@ The factory's GitOps bootstrap is identical for every cluster; only the consumer
 
 ```mermaid
 flowchart LR
-  A[Terraform: cluster + fleet] --> B[Config Sync installed via fleet feature]
-  B --> C[Config Sync reconciles hardening baseline\nPSS · NetworkPolicy · Kyverno · RBAC\nfrom k8s-hardening Tier 1]
-  C --> D[Config Sync installs ArgoCD]
-  D --> E[ArgoCD App-of-Apps -> consumer repo]
+  A[Terraform: cluster] --> B[Terraform/Helm installs ArgoCD]
+  B --> C[ArgoCD App-of-Apps]
+  C --> D[guardrail App: hardening baseline\nPSS · NetworkPolicy · Kyverno · RBAC\nfrom k8s-hardening Tier 1 -- sync wave 0, self-heal]
+  C --> E[consumer app repo -- sync wave 1+]
   E --> F[e.g. FOP cluster: Rafay Controller + state]
   E --> G[e.g. Mgmt cluster: Management Plane]
 ```
 
+- **One GitOps engine (D10):** ArgoCD syncs both the guardrail App and the workload Apps; **sync waves** order guardrails (wave 0) before apps, and **auto-sync + self-heal** revert any drift.
 - **Guardrails land before any app** — when workloads deploy, PSS + Kyverno are already enforcing, so anything off-standard is rejected at admission.
-- **Consumers plug in** by pointing ArgoCD at their own app repo. The Rafay Controller (isolated tenant, durable Cloud SQL/GCS state) and the Management Plane are the first two; later clusters reuse the same path.
+- **Consumers plug in** by pointing an ArgoCD App at their own repo. The Rafay Controller (isolated tenant, durable Cloud SQL/GCS state) and the Management Plane are the first two; later clusters reuse the same path.
 
-Sources: [GKE release channels](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/release-channels), [safer-cluster module](https://registry.terraform.io/modules/terraform-google-modules/kubernetes-engine/google/latest/submodules/safer-cluster), [Config Sync via Terraform](https://cloud.google.com/blog/topics/anthos/using-terraform-to-enable-config-sync-on-a-gke-cluster), [AI-Fabrik/k8s-hardening](https://github.com/AI-Fabrik/k8s-hardening).
+### Decision: ArgoCD as the single GitOps engine (D10)
+
+**Decided** — drop Config Sync; **ArgoCD is the only GitOps tool**, delivering both the guardrail policy package (k8s-hardening Tier-1 + Kyverno) and the workloads. ArgoCD auto-sync + self-heal provides the drift remediation Config Sync would have. Rationale: [D6](#decision-one-fop-rafay-owns-the-site-fleet-d6) removed the fleet-scale need that was Config Sync's only edge; one OSS engine is simpler to operate and avoids the GKE Enterprise fee on managed Config Sync. Guardrails vs apps are separated by **ArgoCD projects + sync waves**, not by a second tool.
+
+Sources: [GKE release channels](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/release-channels), [safer-cluster module](https://registry.terraform.io/modules/terraform-google-modules/kubernetes-engine/google/latest/submodules/safer-cluster), [Argo CD](https://argo-cd.readthedocs.io/), [AI-Fabrik/k8s-hardening](https://github.com/AI-Fabrik/k8s-hardening).

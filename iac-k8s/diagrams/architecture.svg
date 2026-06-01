@@ -47,14 +47,10 @@
   <text x="875" y="310" class="t">🏭 Cluster Factory — Terraform</text>
   <text x="875" y="330" class="t sub">gke-cluster module + companion state modules (D5)</text>
 
-  <!-- L4 GitOps -->
-  <rect x="170" y="386" width="340" height="60" rx="13" fill="#e9ecef" stroke="#495057"/>
-  <text x="340" y="412" class="t">Config Sync</text>
-  <text x="340" y="431" class="t sub">guardrails + drift-heal</text>
-
-  <rect x="640" y="386" width="340" height="60" rx="13" fill="#e9ecef" stroke="#495057"/>
-  <text x="810" y="412" class="t">ArgoCD</text>
-  <text x="810" y="431" class="t sub">app delivery</text>
+  <!-- L4 GitOps — single engine (D10) -->
+  <rect x="330" y="386" width="520" height="60" rx="13" fill="#e9ecef" stroke="#495057"/>
+  <text x="590" y="411" class="t">ArgoCD — single GitOps engine (D10)</text>
+  <text x="590" y="430" class="t sub">guardrails (self-heal) + app delivery · sync waves</text>
 
   <!-- L5 Clusters container -->
   <rect x="70" y="478" width="1040" height="200" rx="16" fill="#f3f0ff" stroke="#7048e8"/>
@@ -107,10 +103,9 @@
   <path class="edge" d="M540,197 L734,197" marker-end="url(#arrow)"/>
   <path class="edge" d="M905,234 C895,255 885,268 878,280" marker-end="url(#arrow)"/>
   <path class="edge" d="M770,234 C610,258 470,266 410,280" marker-end="url(#arrow)"/>
-  <path class="edge" d="M845,350 C760,400 720,440 700,478" marker-end="url(#arrow)"/>
-  <path class="edge" d="M320,350 C320,380 330,376 338,386" marker-end="url(#arrow)"/>
-  <path class="edge" d="M340,446 L340,476" marker-end="url(#arrow)"/>
-  <path class="edge" d="M810,446 L810,476" marker-end="url(#arrow)"/>
+  <path class="edge" d="M820,350 C720,410 660,420 640,386" marker-end="url(#arrow)"/>
+  <path class="edge" d="M305,350 C305,410 330,440 358,478" marker-end="url(#arrow)"/>
+  <path class="edge" d="M590,446 L590,476" marker-end="url(#arrow)"/>
   <path class="edge" d="M590,678 L590,710" marker-end="url(#arrow)"/>
   <path class="edgered" d="M300,576 C300,720 360,790 470,822" marker-end="url(#arrowred)"/>
   <path class="edgedash" d="M1110,560 C1150,420 1010,150 792,100" marker-end="url(#arrowgray)"/>

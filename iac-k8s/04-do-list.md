@@ -24,7 +24,7 @@ Delivers **R8**. The concrete build inventory across buckets, each task tagged *
 | `30-kms` key rings/keys (secrets, state) | [REUSE] | `terraform-google-modules/kms` |
 | **`gke-cluster` parameterized module** (the core deliverable — builds *any* hardened HA cluster from a values entry) | [NEW] wraps [REUSE] | thin wrapper over [`safer-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/blob/main/modules/safer-cluster/README.md) (pins CIS + GKE hardening guide) exposing a values contract + upgrade profile |
 | Reference instantiations (FOP, Mgmt Plane) as `clusters.yaml`/tfvars entries | [NEW] | proves the factory; each new cluster = one entry, no new code |
-| `fleet` register clusters, enable Config Sync + Policy Controller (per cluster) | [REUSE] | `google_gke_hub_feature` ([guide](https://cloud.google.com/blog/topics/anthos/using-terraform-to-enable-config-sync-on-a-gke-cluster)) |
+| `app-bootstrap` install ArgoCD (Terraform/Helm) per cluster | [REUSE] | OSS; App-of-Apps points at guardrail repo + consumer app repo (D10) |
 | Separate companion modules `stateful-cloudsql` / `stateful-gcs` (CMEK + backups) — composed by consumers, **not** in the cluster module (D5) | [NEW] | independent lifecycle; survives cluster rebuild + controller reinstall (objectives R) |
 | CI: GitHub Actions + WIF, per-layer plan/apply, `prevent_destroy` on stateful | [NEW] | keyless; idempotent build/teardown; same pipeline for every cluster |
 
@@ -33,7 +33,7 @@ Delivers **R8**. The concrete build inventory across buckets, each task tagged *
 | Task | Tag | Notes |
 |---|---|---|
 | GKE-native controls (WI, private cluster, Shielded, Dataplane V2, KMS secrets, Binary Authz, audit logs) | [NEW] | Terraform flags on `safer-cluster`; mostly defaults of the module |
-| Tier-1 workload manifests + Kyverno policies via Config Sync | [REUSE] | [`k8s-hardening/tier1-manifests`](https://github.com/AI-Fabrik/k8s-hardening/tree/main/tier1-manifests) synced as-is |
+| Tier-1 workload manifests + Kyverno policies via ArgoCD | [REUSE] | [`k8s-hardening/tier1-manifests`](https://github.com/AI-Fabrik/k8s-hardening/tree/main/tier1-manifests) synced as-is (D10) |
 | OIDC IdP for human kubectl (Connect Gateway) | [ADAPT] | k8s-hardening Tier-3 OIDC stub |
 | cosign signing + Binary Authz attestation in CI; Kyverno `verifyImages` | [ADAPT] | k8s-hardening Tier-3 image-signing stub |
 | KMS secrets re-encrypt (existing secrets) | [REUSE] | k8s-hardening Tier-3 procedure |
@@ -45,9 +45,9 @@ Delivers **R8**. The concrete build inventory across buckets, each task tagged *
 
 | Task | Tag | Notes |
 |---|---|---|
-| Config Sync root-sync **policy package** (hardening baseline) applied to all factory clusters | [NEW] | structure repo; sources k8s-hardening manifests; authored once |
-| Reusable `app-bootstrap` (ArgoCD install via Config Sync) | [REUSE] | OSS; identical per cluster |
-| Per-consumer ArgoCD App-of-Apps (e.g. Rafay Controller, Mgmt Plane) | [NEW] | consumer points at own app repo; Rafay as isolated tenant |
+| ArgoCD **guardrail App** (hardening baseline, sync wave 0, self-heal) applied to all clusters | [NEW] | structure repo; sources k8s-hardening manifests; authored once (D10) |
+| ArgoCD install via Terraform/Helm bootstrap | [REUSE] | OSS; identical per cluster |
+| Per-consumer ArgoCD App-of-Apps (e.g. Rafay Controller, Mgmt Plane), sync wave 1+ | [NEW] | consumer points at own app repo; Rafay as isolated tenant |
 
 ## Bucket 4 — Day 2 (per [03](03-day2-operations.md))
 
@@ -68,11 +68,11 @@ Delivers **R8**. The concrete build inventory across buckets, each task tagged *
 | React frontend: intent forms, plan-diff viewer + approve/apply, dashboards | [NEW] | D9 |
 | PR-based mutation flow: edit `clusters.yaml`/tfvars → PR → plan → approve → apply | [NEW] | D8; never out-of-band |
 | Scan integration: trigger k8s-hardening Job, store/render `delta.md`+`scores.json`, overlay GKE Security Posture | [REUSE]+[NEW] | reuses [`k8s-hardening`](https://github.com/AI-Fabrik/k8s-hardening) pipeline |
-| Read aggregation: GKE API, TF state, ArgoCD/Config Sync status, inventory | [NEW] | feeds Observability + Inventory objectives |
+| Read aggregation: GKE API, TF state, ArgoCD sync status, inventory | [NEW] | feeds Observability + Inventory objectives |
 | Terraform execution backend wiring | [OPEN] | GH Actions+self-hosted runners vs Atlantis — decision pending |
 
 ## Net-new vs reuse at a glance
 
 - **Heaviest reuse:** the entire workload-posture layer (k8s-hardening Tier-1 + scan pipeline) and the GCP/GKE substrate (terraform-google-modules). These are mature; we wire, not write.
-- **Net-new build, in priority order:** (1) layered Terraform root + CI/WIF; (2) GKE-native control config; (3) Config Sync + ArgoCD bootstrap and the Rafay/Mgmt app stacks; (4) supply-chain (cosign + Binary Authz); (5) Day-2 channel/window policy; (6) operator console (FastAPI+React); (7) governance: ratify the GKE hardening profile.
+- **Net-new build, in priority order:** (1) layered Terraform root + CI/WIF; (2) GKE-native control config; (3) ArgoCD bootstrap + guardrail App + the Rafay/Mgmt app stacks (D10); (4) supply-chain (cosign + Binary Authz); (5) Day-2 channel/window policy; (6) operator console (FastAPI+React); (7) governance: ratify the GKE hardening profile.
 - **Open decision:** Terraform execution backend behind the console (GH Actions + self-hosted runners vs Atlantis; HCP/TFE ≈eliminated).
