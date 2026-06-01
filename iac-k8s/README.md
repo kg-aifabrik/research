@@ -2,6 +2,7 @@
 
 Tooling to build a hardened, highly-available, regional GKE cluster and manage its lifecycle with mostly automation — a reusable **cluster factory**. Its two consumers are the **FOP** (which hosts the Rafay Controller as a workload) and the **Management Plane**; there is one FOP for the foreseeable future (D6) and the multi-site fleet is owned by Rafay, outside this scope. Reusability is for repeatable, standardized rebuilds — not GKE-cluster fan-out.
 
+- **Architecture at a glance:** see [00-architecture.md](00-architecture.md) — a one-page diagram of the factory, GitOps, clusters, console, and scope boundaries for team brainstorming.
 - **Goal = reusable tooling.** A parameterized **Terraform** cluster module (built on `safer-cluster`) + a **Config Sync** guardrail policy package + a reusable **ArgoCD** app-bootstrap. A new cluster is one values entry in Git, not new code. See [01](01-provisioning-and-iac.md).
 - **Day-0 manual, once per org:** ~12 steps (org, billing, seed project, WIF) via `terraform-google-bootstrap`; no downloaded SA keys — Workload Identity Federation for CI.
 - **HA by default:** every factory cluster is regional (3-AZ), surviving one AZ failure (C3.2); size/mode are inputs.
