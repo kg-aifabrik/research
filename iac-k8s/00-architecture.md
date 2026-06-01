@@ -4,82 +4,9 @@ A one-page picture of the GKE cluster factory + operator console for team brains
 
 ## The whole picture
 
-```mermaid
-flowchart TB
-  subgraph OP["👤 AIFabrik Operator (SRE)"]
-    direction LR
-    UI["Operator Console<br/>React + FastAPI (D9)<br/>scans · node pools · inventory · upgrades"]
-  end
+![iac-k8s architecture](diagrams/architecture.svg)
 
-  subgraph GIT["declared intent in Git (D8: PR -> plan -> approve -> apply)"]
-    direction LR
-    TFV["infra: clusters.yaml / tfvars"]
-    POL["guardrail policy package<br/>(k8s-hardening Tier-1 + Kyverno)"]
-    APP["app repos (Rafay, Mgmt Plane)"]
-  end
-
-  EXE["TF execution backend<br/>⚠ OPEN: GH Actions + self-hosted runners vs Atlantis"]
-
-  subgraph FOUND["GCP foundation — Terraform (built once)"]
-    direction LR
-    ORG["org policy · folders · projects<br/>WIF (no SA keys) · KMS · VPC/NAT"]
-  end
-
-  subgraph FACTORY["🏭 Cluster Factory — Terraform"]
-    direction LR
-    MOD["gke-cluster module<br/>parameterized, hardened, regional HA"]
-    STATE["companion stateful modules (D5)<br/>Cloud SQL / GCS · CMEK · backups"]
-  end
-
-  subgraph CLUSTERS["Hardened regional GKE clusters (D6: one FOP foreseeable)"]
-    direction TB
-    subgraph FOP["FOP cluster"]
-      RAFAY["Rafay Controller (workload)"]
-    end
-    subgraph MGMT["Management Plane cluster"]
-      MFN["operator-facing fns + console backend"]
-    end
-    subgraph NODES["node pools — Standard mode, COS default (D3)"]
-      direction LR
-      NP1["standard pool"]
-      NP2["confidential pool (D1, AMD SEV)"]
-      NP3["ubuntu pool (opt-in)"]
-    end
-  end
-
-  subgraph GITOPS["in-cluster GitOps"]
-    direction LR
-    CS["Config Sync<br/>guardrails + drift-heal"]
-    ARGO["ArgoCD<br/>app delivery"]
-  end
-
-  subgraph DAY2["Day-2 + conformance"]
-    direction LR
-    UPG["upgrade profiles<br/>channels + maint windows"]
-    SCAN["scan pipeline<br/>kube-bench gke + kubescape"]
-    POSTURE["GKE Security Posture"]
-    OBS["observability / audit"]
-  end
-
-  SITES["⤵ on-prem site fleet<br/>managed by Rafay — OUT OF SCOPE (D6)"]
-
-  UI --> GIT
-  UI -->|run scan / read state| SCAN
-  GIT --> EXE
-  EXE --> FOUND
-  EXE --> FACTORY
-  FACTORY --> CLUSTERS
-  FOUND --> CLUSTERS
-  POL --> CS
-  APP --> ARGO
-  CS --> CLUSTERS
-  ARGO --> CLUSTERS
-  STATE -. durable state .-> RAFAY
-  CLUSTERS --> DAY2
-  SCAN --> UI
-  POSTURE --> UI
-  RAFAY ==> SITES
-```
+> Editable source: [`diagrams/architecture.excalidraw`](diagrams/architecture.excalidraw) — open it on [excalidraw.com](https://excalidraw.com) (File → Open) to rework the diagram during the brainstorm, then re-export the SVG over `diagrams/architecture.svg`.
 
 ## How to read it (the four moves)
 
@@ -90,7 +17,7 @@ flowchart TB
 
 ## Trust & scope boundaries
 
-- **One FOP** for the foreseeable future; it hosts **Rafay as a workload**, and **Rafay** — not this factory — manages the **multi-site on-prem k8s fleet** (D6). That fleet is out of `iac-k8s` scope; the heavy arrow to it marks the boundary.
+- **One FOP** for the foreseeable future; it hosts **Rafay as a workload**, and **Rafay** — not this factory — manages the **multi-site on-prem k8s fleet** (D6). That fleet is out of `iac-k8s` scope; the red arrow to it marks the boundary.
 - **No unsigned images** ever cross the admission boundary (D4) — the signing pipeline is a tier-0 dependency.
 - **Control plane is a shared trust boundary** within a cluster; mixed node pools give data-in-use isolation, not blast-radius separation (D1). Hard regulatory tenancy → revisit two clusters.
 
@@ -116,4 +43,4 @@ sequenceDiagram
 
 ## Open item for the brainstorm
 
-- **Terraform execution backend** (the ⚠ box): **GitHub Actions + self-hosted runners** (lean — reuses CI + WIF, clean API, creds stay in-env) vs **Atlantis** (purpose-built PR server, directory locking, more to operate). HCP Terraform / TFE ≈ eliminated (external SaaS / cost / sovereignty). Decision pending — see [05](05-operator-console.md#open-thread).
+- **Terraform execution backend** (the red ⚠ box): **GitHub Actions + self-hosted runners** (lean — reuses CI + WIF, clean API, creds stay in-env) vs **Atlantis** (purpose-built PR server, directory locking, more to operate). HCP Terraform / TFE ≈ eliminated (external SaaS / cost / sovereignty). Decision pending — see [05](05-operator-console.md#open-thread).
