@@ -41,6 +41,6 @@ sequenceDiagram
   Note over GCP: ArgoCD auto-sync + self-heal keeps guardrails enforced throughout
 ```
 
-## Open item for the brainstorm
+## Execution backend (decided)
 
-- **Terraform execution backend** (the red ⚠ box): **GitHub Actions + self-hosted runners** (lean — reuses CI + WIF, clean API, creds stay in-env) vs **Atlantis** (purpose-built PR server, directory locking, more to operate). HCP Terraform / TFE ≈ eliminated (external SaaS / cost / sovereignty). Decision pending — see [05](05-operator-console.md#open-thread).
+- **Terraform execution backend = GitHub Actions (D11)** — keyless via WIF, Environments + required reviewers as the apply gate, console drives it via the Actions API; self-hosted runners on the FOP for production. See [05](05-operator-console.md#decision-terraform-execution-backend--github-actions-d11) and the [implementation plan](implementation-plan.md).

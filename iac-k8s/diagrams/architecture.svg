@@ -34,9 +34,9 @@
   <text x="305" y="208" class="t sub">infra tfvars · guardrail policy · app repos</text>
   <text x="305" y="225" class="t sub">PR → plan → approve → apply</text>
 
-  <rect x="740" y="160" width="370" height="74" rx="13" fill="#ffc9c9" stroke="#e03131"/>
-  <text x="925" y="190" class="t">⚠ TF execution backend</text>
-  <text x="925" y="212" class="t sub">OPEN: GH Actions+runners vs Atlantis</text>
+  <rect x="740" y="160" width="370" height="74" rx="13" fill="#a5d8ff" stroke="#1971c2"/>
+  <text x="925" y="190" class="t">TF execution backend (D11)</text>
+  <text x="925" y="212" class="t sub">GitHub Actions + WIF · Environments gate</text>
 
   <!-- L3 GCP foundation + Factory -->
   <rect x="70" y="282" width="470" height="68" rx="13" fill="#b2f2bb" stroke="#2f9e44"/>

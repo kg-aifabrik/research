@@ -22,6 +22,7 @@ Tooling to build a hardened, highly-available, regional GKE cluster and manage i
 - **D8 — PR-based mutation model for the operator console.** Infra/policy changes flow through Git PRs (plan → diff → approve → apply); console never mutates clusters out-of-band. See [05](05-operator-console.md#decisions).
 - **D9 — Operator console is custom FastAPI + React.** Bespoke build over an IDP framework (Backstage) or SaaS (Port). See [05](05-operator-console.md#decisions).
 - **D10 — ArgoCD is the single GitOps engine.** Config Sync dropped; ArgoCD delivers both the guardrail policy package (k8s-hardening Tier-1 + Kyverno) and the workloads, with auto-sync + self-heal for drift. D6 removed the fleet-scale rationale for Config Sync, and one OSS engine avoids the GKE Enterprise fee. Guardrails vs apps separated by ArgoCD projects + sync waves. See [01](01-provisioning-and-iac.md#decision-argocd-as-the-single-gitops-engine-d10).
+- **D11 — GitHub Actions is the Terraform execution backend.** Keyless via WIF; Environments + required reviewers as the apply gate; console drives it through the Actions API. Self-hosted runners on the FOP for production; GitHub-hosted acceptable for the POC. Atlantis and HCP/TFE rejected. See [05](05-operator-console.md#decision-terraform-execution-backend--github-actions-d11).
 
-## Open threads
-- **Terraform execution backend for the console** — GitHub Actions + self-hosted runners (lean) vs Atlantis vs HCP Terraform/TFE (≈eliminated). Left open pending review. See [05](05-operator-console.md#open-thread).
+## Next step
+- All design decisions captured (D1–D11). POC implementation plan drafted in [implementation-plan.md](implementation-plan.md) — under review.
