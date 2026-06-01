@@ -47,6 +47,7 @@ export SA="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
 for r in roles/container.admin roles/compute.admin roles/iam.serviceAccountUser \
          roles/iam.serviceAccountAdmin roles/resourcemanager.projectIamAdmin \
+         roles/binaryauthorization.policyEditor \
          roles/cloudkms.admin roles/storage.admin roles/serviceusage.serviceUsageConsumer; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:$SA" --role="$r" --condition=None
