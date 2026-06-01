@@ -28,7 +28,8 @@ export PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(p
 gcloud services enable \
   container.googleapis.com compute.googleapis.com iam.googleapis.com \
   cloudkms.googleapis.com cloudresourcemanager.googleapis.com \
-  iamcredentials.googleapis.com sts.googleapis.com --project "$PROJECT_ID"
+  iamcredentials.googleapis.com sts.googleapis.com \
+  binaryauthorization.googleapis.com serviceusage.googleapis.com --project "$PROJECT_ID"
 ```
 
 ### 3. Terraform state bucket
@@ -45,10 +46,13 @@ gcloud iam service-accounts create "$SA_NAME" --project="$PROJECT_ID" \
 export SA="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
 for r in roles/container.admin roles/compute.admin roles/iam.serviceAccountUser \
+         roles/iam.serviceAccountAdmin roles/resourcemanager.projectIamAdmin \
          roles/cloudkms.admin roles/storage.admin roles/serviceusage.serviceUsageConsumer; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:$SA" --role="$r" --condition=None
 done
+# serviceAccountAdmin + projectIamAdmin are needed because the Terraform creates a
+# dedicated node service account and sets its project IAM bindings.
 # NOTE: broad POC roles — tighten to least-privilege before production.
 ```
 
