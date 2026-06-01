@@ -128,7 +128,24 @@ GitHub **Actions API** (`workflow_dispatch`, runs, artifacts) + **PR API** + **G
 
 ## Cost controls
 
-Spot VMs · `e2-small` for system/general pools · single region · ephemeral (destroy after each test) · budget alert. The Confidential pool (`n2d-standard-2`) adds cost while up — bring it up only for the toggle test. Expect **low single-digit dollars per test run** dominated by the ~$0.10/hr cluster management fee plus the brief Confidential-pool runtime.
+Spot VMs · `e2-small` for system/general pools · single region · ephemeral (destroy after each test) · budget alert. The Confidential pool (`n2d-standard-2`) adds cost while up — bring it up only for the toggle test.
+
+### Approx cost per hour (while running)
+
+| Component | Config | ~$ / hour |
+|---|---|---|
+| GKE control plane (cluster management fee) | 1 regional Standard cluster | 0.10 |
+| `system` pool | 1× e2-small (Spot) | 0.005 |
+| `general` pool | up to 3× e2-small (Spot) | 0.015 |
+| `confidential` pool | 1× n2d-standard-2 (Spot) | 0.025 |
+| Node boot disks | ~5× 50 GB pd-balanced | 0.03 |
+| Cloud NAT (egress for private nodes) | 1 regional gateway | 0.05 |
+| KMS + logging/monitoring | minimal | 0.01 |
+| **Total — all pools incl. Confidential (Spot)** | | **≈ $0.24 / hr** |
+| Total — same on **on-demand** (no Spot) | | ≈ $0.40 / hr |
+| Total — **without** Confidential pool (M1 base / M2 steady, Spot) | | ≈ $0.20 / hr |
+
+Caveats: us-central1, approximate list prices, **excludes** network egress / NAT data-processing and Cloud Logging/Monitoring ingestion beyond free tiers; the ~$0.10/hr management fee is the floor regardless of node count. With **ephemeral teardown**, a full build → test → destroy cycle lands in **low single-digit dollars**.
 
 ## Rough sequencing
 
