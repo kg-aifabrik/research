@@ -156,7 +156,10 @@ Caveats: us-central1, approximate list prices, **excludes** network egress / NAT
 ## Progress log
 
 - **Phase 0** — complete & verified (project `k8s-iac-poc`, WIF, state bucket, CI SA, repos, `poc-apply` env). One WIF repo-name typo found & fixed during handoff.
-- **Phase 1 / M1** — scaffolded in [`kg-aifabrik/iac-gke-poc`](https://github.com/kg-aifabrik/iac-gke-poc): Terraform (regional cluster, COS, `system`/`general`/`confidential` pools, D7 hardening, BinAuthz audit-only) + `plan`/`apply`/`destroy` workflows. **PR #1 plan green via WIF: 19 to add.** Awaiting operator review → merge → approve apply.
+- **Phase 1 / M1** — ✅ **built & validated.** [`kg-aifabrik/iac-gke-poc`](https://github.com/kg-aifabrik/iac-gke-poc): regional cluster, COS, 3 pools (incl. Confidential AMD SEV), D7 hardening (private nodes, WI, Shielded, Dataplane V2, KMS, BinAuthz audit-only), via GitHub Actions + WIF. Bumped `system`/`general` to `e2-standard-2` for M2 headroom; Confidential pool switched Spot→on-demand (Spot preemption left it with no node).
+- **Phase 2 / M2** — ✅ **complete.** ArgoCD + Kyverno installed; `guardrails` Application **Synced/Healthy** delivering k8s-hardening Tier-1 (PSS + 10 Kyverno policies). **Behavioral proof:** privileged pod rejected; deleted policy **self-healed** by ArgoCD. Conformance report committed to `iac-gke-poc/reports/`. kubescape 85→82 (measurement artifact — post scan includes the unhardened ArgoCD/Kyverno tooling; see report).
+- **POC learnings:** (1) two `push`-to-main applies raced on the TF **state lock** → added `concurrency: terraform-state` to apply/destroy. (2) **Spot** `n2d` Confidential capacity is unreliable → on-demand for stable confidential nodes. (3) Phase-0 runbook was missing BinAuthz/ServiceUsage APIs + `serviceAccountAdmin`/`projectIamAdmin`/`binaryauthorization.policyEditor` CI-SA roles (now fixed). (4) Whole-cluster kubescape aggregate is a noisy before/after; scan a fixed workload namespace instead.
+- **Phase 3 / M3** — not started. Needs GKE Connect Gateway so the console reaches the IP-restricted endpoint.
 
 ## Resolved POC parameters
 
