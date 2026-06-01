@@ -60,8 +60,19 @@ Delivers **R8**. The concrete build inventory across buckets, each task tagged *
 | Staggered upgrade rollout across clusters (canary one before the rest) | [NEW] | runbook |
 | Remediation/recovery + scale runbooks (Rafay, NetBox, head node) | [NEW] | objectives P1; builds on drift-heal + TF re-apply |
 
+## Bucket 5 — Operator console (per [05](05-operator-console.md))
+
+| Task | Tag | Notes |
+|---|---|---|
+| FastAPI backend: authn/authz (operator RBAC), action router, audit log | [NEW] | D9 |
+| React frontend: intent forms, plan-diff viewer + approve/apply, dashboards | [NEW] | D9 |
+| PR-based mutation flow: edit `clusters.yaml`/tfvars → PR → plan → approve → apply | [NEW] | D8; never out-of-band |
+| Scan integration: trigger k8s-hardening Job, store/render `delta.md`+`scores.json`, overlay GKE Security Posture | [REUSE]+[NEW] | reuses [`k8s-hardening`](https://github.com/AI-Fabrik/k8s-hardening) pipeline |
+| Read aggregation: GKE API, TF state, ArgoCD/Config Sync status, inventory | [NEW] | feeds Observability + Inventory objectives |
+| Terraform execution backend wiring | [OPEN] | GH Actions+self-hosted runners vs Atlantis — decision pending |
+
 ## Net-new vs reuse at a glance
 
 - **Heaviest reuse:** the entire workload-posture layer (k8s-hardening Tier-1 + scan pipeline) and the GCP/GKE substrate (terraform-google-modules). These are mature; we wire, not write.
-- **Net-new build, in priority order:** (1) layered Terraform root + CI/WIF; (2) GKE-native control config; (3) Config Sync + ArgoCD bootstrap and the Rafay/Mgmt app stacks; (4) supply-chain (cosign + Binary Authz); (5) Day-2 channel/window policy; (6) governance: ratify the GKE hardening profile.
-- **Biggest unknowns to close:** Confidential Nodes requirement for the Mgmt Plane (end-user data), Binary Authz break-glass policy, and whether the Mgmt Plane can run on Autopilot.
+- **Net-new build, in priority order:** (1) layered Terraform root + CI/WIF; (2) GKE-native control config; (3) Config Sync + ArgoCD bootstrap and the Rafay/Mgmt app stacks; (4) supply-chain (cosign + Binary Authz); (5) Day-2 channel/window policy; (6) operator console (FastAPI+React); (7) governance: ratify the GKE hardening profile.
+- **Open decision:** Terraform execution backend behind the console (GH Actions + self-hosted runners vs Atlantis; HCP/TFE ≈eliminated).
