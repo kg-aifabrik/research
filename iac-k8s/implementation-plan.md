@@ -22,7 +22,7 @@ Built on the design decisions in the area README: **D1** mixed node pools · **D
 
 ## Phase 0 — Manual prerequisites (before any automation)
 
-Do once, by hand; everything after is automated. (R1 scoped to the POC.)
+Do once, by hand; everything after is automated. (R1 scoped to the POC.) **Copy-paste runbook + handoff checklist:** [phase0-runbook.md](phase0-runbook.md).
 
 | # | Step | Tool |
 |---|---|---|
