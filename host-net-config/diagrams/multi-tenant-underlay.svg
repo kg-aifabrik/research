@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="60 0 1416 1140" width="1416" height="1140" font-family="Helvetica, Arial, sans-serif"><!-- svg-source:excalidraw-scene -->
+<rect x="60" y="0" width="1416" height="1140" fill="#ffffff"/>
+<text x="330" y="44.7" font-size="26" fill="#1e1e1e" font-weight="bold">Multi-tenant underlay — VRFs, VLANs, traffic flows (256× HGX B300 site)</text>
+<rect x="980" y="70" width="240" height="60" rx="8" fill="#e9ecef" stroke="#1e1e1e" stroke-width="2"/>
+<text x="1010" y="105.1" font-size="18" fill="#1e1e1e" font-weight="bold">Internet / Cloudflare</text>
+<rect x="120" y="170" width="1320" height="230" rx="8" fill="#f8f9fa" stroke="#868e96" stroke-width="2"/>
+<text x="135" y="195.2" font-size="16" fill="#868e96">EVPN-VXLAN spine-leaf fabric (Apstra-managed)</text>
+<rect x="560" y="215" width="130" height="44" rx="8" fill="#e9ecef" stroke="#1e1e1e" stroke-width="2"/>
+<text x="585" y="242.2" font-size="15" fill="#1e1e1e">spine-1</text>
+<rect x="720" y="215" width="130" height="44" rx="8" fill="#e9ecef" stroke="#1e1e1e" stroke-width="2"/>
+<text x="745" y="242.2" font-size="15" fill="#1e1e1e">spine-2</text>
+<rect x="360" y="300" width="330" height="80" rx="8" fill="#ffffff" stroke="#1e1e1e" stroke-width="2"/>
+<text x="372" y="319.3" font-size="14" fill="#1e1e1e">N-S leaf pair (ESI-LAG)</text>
+<rect x="380" y="330" width="110" height="40" rx="8" fill="#e9ecef" stroke="#1e1e1e" stroke-width="2"/>
+<text x="402" y="354.3" font-size="14" fill="#1e1e1e">leaf-A</text>
+<rect x="540" y="330" width="110" height="40" rx="8" fill="#e9ecef" stroke="#1e1e1e" stroke-width="2"/>
+<text x="562" y="354.3" font-size="14" fill="#1e1e1e">leaf-B</text>
+<text x="360" y="398.4" font-size="13" fill="#e8590c">{port, VLAN} → VNI binding per node = tenant assignment</text>
+<rect x="880" y="300" width="380" height="80" rx="8" fill="#fff4e6" stroke="#e8590c" stroke-width="2"/>
+<text x="895" y="324.4" font-size="13" fill="#e8590c">RoCE leaves ×8 (rail-optimized, lossless)</text>
+<text x="895" y="340.6" font-size="13" fill="#e8590c">per-tenant VLAN partition, PFC3 + ECN/DCQCN</text>
+<rect x="150" y="300" width="170" height="60" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="162" y="324.4" font-size="13" fill="#868e96">OOB mgmt switch</text>
+<text x="162" y="340.6" font-size="13" fill="#868e96">(physically separate)</text>
+<path d="M 625.0 259.0 L 495.0 300.0" fill="none" stroke="#adb5bd" stroke-width="2" stroke-linejoin="round"/>
+<path d="M 785.0 259.0 L 585.0 300.0" fill="none" stroke="#adb5bd" stroke-width="2" stroke-linejoin="round"/>
+<path d="M 625.0 259.0 L 1065.0 300.0" fill="none" stroke="#adb5bd" stroke-width="2" stroke-linejoin="round"/>
+<path d="M 785.0 259.0 L 1070.0 300.0" fill="none" stroke="#adb5bd" stroke-width="2" stroke-linejoin="round"/>
+<path d="M 1100.0 130.0 L 770.0 220.0" fill="none" stroke="#e8590c" stroke-width="2" stroke-linejoin="round"/>
+<line x1="770.0" y1="220.0" x2="779.2" y2="212.2" stroke="#e8590c" stroke-width="2"/>
+<line x1="770.0" y1="220.0" x2="781.8" y2="222.0" stroke="#e8590c" stroke-width="2"/>
+<rect x="120" y="470" width="360" height="330" rx="8" fill="#e7f5ff" stroke="#1971c2" stroke-width="2"/>
+<text x="135" y="495.2" font-size="16" fill="#1971c2">Mgmt cluster — CPU servers (host-vrf)</text>
+<rect x="145" y="515" width="310" height="55" rx="8" fill="#ffffff" stroke="#1971c2" stroke-width="2"/>
+<text x="158" y="536.4" font-size="13" fill="#1e1e1e">Underlay services</text>
+<text x="158" y="552.6" font-size="13" fill="#1e1e1e">DHCP / PXE / NTP / LDAP / Netbox</text>
+<rect x="145" y="585" width="310" height="50" rx="8" fill="#ffffff" stroke="#1971c2" stroke-width="2"/>
+<text x="158" y="606.4" font-size="13" fill="#1e1e1e">Host k8s control plane</text>
+<text x="158" y="622.6" font-size="13" fill="#1e1e1e">(runs the vcluster CP pods)</text>
+<rect x="145" y="650" width="310" height="60" rx="8" fill="#ffd8a8" stroke="#e8590c" stroke-width="2"/>
+<text x="158" y="670.4" font-size="13" fill="#1e1e1e">vcluster-A control plane (pods)</text>
+<text x="158" y="686.6" font-size="13" fill="#1e1e1e">API + etcd — Private Nodes, no syncer</text>
+<rect x="145" y="725" width="310" height="50" rx="8" fill="#d0bfff" stroke="#7048e8" stroke-width="2"/>
+<text x="158" y="746.4" font-size="13" fill="#1e1e1e">vcluster-B control plane (pods)</text>
+<rect x="540" y="470" width="560" height="460" rx="8" fill="#fff9f4" stroke="#e8590c" stroke-width="2"/>
+<text x="555" y="495.2" font-size="16" fill="#e8590c">HGX B300 — baremetal worker, assigned to tenant A</text>
+<rect x="560" y="520" width="320" height="170" rx="8" fill="#ffffff" stroke="#1e1e1e" stroke-width="2"/>
+<text x="572" y="541.3" font-size="14" fill="#1e1e1e">bond0 — 2× BF-3 DPU, LACP 2×400G</text>
+<rect x="575" y="560" width="290" height="34" rx="8" fill="#a5d8ff" stroke="#1971c2" stroke-width="2"/>
+<text x="585" y="579.4" font-size="12" fill="#1e1e1e">bond0.100 — mgmt (host-vrf): kubelet, ops</text>
+<rect x="575" y="602" width="290" height="34" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="585" y="621.4" font-size="12" fill="#1e1e1e">bond0.200 — storage (storage-vrf, MTU 9000)</text>
+<rect x="575" y="644" width="290" height="34" rx="8" fill="#ffd8a8" stroke="#e8590c" stroke-width="2"/>
+<text x="585" y="663.4" font-size="12" fill="#1e1e1e">bond0.300 — ingress (tenant-A vrf)</text>
+<rect x="900" y="520" width="180" height="120" rx="8" fill="#ffd8a8" stroke="#e8590c" stroke-width="2"/>
+<text x="915" y="541.4" font-size="12" fill="#1e1e1e">tenant-A pods</text>
+<text x="915" y="556.4" font-size="12" fill="#1e1e1e">GPU workloads</text>
+<text x="915" y="571.4" font-size="12" fill="#1e1e1e">SR-IOV VFs</text>
+<text x="915" y="586.4" font-size="12" fill="#1e1e1e">(VLAN-pinned by PF)</text>
+<rect x="900" y="660" width="180" height="60" rx="8" fill="#a5d8ff" stroke="#1971c2" stroke-width="2"/>
+<text x="915" y="682.4" font-size="13" fill="#1e1e1e">kubelet</text>
+<text x="915" y="698.6" font-size="13" fill="#1e1e1e">(joined to vcluster-A)</text>
+<rect x="560" y="720" width="130" height="44" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="575" y="744.4" font-size="13" fill="#868e96">BMC / OOB</text>
+<rect x="560" y="790" width="520" height="60" rx="8" fill="#ffffff" stroke="#e8590c" stroke-width="2"/>
+<text x="575" y="812.4" font-size="13" fill="#1e1e1e">8× ConnectX-8 800G — RoCE underlay IPs + VFs, one per GPU</text>
+<text x="560" y="952.4" font-size="13" fill="#868e96">Identical host config fleet-wide; tenancy applied only at the leaf port binding</text>
+<path d="M 1300.0 470.0 L 1300.0 400.0" fill="none" stroke="#adb5bd" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1160" y="470" width="280" height="200" rx="8" fill="#f6f2ff" stroke="#7048e8" stroke-width="2"/>
+<text x="1175" y="493.3" font-size="14" fill="#7048e8">HGX B300 — tenant B</text>
+<text x="1175" y="522.4" font-size="13" fill="#1e1e1e">same layout;</text>
+<text x="1175" y="538.6" font-size="13" fill="#1e1e1e">bond0.300 + RoCE VLANs</text>
+<text x="1175" y="554.9" font-size="13" fill="#1e1e1e">bound to tenant-B VNIs</text>
+<text x="1175" y="571.1" font-size="13" fill="#1e1e1e">by leaf config</text>
+<rect x="1160" y="720" width="280" height="110" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="1175" y="742.4" font-size="13" fill="#1e1e1e">Weka — disaggregated NVMe</text>
+<text x="1175" y="758.6" font-size="13" fill="#1e1e1e">shared storage-vrf</text>
+<text x="1175" y="774.9" font-size="13" fill="#1e1e1e">per-tenant FS + encryption</text>
+<path d="M 575.0 577.0 L 455.0 668.0" fill="none" stroke="#1971c2" stroke-width="2" stroke-linejoin="round"/>
+<line x1="455.0" y1="668.0" x2="460.6" y2="657.4" stroke="#1971c2" stroke-width="2"/>
+<line x1="455.0" y1="668.0" x2="466.7" y2="665.5" stroke="#1971c2" stroke-width="2"/>
+<text x="150" y="442.4" font-size="13" fill="#1971c2">① kubelet ↔ vcluster-A API — host-vrf (VLAN 100)</text>
+<path d="M 1000.0 135.0 L 750.0 350.0 L 990.0 440.0 L 990.0 518.0" fill="none" stroke="#e8590c" stroke-width="2" stroke-linejoin="round"/>
+<line x1="990.0" y1="518.0" x2="984.9" y2="507.1" stroke="#e8590c" stroke-width="2"/>
+<line x1="990.0" y1="518.0" x2="995.1" y2="507.1" stroke="#e8590c" stroke-width="2"/>
+<text x="700" y="457.4" font-size="13" fill="#e8590c">② tenant ingress — tenant-A vrf (VLAN 300)</text>
+<path d="M 865.0 619.0 L 890.0 770.0 L 1160.0 770.0 L 1160.0 775.0" fill="none" stroke="#2f9e44" stroke-width="2" stroke-linejoin="round"/>
+<line x1="1160.0" y1="775.0" x2="1154.9" y2="764.1" stroke="#2f9e44" stroke-width="2"/>
+<line x1="1160.0" y1="775.0" x2="1165.1" y2="764.1" stroke="#2f9e44" stroke-width="2"/>
+<text x="930" y="757.4" font-size="13" fill="#2f9e44">③ storage — storage-vrf</text>
+<text x="930" y="773.6" font-size="13" fill="#2f9e44">(VLAN 200, RDMA)</text>
+<path d="M 1080.0 810.0 L 1110.0 810.0 L 1110.0 380.0 L 990.0 380.0" fill="none" stroke="#e8590c" stroke-width="2" stroke-linejoin="round"/>
+<line x1="990.0" y1="380.0" x2="1000.9" y2="374.9" stroke="#e8590c" stroke-width="2"/>
+<line x1="990.0" y1="380.0" x2="1000.9" y2="385.1" stroke="#e8590c" stroke-width="2"/>
+<text x="1125" y="696.4" font-size="12" fill="#e8590c">④ GPU east-west RoCE — tenant-A VLAN partition</text>
+<path d="M 560.0 742.0 L 510.0 742.0 L 510.0 330.0 L 320.0 330.0" fill="none" stroke="#868e96" stroke-width="2" stroke-dasharray="8 6" stroke-linejoin="round"/>
+<line x1="320.0" y1="330.0" x2="330.9" y2="324.9" stroke="#868e96" stroke-width="2"/>
+<line x1="320.0" y1="330.0" x2="330.9" y2="335.1" stroke="#868e96" stroke-width="2"/>
+<text x="555" y="426.4" font-size="12" fill="#868e96">⑤ OOB / Redfish — recovery of last resort</text>
+<path d="M 980.0 100.0 L 80.0 100.0 L 80.0 680.0 L 145.0 680.0" fill="none" stroke="#e8590c" stroke-width="2" stroke-dasharray="8 6" stroke-linejoin="round"/>
+<line x1="145.0" y1="680.0" x2="134.1" y2="685.1" stroke="#e8590c" stroke-width="2"/>
+<line x1="145.0" y1="680.0" x2="134.1" y2="674.9" stroke="#e8590c" stroke-width="2"/>
+<text x="95" y="136.4" font-size="12" fill="#e8590c">⑥ tenant kubectl → vcluster-A API VIP (published in tenant-A vrf)</text>
+<rect x="120" y="990" width="560" height="130" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="2"/>
+<text x="135" y="1011.3" font-size="14" fill="#1e1e1e">VRFs (EVPN routing zones — no route leaking between them)</text>
+<rect x="135" y="1030" width="24" height="16" rx="8" fill="#a5d8ff" stroke="#1971c2" stroke-width="2"/>
+<text x="168" y="1041.3" font-size="13" fill="#1e1e1e">host-vrf — provider ops: PXE, kubelet↔CP, patching</text>
+<rect x="135" y="1054" width="24" height="16" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="168" y="1065.3" font-size="13" fill="#1e1e1e">storage-vrf — shared; tenancy at Weka FS layer</text>
+<rect x="135" y="1078" width="24" height="16" rx="8" fill="#ffd8a8" stroke="#e8590c" stroke-width="2"/>
+<text x="168" y="1089.3" font-size="13" fill="#1e1e1e">tenant-A vrf — ingress, pod traffic, RoCE partition</text>
+<rect x="135" y="1100" width="24" height="16" rx="8" fill="#d0bfff" stroke="#7048e8" stroke-width="2"/>
+<text x="168" y="1111.3" font-size="13" fill="#1e1e1e">tenant-B vrf — provider has no routes into it</text>
+</svg>
