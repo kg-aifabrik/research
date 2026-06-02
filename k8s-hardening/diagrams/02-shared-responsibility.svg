@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560" font-family="'Comic Sans MS','Segoe Print',cursive">
+  <style>
+    .t{font-size:14px;fill:#1e1e1e}
+    .h{font-size:19px;font-weight:bold;fill:#1e1e1e}
+    .c{font-size:15px;font-weight:bold;fill:#1e1e1e}
+    .s{font-size:12px;fill:#495057}
+  </style>
+  <rect x="0" y="0" width="900" height="560" fill="#ffffff"/>
+  <text x="30" y="36" class="h">Shared-Responsibility Split:  On-prem kubeadm  vs  GKE</text>
+
+  <!-- column headers -->
+  <rect x="300" y="55" width="280" height="40" rx="8" fill="#d0bfff" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="340" y="81" class="c">On-prem / self-managed (kubeadm)</text>
+  <rect x="600" y="55" width="270" height="40" rx="8" fill="#a5d8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="690" y="81" class="c">GKE (managed)</text>
+
+  <!-- Tier 1 row -->
+  <rect x="30" y="105" width="260" height="90" rx="8" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="45" y="135" class="c">Tier 1 — workload posture</text>
+  <text x="45" y="158" class="s">PSS, NetworkPolicy, Kyverno,</text>
+  <text x="45" y="176" class="s">RBAC, SA automount</text>
+  <rect x="300" y="105" width="280" height="90" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="320" y="145" class="t">✅ OURS — Ansible/kubectl apply</text>
+  <text x="320" y="170" class="s">harden.py tier1</text>
+  <rect x="600" y="105" width="270" height="90" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="620" y="145" class="t">✅ OURS — same policies,</text>
+  <text x="620" y="168" class="t">delivered via ArgoCD GitOps</text>
+
+  <!-- Tier 2 row -->
+  <rect x="30" y="205" width="260" height="90" rx="8" fill="#ffec99" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="45" y="235" class="c">Tier 2 — control plane / node</text>
+  <text x="45" y="258" class="s">apiserver/KCM/sched/etcd</text>
+  <text x="45" y="276" class="s">flags, kubelet, file perms</text>
+  <rect x="300" y="205" width="280" height="90" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="320" y="245" class="t">✅ OURS — Ansible over SSH</text>
+  <text x="320" y="270" class="s">harden.py tier2  (6 roles)</text>
+  <rect x="600" y="205" width="270" height="90" rx="8" fill="#fff0f0" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="620" y="245" class="t">🔒 GOOGLE'S — no SSH access</text>
+  <text x="620" y="270" class="s">--skip-tier2 ; CIS baseline by GCP</text>
+
+  <!-- Tier 3 row -->
+  <rect x="30" y="305" width="260" height="90" rx="8" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="45" y="335" class="c">Tier 3 — org-specific</text>
+  <text x="45" y="358" class="s">OIDC, image signing,</text>
+  <text x="45" y="376" class="s">cert rotation, KMS re-encrypt</text>
+  <rect x="300" y="305" width="280" height="90" rx="8" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="320" y="345" class="t">🖐 MANUAL — operator runbook</text>
+  <text x="320" y="370" class="s">TIER3-MANUAL.md</text>
+  <rect x="600" y="305" width="270" height="90" rx="8" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="620" y="338" class="t">MIXED — cert rotation = Google;</text>
+  <text x="620" y="362" class="t">OIDC/signing/KMS = ours</text>
+
+  <!-- GKE-native row -->
+  <rect x="30" y="405" width="260" height="100" rx="8" fill="#e9ecef" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="45" y="435" class="c">GKE-native (beyond CIS)</text>
+  <text x="45" y="458" class="s">Workload Identity, BinAuthz,</text>
+  <text x="45" y="476" class="s">Shielded/Confidential nodes,</text>
+  <text x="45" y="494" class="s">Dataplane V2, CMEK, audit logs</text>
+  <rect x="300" y="405" width="280" height="100" rx="8" fill="#f1f3f5" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="320" y="455" class="t">— n/a —</text>
+  <text x="320" y="480" class="s">no cloud control plane</text>
+  <rect x="600" y="405" width="270" height="100" rx="8" fill="#ebfbee" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="620" y="445" class="t">✅ OURS (NEW) — Terraform</text>
+  <text x="620" y="468" class="t">flags + org policy on the</text>
+  <text x="620" y="491" class="t">safer-cluster module</text>
+
+  <text x="30" y="540" class="s">Net: GKE shrinks our control-plane work to zero but ADDS a whole cloud-native control set we author in Terraform. Tier 1 is the shared, portable core.</text>
+</svg>

@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600" font-family="'Comic Sans MS','Segoe Print',cursive">
+  <style>
+    .t{font-size:13px;fill:#1e1e1e}
+    .h{font-size:19px;font-weight:bold;fill:#1e1e1e}
+    .c{font-size:14px;font-weight:bold;fill:#1e1e1e}
+    .s{font-size:11px;fill:#495057}
+    .hole{font-size:12px;fill:#a61e4d;font-weight:bold}
+  </style>
+  <rect x="0" y="0" width="960" height="600" fill="#ffffff"/>
+  <text x="30" y="34" class="h">Defense-in-Depth — and where the holes still are 🔴</text>
+
+  <!-- layers as concentric-ish stacked bands -->
+  <!-- supply chain -->
+  <rect x="30" y="55" width="600" height="62" rx="8" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="45" y="80" class="c">① Supply chain</text>
+  <text x="45" y="102" class="s">AlwaysPullImages ✓  ·  cosign/BinAuthz (designed)  ·  image scan in CI (none)</text>
+  <text x="650" y="78" class="hole">🔴 BinAuthz AUDIT-ONLY = 0 enforcement</text>
+  <text x="650" y="98" class="hole">🔴 no Trivy/SBOM gate · tags not digests</text>
+
+  <!-- admission -->
+  <rect x="30" y="125" width="600" height="62" rx="8" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="45" y="150" class="c">② Admission (Kyverno + PSS)</text>
+  <text x="45" y="172" class="s">10 policies ✓  ·  PSS restricted ✓  ·  validates at create time</text>
+  <text x="650" y="148" class="hole">🔴 excluded ns (kube-system/argocd/kyverno)</text>
+  <text x="650" y="168" class="hole">🔴 webhook fail-open? · no runtime enforce</text>
+
+  <!-- identity -->
+  <rect x="30" y="195" width="600" height="62" rx="8" fill="#d0bfff" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="45" y="220" class="c">③ Identity &amp; RBAC</text>
+  <text x="45" y="242" class="s">SA automount off ✓ · Workload Identity ✓ · keyless WIF ✓ · read-only role ✓</text>
+  <text x="650" y="218" class="hole">🔴 CI SA = projectIamAdmin + saAdmin</text>
+  <text x="650" y="238" class="hole">→ GitHub Actions compromise = project takeover</text>
+
+  <!-- network -->
+  <rect x="30" y="265" width="600" height="62" rx="8" fill="#a5d8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="45" y="290" class="c">④ Network</text>
+  <text x="45" y="312" class="s">default-deny netpol ✓ · Dataplane V2 ✓</text>
+  <text x="650" y="288" class="hole">🔴 kube-system excluded · no egress/DNS</text>
+  <text x="650" y="308" class="hole">🔴 no L7 / no mTLS / no mesh · exfil open</text>
+
+  <!-- data at rest -->
+  <rect x="30" y="335" width="600" height="62" rx="8" fill="#ffec99" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="45" y="360" class="c">⑤ Data at rest &amp; secrets</text>
+  <text x="45" y="382" class="s">etcd encryption (aescbc/KMS) · CMEK on GKE ✓</text>
+  <text x="650" y="358" class="hole">🔴 aescbc key sits next to data on-prem</text>
+  <text x="650" y="378" class="hole">🔴 no external secrets mgr · PVCs unencrypted</text>
+
+  <!-- node / CP -->
+  <rect x="30" y="405" width="600" height="62" rx="8" fill="#ffd8a8" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="45" y="430" class="c">⑥ Node &amp; control plane</text>
+  <text x="45" y="452" class="s">kubelet/apiserver/etcd flags (Tier 2, kubeadm) · Google-managed on GKE</text>
+  <text x="650" y="428" class="hole">🔴 GKE Tier-2 trusted, not verified</text>
+  <text x="650" y="448" class="hole">🔴 single shared etcd/API = soft tenancy</text>
+
+  <!-- runtime + audit -->
+  <rect x="30" y="475" width="600" height="62" rx="8" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="45" y="500" class="c">⑦ Runtime detection &amp; audit</text>
+  <text x="45" y="522" class="s">apiserver audit log ✓ (kubeadm)</text>
+  <text x="650" y="498" class="hole">🔴 NO runtime sensor (Falco/GKE Threat)</text>
+  <text x="650" y="518" class="hole">🔴 audit log not shipped → attacker deletes it</text>
+
+  <!-- legend -->
+  <text x="30" y="565" class="s">✓ = implemented &amp; working    🔴 = residual hole / not done.  Preventive controls dominate; detection &amp; response are nearly absent.</text>
+  <text x="30" y="588" class="s">A determined attacker with any in-cluster foothold (excluded ns, over-privileged CI SA, or a node escape) currently bypasses most of layer ②.</text>
+</svg>

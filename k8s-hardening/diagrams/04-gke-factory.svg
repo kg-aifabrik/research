@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="560" viewBox="0 0 940 560" font-family="'Comic Sans MS','Segoe Print',cursive">
+  <style>
+    .t{font-size:13px;fill:#1e1e1e}
+    .h{font-size:19px;font-weight:bold;fill:#1e1e1e}
+    .c{font-size:14px;font-weight:bold;fill:#1e1e1e}
+    .s{font-size:11px;fill:#495057}
+  </style>
+  <rect x="0" y="0" width="940" height="560" fill="#ffffff"/>
+  <text x="30" y="34" class="h">GKE Cluster Factory  (iac-gke-poc)  —  intent in Git, not mutation</text>
+
+  <!-- Git -->
+  <rect x="30" y="70" width="180" height="110" rx="10" fill="#d0bfff" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="60" y="98" class="c">Git repo (PR)</text>
+  <text x="45" y="122" class="t">terraform/ (HCL)</text>
+  <text x="45" y="143" class="t">gitops/ guardrails</text>
+  <text x="45" y="164" class="s">one values entry = new cluster</text>
+
+  <!-- GH actions -->
+  <rect x="270" y="70" width="200" height="110" rx="10" fill="#a5d8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="300" y="98" class="c">GitHub Actions</text>
+  <text x="285" y="122" class="t">plan → approve → apply</text>
+  <text x="285" y="143" class="t">keyless WIF (no SA keys)</text>
+  <text x="285" y="164" class="s">concurrency lock on state</text>
+
+  <!-- Terraform builds cluster -->
+  <rect x="530" y="60" width="380" height="250" rx="10" fill="#e7f5ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="555" y="88" class="c">GKE Standard · regional · 3 AZ · safer-cluster</text>
+  <text x="550" y="116" class="t">🔐 Workload Identity (GKE_METADATA)</text>
+  <text x="550" y="138" class="t">🔐 Shielded nodes (secure boot + integrity)</text>
+  <text x="550" y="160" class="t">🔐 Private nodes + master authorized nets</text>
+  <text x="550" y="182" class="t">🔐 Dataplane V2 (network policy)</text>
+  <text x="550" y="204" class="t">🔐 CMEK database_encryption (Cloud KMS)</text>
+  <text x="550" y="226" class="t">🔐 Binary Authorization (audit-only in POC)</text>
+  <text x="550" y="248" class="t">🔐 Confidential node pool (n2d AMD SEV)</text>
+  <text x="550" y="270" class="t">🔐 min-priv node SA · REGULAR release channel</text>
+  <text x="550" y="294" class="s">3 node pools: system · general(multi-AZ) · confidential</text>
+
+  <!-- ArgoCD -->
+  <rect x="270" y="240" width="200" height="120" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="300" y="268" class="c">ArgoCD GitOps</text>
+  <text x="285" y="292" class="t">auto-sync + self-heal</text>
+  <text x="285" y="313" class="t">delivers Tier-1 guardrails</text>
+  <text x="285" y="334" class="s">PSS · netpol · RBAC ·</text>
+  <text x="285" y="351" class="s">10 Kyverno policies</text>
+
+  <!-- conformance -->
+  <rect x="30" y="400" width="880" height="90" rx="10" fill="#fff9db" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="50" y="428" class="c">Conformance &amp; drift gate</text>
+  <text x="50" y="452" class="t">kube-bench (gke-1.6.0) · kubescape (CIS v1.10.0) · GKE Security Posture · ArgoCD self-heal restores deleted policy</text>
+  <text x="50" y="476" class="s">Reports committed to repo (reports/delta.md). Verified: privileged pod REJECTED on 5 grounds; deleted policy auto-restored.</text>
+
+  <!-- arrows -->
+  <g stroke="#1e1e1e" stroke-width="2" fill="none">
+    <path d="M210 125 L266 125" marker-end="url(#c)"/>
+    <path d="M470 120 L526 110" marker-end="url(#c)"/>
+    <path d="M370 180 L370 236" marker-end="url(#c)"/>
+    <path d="M470 300 L528 250" marker-end="url(#c)"/>
+  </g>
+  <defs>
+    <marker id="c" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <text x="30" y="520" class="s">Gaps (POC): BinAuthz enforce + cosign signing pipeline · private control-plane endpoint · GKE Connect Gateway for remote kubectl · formal threat model.</text>
+</svg>

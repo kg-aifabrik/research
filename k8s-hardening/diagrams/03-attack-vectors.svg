@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="560" viewBox="0 0 940 560" font-family="'Comic Sans MS','Segoe Print',cursive">
+  <style>
+    .t{font-size:13px;fill:#1e1e1e}
+    .h{font-size:19px;font-weight:bold;fill:#1e1e1e}
+    .c{font-size:14px;font-weight:bold;fill:#1e1e1e}
+    .s{font-size:11px;fill:#495057}
+  </style>
+  <rect x="0" y="0" width="940" height="560" fill="#ffffff"/>
+  <text x="30" y="34" class="h">Attack Vectors  →  Controls</text>
+
+  <!-- left: attacker -->
+  <rect x="30" y="60" width="170" height="440" rx="10" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="60" y="90" class="c">Threat / vector</text>
+  <text x="45" y="130" class="t">Container escape</text>
+  <text x="45" y="180" class="t">Lateral movement</text>
+  <text x="45" y="230" class="t">Priv escalation</text>
+  <text x="45" y="280" class="t">Identity / token theft</text>
+  <text x="45" y="330" class="t">etcd / secret exfil</text>
+  <text x="45" y="380" class="t">Supply-chain image</text>
+  <text x="45" y="430" class="t">Audit evasion / DoS</text>
+
+  <!-- right: controls -->
+  <g>
+    <rect x="330" y="105" width="580" height="48" rx="8" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="345" y="124" class="t">no-privileged · runAsNonRoot · drop ALL caps · read-only rootfs · seccomp RuntimeDefault · no hostPath/hostNS</text>
+    <text x="345" y="144" class="s">Kyverno + Pod Security Standards (restricted)</text>
+
+    <rect x="330" y="160" width="580" height="48" rx="8" fill="#a5d8ff" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="345" y="179" class="t">default-deny NetworkPolicy (ingress+egress); pods must explicitly allow each other</text>
+    <text x="345" y="199" class="s">Tier 1 netpol · GKE Dataplane V2 (encrypted)</text>
+
+    <rect x="330" y="215" width="580" height="48" rx="8" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="345" y="234" class="t">allowPrivilegeEscalation=false · NodeRestriction admission · least-priv RBAC, no wildcard</text>
+    <text x="345" y="254" class="s">Kyverno + apiserver flags + RBAC hardening</text>
+
+    <rect x="330" y="270" width="580" height="48" rx="8" fill="#d0bfff" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="345" y="289" class="t">disable default-SA automount · service-account-lookup · anonymous-auth=false · Workload Identity (GKE)</text>
+    <text x="345" y="309" class="s">Tier 1 + apiserver/kubelet flags + WIF</text>
+
+    <rect x="330" y="325" width="580" height="48" rx="8" fill="#ffec99" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="345" y="344" class="t">encryption-at-rest (aescbc / KMS) · etcd file perms 600 · client-cert auth · CMEK (GKE)</text>
+    <text x="345" y="364" class="s">Tier 2 etcd role · Tier 3 KMS · GKE database_encryption</text>
+
+    <rect x="330" y="380" width="580" height="48" rx="8" fill="#ffd8a8" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="345" y="399" class="t">AlwaysPullImages (no cache replay) · cosign signature verify · Binary Authorization enforce</text>
+    <text x="345" y="419" class="s">apiserver flag · Tier 3 · GKE BinAuthz (audit→enforce)</text>
+
+    <rect x="330" y="435" width="580" height="48" rx="8" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="2"/>
+    <text x="345" y="454" class="t">audit logging (RequestResponse) · resource limits (bounded blast) · EventRateLimit · Cloud Audit Logs</text>
+    <text x="345" y="474" class="s">Tier 2 apiserver audit · Kyverno limits · Tier 3 / GKE</text>
+  </g>
+
+  <!-- arrows -->
+  <g stroke="#1e1e1e" stroke-width="2" fill="none">
+    <path d="M200 128 L326 128" marker-end="url(#b)"/>
+    <path d="M200 178 L326 183" marker-end="url(#b)"/>
+    <path d="M200 228 L326 238" marker-end="url(#b)"/>
+    <path d="M200 278 L326 293" marker-end="url(#b)"/>
+    <path d="M200 328 L326 348" marker-end="url(#b)"/>
+    <path d="M200 378 L326 403" marker-end="url(#b)"/>
+    <path d="M200 428 L326 458" marker-end="url(#b)"/>
+  </g>
+  <defs>
+    <marker id="b" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6" fill="#1e1e1e"/>
+    </marker>
+  </defs>
+  <text x="30" y="535" class="s">Threat model is implicit (control-choice driven, mapped to CIS surfaces) — no formal threat-actor / MITRE ATT&amp;CK table yet. Called out as a gap.</text>
+</svg>
