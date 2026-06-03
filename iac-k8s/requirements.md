@@ -23,6 +23,7 @@ Each requirement says *what* we need and *why*.
 - **R9 — Extensible to new resource types.** The console is the single place operators work, and we can add new kinds of cloud resources behind it later — for example a **PostgreSQL** database (an open-source relational database, via Google Cloud SQL) or an object-storage bucket. *Why: avoid a new tool for every resource type.*
 - **R10 — Highly available.** Each cluster is **regional** — its control plane and nodes are spread across multiple **availability zones (AZs)** (independent data-center failure domains) — so it survives the loss of one zone.
 - **R11 — Cost-aware defaults.** Use small, inexpensive defaults; only add costly features (such as confidential, memory-encrypting nodes) on the specific clusters that need them.
+- **R12 — Per-cluster cost tracking.** We can see cost broken down by individual cluster (and by environment and purpose). *Why: budgeting and chargeback. How: label every resource with environment/purpose/cluster, and turn on **GKE Cost Allocation** so the billing export in **BigQuery (BQ)** — Google's data warehouse for billing data — and the Cloud Billing reports can group per cluster. This works even with several clusters in one project; the only nuance is splitting truly shared resources (e.g. a shared network gateway), which we avoid by giving each cluster its own networking.*
 
 ## How we will build it, and why (the engine decision)
 
@@ -67,7 +68,7 @@ We will use **Infrastructure as Code (IaC)** — defining cloud resources in tex
 
 ## Open questions for your review
 
-1. **Project layout:** confirm one project per environment (3 projects). Or split prod into two projects (prod-FOP, prod-MGMT) for tighter isolation?
+1. **Project layout** (also affects cost tracking, R12): confirm **one project per environment** (3 projects; per-cluster cost works via labels + GKE Cost Allocation). Alternatives: **one project per environment × purpose** (6 projects, one cluster each — cost attribution is trivial, but more projects to manage), or split only prod.
 2. **Confidential nodes:** which clusters actually need the memory-encrypting node pool? (Likely only prod Management Plane, where sensitive end-user data lives.)
 3. **Approval gates:** require a human approval before applying to **stage and prod**, with **dev** fully automatic — agree?
 4. **Reaching the clusters:** to run audits and policy installs, the console needs network access to clusters whose endpoints are locked down. Plan to use **GKE Connect Gateway** (reach clusters through Google's fleet service, no IP allow-listing) — OK to include?
