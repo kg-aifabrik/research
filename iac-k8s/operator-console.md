@@ -4,6 +4,8 @@ The screens of the operator console and the features each one exposes. Styling i
 
 Each screen below lists its **purpose**, **layout** (the Bootstrap pieces used), **features**, and the **backend action** it triggers (endpoints defined in [design.md](design.md)). Every change-making action follows the same rule: it opens a reviewed pull request — nothing is applied without approval (requirement R8).
 
+> **Screenshots** under each screen are exported from `console-mockup.html` (images live in [`screens/`](screens/)). If an image is missing, open the mockup in a browser — it is the live source.
+
 Common chrome: a dark **left sidebar** (`navbar`/list) with the six screen links and the operator identity; a top bar with the screen title and a "MOCK" badge in the mockup. Acronyms: UI = user interface; PR = pull request; FOP = Fleet Operations Plane; MGMT = Management Plane.
 
 ---
@@ -12,8 +14,10 @@ Common chrome: a dark **left sidebar** (`navbar`/list) with the six screen links
 
 - **Purpose:** see every cluster at a glance — the answer to "what do we have and is it healthy?"
 - **Layout:** a Bootstrap `table` on a white `shadow-sm` card; colored `badge`s for environment (dev/stage/prod), status, hardened state, and audit result.
-- **Features:** one row per cluster showing **cluster name, environment, purpose, status, hardened/enforced state (with a lock icon when Confidential), last audit result, and monthly cost**. The 6 rows are the {dev,stage,prod} × {FOP,MGMT} matrix. Clicking a row opens its **Cluster & Day-2** screen.
-- **Backend:** `GET /clusters` — merges desired state (Git), live state (via GKE Connect Gateway), and cost (BigQuery).
+- **Features:** one row per cluster showing **cluster name, environment, purpose, status, hardened/enforced state (with a lock icon when Confidential), last audit result, and monthly cost**. The 6 rows are the {dev,stage,prod} × {FOP,MGMT} matrix. Clicking a row opens its **Cluster & Day-2** screen. Each row also has a **delete (trash) button** to tear a cluster down — handy during testing; like every change it opens a reviewed *destroy* pull request.
+- **Backend:** `GET /clusters` — merges desired state (Git), live state (via GKE Connect Gateway), and cost (BigQuery); `DELETE /clusters/{id}` authors the destroy PR.
+
+![Inventory screen](screens/01-inventory.png)
 
 ## 2. Create cluster  (`#create`)
 
@@ -22,12 +26,16 @@ Common chrome: a dark **left sidebar** (`navbar`/list) with the six screen links
 - **Features:** pick **environment** and **purpose**; set **region** and **release channel** (update cadence); define **node pools** (name, machine type, min/max) with a **Confidential (memory-encrypting) toggle per pool** (operator choice, R11). The button **"Open pull request (preview)"** does not build anything — it proposes the change.
 - **Backend:** `POST /clusters` → writes the Terraform spec into the env folder and opens a PR. The operator then goes to **Review & approve**.
 
+![Create cluster screen](screens/02-create.png)
+
 ## 3. Review & approve  (`#review`)
 
 - **Purpose:** the approval gate — see exactly what will change, then approve (R8).
 - **Layout:** a master/detail split — a `table` of open/recent PRs on the left; on the right a `card` showing the **plan** (the preview of changes) in a dark `pre` code block, with the approver note and action buttons.
 - **Features:** select a PR → read its **plan** ("14 to add, 0 to change…") → **Approve & apply** (or open it in GitHub). Status `badge`s show *awaiting approval / applied*. Required on **every** change, all environments.
 - **Backend:** `GET /runs`, `GET /runs/{id}` (plan from the Actions artifact), `POST /runs/{id}/approve` (approve the GitHub Environment / merge → apply runs).
+
+![Review and approve screen](screens/03-review.png)
 
 ## 4. Cluster & Day-2  (`#cluster`)
 
@@ -40,6 +48,8 @@ Common chrome: a dark **left sidebar** (`navbar`/list) with the six screen links
 - **Source of truth:** what is shown here — pools, machine types, Confidential flags — is exactly what is committed in Git for this cluster (R7).
 - **Backend:** `POST /clusters/{id}/nodepools`, `.../upgrade`, `.../maintenance`, `DELETE /clusters/{id}` — all author PRs; read-only status comes via Connect Gateway.
 
+![Cluster and Day-2 screen](screens/04-cluster-day2.png)
+
 ## 5. Security & audit  (`#security`)
 
 - **Purpose:** show that security is being **enforced as a closed loop** (R5) and provide the daily **evidence** (R6).
@@ -49,12 +59,16 @@ Common chrome: a dark **left sidebar** (`navbar`/list) with the six screen links
   - **Latest audit:** anomalies flagged in an `alert` (e.g. "drift — a policy was edited out of band, self-healed 22s later"); a table of per-cluster **benchmark score, drift count, and a link to the archived report**.
 - **Backend:** `GET /audit/reports` (from `reports/` in Git), `POST /audit/run`; closed-loop status read from ArgoCD.
 
+![Security and audit screen](screens/05-security-audit.png)
+
 ## 6. Cost  (`#cost`)
 
 - **Purpose:** per-cluster cost transparency (R12).
 - **Layout:** a `card` with a `table`; simple CSS bars give a quick visual; a total in the footer.
 - **Features:** **cost per cluster this month**, ranked, with a bar and dollar figure; grouped by the **environment / purpose / cluster labels**; a monthly total. Sourced from GKE Cost Allocation exported to BigQuery (Google's billing data warehouse).
 - **Backend:** `GET /cost` — queries the cost-allocation export.
+
+![Cost screen](screens/06-cost.png)
 
 ---
 
