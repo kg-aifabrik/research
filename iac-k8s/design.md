@@ -109,6 +109,8 @@ sequenceDiagram
 
 To guarantee **what is approved is what is applied**, the workflow uses a **saved plan**: `terraform plan -out=tfplan` produces the artifact, and apply runs that exact file (`terraform apply tfplan`) rather than re-planning. If reality drifted between preview and apply, applying the stale plan safely fails instead of doing something unreviewed. Sensitive values in plan output are masked.
 
+**Plan retention (what we keep, what we don't).** The **binary `tfplan` is not committed to Git** — it is opaque, tied to one state/version, and can contain secrets in the clear. It lives only as a short-lived build artifact for the apply step. What we keep for reference is the **human-readable plan**: it is preserved permanently in the **PR comment** (tied to the merge commit and approval), and for long-term audit the **sanitized plan text** (`terraform show -no-color`, secrets masked) is archived alongside the daily evidence in `reports/`. The durable record of "what the infrastructure was, and who approved it" is the triad of **versioned Terraform state** (Cloud Storage bucket with versioning) + **Git history** + **PR approvals** — reconstructable without any old plan files.
+
 **2) Closed-loop security enforcement (continuous).** No human in the steady-state loop.
 
 ```mermaid
