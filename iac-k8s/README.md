@@ -24,5 +24,8 @@ Tooling to build a hardened, highly-available, regional GKE cluster and manage i
 - **D10 — ArgoCD is the single GitOps engine.** Config Sync dropped; ArgoCD delivers both the guardrail policy package (k8s-hardening Tier-1 + Kyverno) and the workloads, with auto-sync + self-heal for drift. D6 removed the fleet-scale rationale for Config Sync, and one OSS engine avoids the GKE Enterprise fee. Guardrails vs apps separated by ArgoCD projects + sync waves. See [01](01-provisioning-and-iac.md#decision-argocd-as-the-single-gitops-engine-d10).
 - **D11 — GitHub Actions is the Terraform execution backend.** Keyless via WIF; Environments + required reviewers as the apply gate; console drives it through the Actions API. Self-hosted runners on the FOP for production; GitHub-hosted acceptable for the POC. Atlantis and HCP/TFE rejected. See [05](05-operator-console.md#decision-terraform-execution-backend--github-actions-d11).
 
+## Direction under review (post-POC)
+- **[build-vs-buy-platform.md](build-vs-buy-platform.md)** re-evaluates the engine against 7 operator-console goals (incl. future resource types like Postgres/buckets) and **recommends pivoting to Crossplane** on a small tools cluster (resources as K8s CRDs + Compositions to raise the abstraction), with a thin FastAPI+React operator console over it, ArgoCD-synced Git claims, and kube-bench/kubescape daily audits. This **supersedes D11** (GitHub Actions as TF engine) and reframes D8/D10. Config Connector (KCC) is the lighter GCP-native fallback. **Pending decision.**
+
 ## Next step
-- All design decisions captured (D1–D11). POC implementation plan drafted in [implementation-plan.md](implementation-plan.md) — under review.
+- POC (M1–M3) complete; see [implementation-plan.md](implementation-plan.md). Decide on the build-vs-buy recommendation above before resuming the step-by-step build.
