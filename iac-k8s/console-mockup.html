@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>iac-console — operator console (mockup)</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+<style>
+  body{background:#f6f8fa}
+  .sidebar{width:230px;min-height:100vh;background:#1f2937}
+  .sidebar a{color:#cbd5e1;text-decoration:none;display:block;padding:.55rem .9rem;border-radius:.4rem;font-size:.92rem}
+  .sidebar a:hover{background:#374151;color:#fff}
+  .sidebar a.active{background:#2563eb;color:#fff}
+  .content{flex:1;padding:1.4rem 1.8rem}
+  pre.plan{background:#0d1117;color:#c9d1d9;padding:1rem;border-radius:.5rem;font-size:.78rem;white-space:pre-wrap}
+  .bar{height:14px;background:#2563eb;border-radius:7px}
+  .screen{display:none}.screen.active{display:block}
+  .muted{color:#6b7280;font-size:.85rem}
+</style></head>
+<body>
+<div class="d-flex">
+  <!-- sidebar -->
+  <div class="sidebar text-white p-3">
+    <div class="h5 mb-3"><i class="bi bi-kanban me-2"></i>iac-console</div>
+    <a href="#inventory"><i class="bi bi-diagram-3 me-2"></i>Inventory</a>
+    <a href="#create"><i class="bi bi-plus-square me-2"></i>Create cluster</a>
+    <a href="#review"><i class="bi bi-clipboard-check me-2"></i>Review &amp; approve</a>
+    <a href="#cluster"><i class="bi bi-hdd-stack me-2"></i>Cluster &amp; Day-2</a>
+    <a href="#security"><i class="bi bi-shield-check me-2"></i>Security &amp; audit</a>
+    <a href="#cost"><i class="bi bi-cash-coin me-2"></i>Cost</a>
+    <hr class="text-secondary"/>
+    <div class="muted text-secondary">operator: sre@aifabrik</div>
+  </div>
+
+  <div class="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h4 id="title" class="mb-0">Inventory</h4>
+      <span class="badge text-bg-warning"><i class="bi bi-eye me-1"></i>MOCK — illustrative data</span>
+    </div>
+
+    <!-- INVENTORY -->
+    <div id="inventory" class="screen">
+      <table class="table bg-white shadow-sm align-middle">
+        <thead><tr class="text-muted"><th>Cluster</th><th>Environment</th><th>Purpose</th><th>Status</th><th>Hardened</th><th>Last audit</th><th>Cost / mo</th></tr></thead>
+        <tbody>
+          <tr><td><b>dev-fop</b></td><td><span class="badge text-bg-secondary">dev</span></td><td>FOP</td><td><span class="badge text-bg-success">Running</span></td><td><span class="badge text-bg-success"><i class="bi bi-shield-check"></i> enforced</span></td><td>✓ clean</td><td>$182</td></tr>
+          <tr><td><b>dev-mgmt</b></td><td><span class="badge text-bg-secondary">dev</span></td><td>MGMT</td><td><span class="badge text-bg-success">Running</span></td><td><span class="badge text-bg-success"><i class="bi bi-shield-check"></i> enforced</span></td><td>✓ clean</td><td>$176</td></tr>
+          <tr><td><b>stage-fop</b></td><td><span class="badge text-bg-info">stage</span></td><td>FOP</td><td><span class="badge text-bg-success">Running</span></td><td><span class="badge text-bg-success"><i class="bi bi-shield-check"></i> enforced</span></td><td><span class="text-warning">⚠ 1 finding</span></td><td>$314</td></tr>
+          <tr><td><b>stage-mgmt</b></td><td><span class="badge text-bg-info">stage</span></td><td>MGMT</td><td><span class="badge text-bg-success">Running</span></td><td><span class="badge text-bg-success"><i class="bi bi-shield-check"></i> enforced</span></td><td>✓ clean</td><td>$321</td></tr>
+          <tr><td><b>prod-fop</b></td><td><span class="badge text-bg-danger">prod</span></td><td>FOP</td><td><span class="badge text-bg-success">Running</span></td><td><span class="badge text-bg-success"><i class="bi bi-shield-check"></i> enforced</span></td><td>✓ clean</td><td>$498</td></tr>
+          <tr><td><b>prod-mgmt</b></td><td><span class="badge text-bg-danger">prod</span></td><td>MGMT</td><td><span class="badge text-bg-success">Running</span></td><td><span class="badge text-bg-success"><i class="bi bi-lock"></i> enforced · Confidential</span></td><td>✓ clean</td><td>$642</td></tr>
+        </tbody>
+      </table>
+      <div class="muted">6 clusters · {dev, stage, prod} × {FOP, MGMT} · all changes flow through reviewed pull requests.</div>
+    </div>
+
+    <!-- CREATE -->
+    <div id="create" class="screen">
+      <div class="card shadow-sm" style="max-width:640px">
+        <div class="card-header">Create a cluster</div>
+        <div class="card-body">
+          <p class="muted">Opens a pull request with the Terraform change; a preview runs and waits for approval before anything is built.</p>
+          <div class="row g-3">
+            <div class="col"><label class="form-label">Environment</label>
+              <select class="form-select"><option>dev</option><option>stage</option><option>prod</option></select></div>
+            <div class="col"><label class="form-label">Purpose</label>
+              <select class="form-select"><option>FOP — Fleet Operations Plane</option><option>MGMT — Management Plane</option></select></div>
+          </div>
+          <div class="row g-3 mt-1">
+            <div class="col"><label class="form-label">Region</label><input class="form-control" value="us-central1"/></div>
+            <div class="col"><label class="form-label">Release channel</label>
+              <select class="form-select"><option>REGULAR</option><option>STABLE</option><option>EXTENDED</option></select></div>
+          </div>
+          <hr/>
+          <div class="d-flex justify-content-between align-items-center mb-2"><b>Node pools</b><button class="btn btn-sm btn-outline-secondary"><i class="bi bi-plus"></i> Add pool</button></div>
+          <table class="table table-sm"><thead><tr class="text-muted"><th>Name</th><th>Machine</th><th>Min/Max</th><th>Confidential</th></tr></thead>
+            <tbody>
+              <tr><td>system</td><td>e2-standard-2</td><td>1 / 2</td><td><input type="checkbox" class="form-check-input"/></td></tr>
+              <tr><td>general</td><td>e2-standard-2</td><td>1 / 3</td><td><input type="checkbox" class="form-check-input"/></td></tr>
+            </tbody></table>
+          <div class="form-text mb-3">Confidential = memory-encrypting nodes (AMD SEV); operator choice per pool.</div>
+          <button class="btn btn-primary"><i class="bi bi-git me-1"></i>Open pull request (preview)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- REVIEW -->
+    <div id="review" class="screen">
+      <div class="row">
+        <div class="col-md-5">
+          <table class="table bg-white shadow-sm"><thead><tr class="text-muted"><th>PR</th><th>Change</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr class="table-active"><td>#42</td><td>Create dev-fop</td><td><span class="badge text-bg-warning">awaiting approval</span></td></tr>
+            <tr><td>#41</td><td>prod-mgmt: add confidential pool</td><td><span class="badge text-bg-success">applied</span></td></tr>
+            <tr><td>#40</td><td>stage-fop: upgrade to 1.31</td><td><span class="badge text-bg-success">applied</span></td></tr>
+          </tbody></table>
+        </div>
+        <div class="col-md-7">
+          <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between">PR #42 · Create dev-fop <span class="badge text-bg-warning">awaiting approval</span></div>
+            <div class="card-body">
+              <pre class="plan">  # google_container_cluster.dev_fop will be created
+  + name             = "dev-fop"
+  + location         = "us-central1"   # regional / 3 zones
+  + private_endpoint = true            # reached via Connect Gateway
+  + workload_identity / shielded / dataplane_v2 / kms = (enabled)
+  + binary_authorization = audit
+  # node pools: system, general (COS, e2-standard-2)
+
+Plan: 14 to add, 0 to change, 0 to destroy.</pre>
+              <div class="muted mb-2">Approver: <b>you</b> · required on every change (all environments).</div>
+              <button class="btn btn-success me-2"><i class="bi bi-check2-circle me-1"></i>Approve &amp; apply</button>
+              <button class="btn btn-outline-secondary">View in GitHub</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLUSTER / DAY-2 -->
+    <div id="cluster" class="screen">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">prod-mgmt <span class="muted">· prod · Management Plane · us-central1</span></h5>
+        <div><button class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-arrow-up-circle"></i> Upgrade</button>
+          <button class="btn btn-sm btn-outline-secondary me-1"><i class="bi bi-clock-history"></i> Maintenance</button>
+          <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete</button></div>
+      </div>
+      <div class="card shadow-sm mb-3"><div class="card-header d-flex justify-content-between">Node pools
+        <button class="btn btn-sm btn-primary"><i class="bi bi-plus"></i> Add pool</button></div>
+        <div class="card-body"><table class="table table-sm align-middle mb-0">
+          <thead><tr class="text-muted"><th>Pool</th><th>Machine</th><th>Nodes</th><th>Confidential</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>system</td><td>e2-standard-2</td><td>2</td><td>—</td><td class="text-end"><button class="btn btn-sm btn-outline-secondary">Resize</button></td></tr>
+            <tr><td>general</td><td>e2-standard-2</td><td>3</td><td>—</td><td class="text-end"><button class="btn btn-sm btn-outline-secondary me-1">Resize</button><button class="btn btn-sm btn-outline-secondary">Drain</button></td></tr>
+            <tr><td>confidential</td><td>n2d-standard-2</td><td>2</td><td><span class="badge text-bg-primary"><i class="bi bi-lock"></i> AMD SEV</span></td><td class="text-end"><button class="btn btn-sm btn-outline-danger">Remove</button></td></tr>
+          </tbody></table></div></div>
+      <div class="muted">Version 1.31.4 · REGULAR channel · next maintenance Sat 02:00. Every action here opens a reviewed PR.</div>
+    </div>
+
+    <!-- SECURITY & AUDIT -->
+    <div id="security" class="screen">
+      <div class="row g-3">
+        <div class="col-md-5"><div class="card shadow-sm"><div class="card-header">Closed-loop status (ArgoCD)</div>
+          <div class="card-body">
+            <div class="d-flex justify-content-between"><span>prod-mgmt guardrails</span><span class="badge text-bg-success">Synced · Healthy</span></div>
+            <div class="muted mb-3">10 Kyverno policies · self-heal on</div>
+            <div class="d-flex justify-content-between"><span>Pod Security</span><span class="badge text-bg-success">restricted</span></div>
+            <div class="d-flex justify-content-between mt-1"><span>Binary Authorization</span><span class="badge text-bg-secondary">audit</span></div>
+            <button class="btn btn-sm btn-outline-primary mt-3"><i class="bi bi-play-circle"></i> Run scan now</button>
+          </div></div></div>
+        <div class="col-md-7"><div class="card shadow-sm"><div class="card-header d-flex justify-content-between">Latest audit <span class="muted">2026-06-03 02:00</span></div>
+          <div class="card-body">
+            <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i><b>1 anomaly · stage-fop:</b> drift — a NetworkPolicy was edited out of band (self-healed 22s later).</div>
+            <table class="table table-sm mb-0"><thead><tr class="text-muted"><th>Cluster</th><th>CIS score</th><th>Drift</th><th>Report</th></tr></thead>
+              <tbody>
+                <tr><td>prod-mgmt</td><td><span class="badge text-bg-success">pass</span></td><td>none</td><td><a href="#">delta.md</a></td></tr>
+                <tr><td>stage-fop</td><td><span class="badge text-bg-success">pass</span></td><td><span class="text-warning">1 (healed)</span></td><td><a href="#">delta.md</a></td></tr>
+                <tr><td>dev-fop</td><td><span class="badge text-bg-success">pass</span></td><td>none</td><td><a href="#">delta.md</a></td></tr>
+              </tbody></table>
+          </div></div></div>
+      </div>
+    </div>
+
+    <!-- COST -->
+    <div id="cost" class="screen">
+      <div class="card shadow-sm" style="max-width:760px"><div class="card-header d-flex justify-content-between">Cost by cluster <span class="muted">this month · from BigQuery cost allocation</span></div>
+        <div class="card-body">
+          <table class="table align-middle mb-0">
+            <tbody>
+              <tr><td style="width:140px"><b>prod-mgmt</b></td><td><div class="bar" style="width:90%"></div></td><td class="text-end">$642</td></tr>
+              <tr><td><b>prod-fop</b></td><td><div class="bar" style="width:70%"></div></td><td class="text-end">$498</td></tr>
+              <tr><td><b>stage-mgmt</b></td><td><div class="bar" style="width:45%"></div></td><td class="text-end">$321</td></tr>
+              <tr><td><b>stage-fop</b></td><td><div class="bar" style="width:44%"></div></td><td class="text-end">$314</td></tr>
+              <tr><td><b>dev-fop</b></td><td><div class="bar" style="width:26%"></div></td><td class="text-end">$182</td></tr>
+              <tr><td><b>dev-mgmt</b></td><td><div class="bar" style="width:25%"></div></td><td class="text-end">$176</td></tr>
+            </tbody></table>
+          <hr/><div class="d-flex justify-content-between"><span class="muted">grouped by environment / purpose / cluster labels</span><b>Total $2,133 / mo</b></div>
+        </div></div>
+    </div>
+
+  </div>
+</div>
+<script>
+  const titles={inventory:"Inventory",create:"Create cluster",review:"Review & approve",cluster:"Cluster & Day-2",security:"Security & audit",cost:"Cost"};
+  function route(){
+    const id=(location.hash||"#inventory").slice(1);
+    document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active",s.id===id));
+    document.querySelectorAll(".sidebar a").forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+id));
+    document.getElementById("title").textContent=titles[id]||"Inventory";
+  }
+  window.addEventListener("hashchange",route); route();
+</script>
+</body></html>

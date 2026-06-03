@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1220 1020" font-family="'Comic Sans MS','Segoe Print','Bradley Hand','Chalkboard SE',Chalkboard,cursive" font-size="14">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#343a40"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#868e96"/></marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e03131"/></marker>
+  </defs>
+  <style>
+    text{fill:#1e1e1e}.t{text-anchor:middle}.s{font-size:12px;fill:#495057}.tag{font-size:11px;fill:#1971c2}
+    .e{stroke:#343a40;stroke-width:2;fill:none;stroke-linecap:round}
+    .ed{stroke:#868e96;stroke-width:2;fill:none;stroke-dasharray:6 6;stroke-linecap:round}
+    .er{stroke:#e03131;stroke-width:3;fill:none;stroke-linecap:round}
+  </style>
+
+  <text x="610" y="34" class="t" font-size="22">iac-k8s — Operator Console: end-to-end design</text>
+
+  <!-- operator -->
+  <rect x="40" y="82" width="150" height="54" rx="12" fill="#a5d8ff" stroke="#1971c2"/>
+  <text x="115" y="106" class="t">👤 Operator</text><text x="115" y="124" class="t s">(SRE)</text>
+
+  <!-- management cluster container -->
+  <rect x="230" y="68" width="950" height="156" rx="14" fill="#f1f3f5" stroke="#495057"/>
+  <text x="245" y="88" class="s" font-size="13" fill="#495057">Management cluster — small GKE (Autopilot); created once via runbook</text>
+  <rect x="255" y="100" width="270" height="98" rx="11" fill="#a5d8ff" stroke="#1971c2"/>
+  <text x="390" y="140" class="t">Operator Console</text><text x="390" y="160" class="t s">FastAPI + React (Bootstrap)</text><text x="390" y="178" class="t s">opens PRs · shows status</text>
+  <rect x="545" y="100" width="300" height="98" rx="11" fill="#d0bfff" stroke="#7048e8"/>
+  <text x="695" y="140" class="t">ArgoCD</text><text x="695" y="160" class="t s">closed-loop guardrails</text><text x="695" y="178" class="t s">sync + self-heal</text>
+  <rect x="865" y="100" width="290" height="98" rx="11" fill="#ffe8cc" stroke="#e8590c"/>
+  <text x="1010" y="140" class="t">Daily audit</text><text x="1010" y="160" class="t s">kube-bench · kubescape</text><text x="1010" y="178" class="t s">archive evidence</text>
+
+  <!-- git + actions -->
+  <rect x="120" y="276" width="430" height="82" rx="12" fill="#ffec99" stroke="#f08c00"/>
+  <text x="335" y="304" class="t">Git — source of truth</text><text x="335" y="324" class="t s">Terraform specs + guardrail specs</text><text x="335" y="342" class="t s">every change = reviewed PR</text>
+  <rect x="660" y="276" width="500" height="82" rx="12" fill="#b2f2bb" stroke="#2f9e44"/>
+  <text x="910" y="304" class="t">GitHub Actions — Terraform plan / apply</text><text x="910" y="324" class="t s">keyless (Workload Identity Federation)</text><text x="910" y="342" class="t s">✋ approval required on EVERY change (all envs)</text>
+
+  <!-- connect gateway -->
+  <rect x="230" y="404" width="700" height="56" rx="12" fill="#c3fae8" stroke="#0ca678"/>
+  <text x="580" y="428" class="t">GKE Connect Gateway — fleet · IAM</text><text x="580" y="446" class="t s">reach private clusters: no public endpoint, no IP allow-list, no VPN</text>
+
+  <!-- projects -->
+  <g>
+    <rect x="60" y="500" width="360" height="200" rx="13" fill="#f3f0ff" stroke="#7048e8"/>
+    <text x="240" y="522" class="t s" fill="#5f3dc4">dev project (aifabrik-dev)</text>
+    <rect x="82" y="536" width="150" height="74" rx="10" fill="#fff" stroke="#7048e8"/><text x="157" y="568" class="t">FOP</text><text x="157" y="586" class="t s">cluster</text>
+    <rect x="248" y="536" width="150" height="74" rx="10" fill="#fff" stroke="#7048e8"/><text x="323" y="568" class="t">MGMT</text><text x="323" y="586" class="t s">cluster</text>
+    <text x="240" y="640" class="t s">hardened: CIS L2 · COS · private · WI · KMS</text>
+    <text x="240" y="660" class="t s">regional (3 AZ) · approvals enforced</text>
+  </g>
+  <g>
+    <rect x="440" y="500" width="360" height="200" rx="13" fill="#f3f0ff" stroke="#7048e8"/>
+    <text x="620" y="522" class="t s" fill="#5f3dc4">stage project (aifabrik-stage)</text>
+    <rect x="462" y="536" width="150" height="74" rx="10" fill="#fff" stroke="#7048e8"/><text x="537" y="568" class="t">FOP</text><text x="537" y="586" class="t s">cluster</text>
+    <rect x="628" y="536" width="150" height="74" rx="10" fill="#fff" stroke="#7048e8"/><text x="703" y="568" class="t">MGMT</text><text x="703" y="586" class="t s">cluster</text>
+    <text x="620" y="640" class="t s">same standard · Confidential optional</text>
+    <text x="620" y="660" class="t s">(operator choice per cluster)</text>
+  </g>
+  <g>
+    <rect x="820" y="500" width="360" height="200" rx="13" fill="#f3f0ff" stroke="#7048e8"/>
+    <text x="1000" y="522" class="t s" fill="#5f3dc4">prod project (aifabrik-prod)</text>
+    <rect x="842" y="536" width="150" height="74" rx="10" fill="#fff" stroke="#7048e8"/><text x="917" y="568" class="t">FOP</text><text x="917" y="586" class="t s">cluster</text>
+    <rect x="1008" y="536" width="150" height="74" rx="10" fill="#fff" stroke="#7048e8"/><text x="1083" y="568" class="t">MGMT</text><text x="1083" y="586" class="t s">cluster</text>
+    <text x="1000" y="640" class="t s">≤ 6 clusters total =</text>
+    <text x="1000" y="660" class="t s">{dev,stage,prod} × {FOP,MGMT}</text>
+  </g>
+
+  <!-- cost + boundary -->
+  <rect x="60" y="744" width="540" height="62" rx="12" fill="#ffe8cc" stroke="#e8590c"/>
+  <text x="330" y="770" class="t">Cost transparency</text><text x="330" y="789" class="t s">labels + GKE Cost Allocation → BigQuery → console cost views</text>
+  <rect x="700" y="744" width="480" height="62" rx="12" fill="#ffc9c9" stroke="#e03131" stroke-dasharray="8 5"/>
+  <text x="940" y="770" class="t">⤵ on-prem / per-site fleet</text><text x="940" y="789" class="t s">managed by Rafay — OUT OF SCOPE</text>
+
+  <!-- edges -->
+  <path class="e" d="M190,110 C215,118 230,132 253,142" marker-end="url(#a)"/>
+  <path class="e" d="M360,200 C350,235 345,250 338,276" marker-end="url(#a)"/>
+  <text x="300" y="250" class="tag" text-anchor="end">open PR</text>
+  <path class="e" d="M550,312 L656,312" marker-end="url(#a)"/>
+  <text x="603" y="304" class="tag t">approved merge</text>
+  <path class="e" d="M905,358 C880,430 760,470 660,500" marker-end="url(#a)"/>
+  <text x="840" y="430" class="tag">provision / change</text>
+  <path class="e" d="M690,200 C660,300 620,360 600,404" marker-end="url(#a)"/>
+  <text x="628" y="320" class="tag" text-anchor="end">enforce</text>
+  <path class="e" d="M1005,200 C980,300 900,370 760,408" marker-end="url(#a)"/>
+  <path class="e" d="M560,460 L520,500" marker-end="url(#a)"/>
+  <path class="e" d="M620,460 L660,500" marker-end="url(#a)"/>
+  <path class="ed" d="M420,610 C470,690 360,720 350,744" marker-end="url(#ag)"/>
+  <path class="ed" d="M330,744 C300,690 360,250 392,200" marker-end="url(#ag)"/>
+  <text x="250" y="470" class="s" transform="rotate(-90 250 470)">cost views → console</text>
+</svg>
