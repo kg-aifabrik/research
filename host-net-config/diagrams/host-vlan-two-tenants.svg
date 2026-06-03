@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 0 1389 860" width="1389" height="860" font-family="Helvetica, Arial, sans-serif"><!-- svg-source:excalidraw-scene -->
+<rect x="20" y="0" width="1389" height="860" fill="#ffffff"/>
+<text x="40.0" y="42.8" font-size="24" fill="#1e1e1e" text-anchor="start" font-weight="bold">Host VLAN config &amp; VRF mapping — two hosts, two tenants</text>
+<text x="40.0" y="66.2" font-size="15" fill="#495057" text-anchor="start">Identical VLAN scheme emitted by every host; the leaf {port,VLAN}→VNI binding decides the tenant</text>
+<rect x="80" y="110" width="360" height="64" rx="8" fill="#ffd8a8" stroke="#e8590c" stroke-width="2"/>
+<text x="95.0" y="132.3" font-size="13" fill="#e8590c" text-anchor="start">tenant-A VRF (L3VNI)</text>
+<text x="95.0" y="148.6" font-size="13" fill="#e8590c" text-anchor="start">ingress + pod CIDRs + RoCE</text>
+<rect x="560" y="95" width="300" height="52" rx="8" fill="#a5d8ff" stroke="#1971c2" stroke-width="2"/>
+<text x="575.0" y="114.4" font-size="12" fill="#1971c2" text-anchor="start">host-vrf (shared)</text>
+<text x="575.0" y="129.4" font-size="12" fill="#1971c2" text-anchor="start">PXE, kubelet↔API, ops</text>
+<rect x="560" y="158" width="300" height="52" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="575.0" y="177.4" font-size="12" fill="#2f9e44" text-anchor="start">storage-vrf (shared)</text>
+<text x="575.0" y="192.4" font-size="12" fill="#2f9e44" text-anchor="start">Weka, FS-layer tenancy</text>
+<rect x="980" y="110" width="360" height="64" rx="8" fill="#d0bfff" stroke="#7048e8" stroke-width="2"/>
+<text x="995.0" y="132.3" font-size="13" fill="#7048e8" text-anchor="start">tenant-B VRF (L3VNI)</text>
+<text x="995.0" y="148.6" font-size="13" fill="#7048e8" text-anchor="start">ingress + pod CIDRs + RoCE</text>
+<text x="470.0" y="139.4" font-size="12" fill="#e03131" text-anchor="start">✕ no route</text>
+<text x="470.0" y="154.4" font-size="12" fill="#e03131" text-anchor="start">leaking</text>
+<text x="880.0" y="139.4" font-size="12" fill="#e03131" text-anchor="start">✕ no route</text>
+<text x="880.0" y="154.4" font-size="12" fill="#e03131" text-anchor="start">leaking</text>
+<rect x="80" y="250" width="1260" height="52" rx="8" fill="#fff9db" stroke="#f08c00" stroke-width="2"/>
+<text x="95.0" y="270.4" font-size="13" fill="#e8590c" text-anchor="start">Leaf fabric — {port, VLAN} → VNI binding   ◆ this is the ONLY place tenancy is decided; host config is identical fleet-wide</text>
+<rect x="120" y="360" width="420" height="300" rx="8" fill="#ffffff" stroke="#e8590c" stroke-width="2"/>
+<text x="135.0" y="382.2" font-size="15" fill="#e8590c" text-anchor="start">HGX B300  #A1 — assigned tenant A</text>
+<rect x="140" y="398" width="290" height="180" rx="8" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+<text x="150.0" y="415.4" font-size="12" fill="#1e1e1e" text-anchor="start">bond0 — 2× BF-3 DPU, LACP 2×400G</text>
+<rect x="150" y="430" width="270" height="30" rx="8" fill="#a5d8ff" stroke="#1971c2" stroke-width="2"/>
+<text x="160.0" y="448.4" font-size="12" fill="#1e1e1e" text-anchor="start">bond0.100  mgmt</text>
+<rect x="150" y="466" width="270" height="30" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="160.0" y="484.4" font-size="12" fill="#1e1e1e" text-anchor="start">bond0.200  storage</text>
+<rect x="150" y="502" width="270" height="30" rx="8" fill="#ffd8a8" stroke="#e8590c" stroke-width="2"/>
+<text x="160.0" y="520.4" font-size="12" fill="#1e1e1e" text-anchor="start">bond0.300  ingress</text>
+<rect x="150" y="538" width="270" height="30" rx="8" fill="#ffd8a8" stroke="#e8590c" stroke-width="2"/>
+<text x="160.0" y="556.4" font-size="12" fill="#1e1e1e" text-anchor="start">bond0.400  pod (native rt)</text>
+<rect x="140" y="590" width="380" height="52" rx="8" fill="#ffd8a8" stroke="#e8590c" stroke-width="2"/>
+<text x="150.0" y="608.5" font-size="11" fill="#1e1e1e" text-anchor="start">8× ConnectX-8 — RoCE underlay + VFs</text>
+<text x="150.0" y="622.2" font-size="11" fill="#1e1e1e" text-anchor="start">(VF-pinned, tenant-A vrf)</text>
+<rect x="960" y="360" width="420" height="300" rx="8" fill="#ffffff" stroke="#7048e8" stroke-width="2"/>
+<text x="975.0" y="382.2" font-size="15" fill="#7048e8" text-anchor="start">HGX B300  #B1 — assigned tenant B</text>
+<rect x="980" y="398" width="290" height="180" rx="8" fill="#f8f9fa" stroke="#1e1e1e" stroke-width="2"/>
+<text x="990.0" y="415.4" font-size="12" fill="#1e1e1e" text-anchor="start">bond0 — 2× BF-3 DPU, LACP 2×400G</text>
+<rect x="990" y="430" width="270" height="30" rx="8" fill="#a5d8ff" stroke="#1971c2" stroke-width="2"/>
+<text x="1000.0" y="448.4" font-size="12" fill="#1e1e1e" text-anchor="start">bond0.100  mgmt</text>
+<rect x="990" y="466" width="270" height="30" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="1000.0" y="484.4" font-size="12" fill="#1e1e1e" text-anchor="start">bond0.200  storage</text>
+<rect x="990" y="502" width="270" height="30" rx="8" fill="#d0bfff" stroke="#7048e8" stroke-width="2"/>
+<text x="1000.0" y="520.4" font-size="12" fill="#1e1e1e" text-anchor="start">bond0.300  ingress</text>
+<rect x="990" y="538" width="270" height="30" rx="8" fill="#d0bfff" stroke="#7048e8" stroke-width="2"/>
+<text x="1000.0" y="556.4" font-size="12" fill="#1e1e1e" text-anchor="start">bond0.400  pod (native rt)</text>
+<rect x="980" y="590" width="380" height="52" rx="8" fill="#d0bfff" stroke="#7048e8" stroke-width="2"/>
+<text x="990.0" y="608.5" font-size="11" fill="#1e1e1e" text-anchor="start">8× ConnectX-8 — RoCE underlay + VFs</text>
+<text x="990.0" y="622.2" font-size="11" fill="#1e1e1e" text-anchor="start">(VF-pinned, tenant-B vrf)</text>
+<path d="M 285.0 430.0 L 625.0 147.0" fill="none" stroke="#1971c2" stroke-width="2" stroke-linejoin="round"/>
+<line x1="625.0" y1="147.0" x2="620.5" y2="159.2" stroke="#1971c2" stroke-width="2"/>
+<line x1="625.0" y1="147.0" x2="612.2" y2="149.2" stroke="#1971c2" stroke-width="2"/>
+<path d="M 285.0 466.0 L 625.0 210.0" fill="none" stroke="#2f9e44" stroke-width="2" stroke-linejoin="round"/>
+<line x1="625.0" y1="210.0" x2="619.9" y2="222.0" stroke="#2f9e44" stroke-width="2"/>
+<line x1="625.0" y1="210.0" x2="612.1" y2="211.6" stroke="#2f9e44" stroke-width="2"/>
+<path d="M 205.0 430.0 L 205.0 174.0" fill="none" stroke="#e8590c" stroke-width="2" stroke-linejoin="round"/>
+<line x1="205.0" y1="174.0" x2="211.5" y2="185.3" stroke="#e8590c" stroke-width="2"/>
+<line x1="205.0" y1="174.0" x2="198.5" y2="185.3" stroke="#e8590c" stroke-width="2"/>
+<text x="70.0" y="336.4" font-size="11" fill="#e8590c" text-anchor="start">VLAN 300/400 + RoCE → tenant-A vrf</text>
+<path d="M 1125.0 430.0 L 795.0 147.0" fill="none" stroke="#1971c2" stroke-width="2" stroke-linejoin="round"/>
+<line x1="795.0" y1="147.0" x2="807.8" y2="149.4" stroke="#1971c2" stroke-width="2"/>
+<line x1="795.0" y1="147.0" x2="799.3" y2="159.3" stroke="#1971c2" stroke-width="2"/>
+<path d="M 1125.0 466.0 L 795.0 210.0" fill="none" stroke="#2f9e44" stroke-width="2" stroke-linejoin="round"/>
+<line x1="795.0" y1="210.0" x2="807.9" y2="211.8" stroke="#2f9e44" stroke-width="2"/>
+<line x1="795.0" y1="210.0" x2="799.9" y2="222.0" stroke="#2f9e44" stroke-width="2"/>
+<path d="M 1240.0 430.0 L 1240.0 174.0" fill="none" stroke="#7048e8" stroke-width="2" stroke-linejoin="round"/>
+<line x1="1240.0" y1="174.0" x2="1246.5" y2="185.3" stroke="#7048e8" stroke-width="2"/>
+<line x1="1240.0" y1="174.0" x2="1233.5" y2="185.3" stroke="#7048e8" stroke-width="2"/>
+<text x="1090.0" y="336.4" font-size="11" fill="#7048e8" text-anchor="start">VLAN 300/400 + RoCE → tenant-B vrf</text>
+<rect x="80" y="690" width="1260" height="150" rx="8" fill="#ffffff" stroke="#495057" stroke-width="2"/>
+<text x="95.0" y="712.2" font-size="15" fill="#1e1e1e" text-anchor="start">What this means for the host</text>
+<text x="95.0" y="736.4" font-size="13" fill="#1e1e1e" text-anchor="start">• Every host emits the SAME VLAN IDs (100/200/300/400 + RoCE). No per-tenant host config — a node is tenant-agnostic until the leaf binds its ports.</text>
+<text x="95.0" y="759.4" font-size="13" fill="#1e1e1e" text-anchor="start">• VLAN 100 (host-vrf) carries ONLY provider traffic: PXE, kubelet↔vcluster API, telemetry, patching. Default route lives here. No tenant pod data.</text>
+<text x="95.0" y="782.4" font-size="13" fill="#1e1e1e" text-anchor="start">• VLAN 300/400 + RoCE land in the tenant VRF. Native routing: pod CIDRs are advertised by Cilium BGP into that VRF — no host-side overlay encap.</text>
+<text x="95.0" y="805.4" font-size="13" fill="#1e1e1e" text-anchor="start">• Host is multi-VRF: presence in host-vrf (.100) AND its tenant VRF (.300/.400/RoCE). Policy/source routing keeps kubelet on the host table, pods on the tenant table.</text>
+<text x="95.0" y="828.4" font-size="13" fill="#1e1e1e" text-anchor="start">• Reassigning a node to another tenant = rebind {port,VLAN}→VNI at the leaf + scrub/reimage. Zero change to the host&#x27;s Netplan.</text>
+</svg>
