@@ -105,6 +105,10 @@ sequenceDiagram
   GCP-->>UI: status + inventory (via Connect Gateway / state)
 ```
 
+**Plan in the pull request (what the approver sees).** When the console opens the PR, the `plan` workflow runs `terraform plan` and **posts the plan into the PR** — a comment with the add/change/destroy summary and a collapsible full diff — and uploads it as an artifact. The console mirrors that plan on its *Review & approve* screen by reading the artifact. So the approver always reviews the exact changes before approving; viewing the plan needs no approval, only applying does.
+
+To guarantee **what is approved is what is applied**, the workflow uses a **saved plan**: `terraform plan -out=tfplan` produces the artifact, and apply runs that exact file (`terraform apply tfplan`) rather than re-planning. If reality drifted between preview and apply, applying the stale plan safely fails instead of doing something unreviewed. Sensitive values in plan output are masked.
+
 **2) Closed-loop security enforcement (continuous).** No human in the steady-state loop.
 
 ```mermaid
