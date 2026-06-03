@@ -2,6 +2,8 @@
 
 Decision report for the engine under the operator console — re-evaluated from scratch against the 7 goals, explicitly willing to pivot off the POC (Terraform + GitHub Actions).
 
+> **DECIDED (D12): Terraform/CI + console** — the POC path. Immediate scope is ≤6 clusters ({dev,stage,prod} × {FOP,MGMT}); start simple and scale. Crossplane/Config Connector are reconsidered only when non-cluster resource types (Goal 7) become a near-term need or cluster/abstraction pressure grows. Reasoning: at this size, ephemeral-credential safety + explicit `plan`/approve + module reuse + ubiquitous Terraform skills outweigh continuous-reconcile/abstraction — see the [three-way](#a-fair-three-way-the-real-finalists). The analysis below is retained as the durable rationale and the re-evaluation trigger.
+
 ## Table of contents
 - [Executive Summary](#executive-summary)
 - [A fair three-way (the real finalists)](#a-fair-three-way-the-real-finalists)
