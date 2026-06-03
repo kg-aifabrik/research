@@ -47,6 +47,7 @@ We will use **Infrastructure as Code (IaC)** — defining cloud resources in tex
 - **GKE Standard mode, not Autopilot.** Standard lets us control the nodes (needed for confidential, memory-encrypting node pools and host-level agents). Nodes use **Container-Optimized OS (COS)** — Google's hardened, auto-patched node operating system — so node maintenance is near-zero.
 - **Operators only.** No self-service for application teams (this keeps the console simple).
 - **Security-first audit.** The daily audit starts with security checks; cost, capacity, and other checks can come later.
+- **Confidential nodes by environment.** **Stage and prod clusters use memory-encrypting (Confidential) nodes; dev does not.** This keeps dev cheap while protecting the environments that hold real data. *(Open: whether the entire stage/prod cluster is Confidential or just a dedicated pool — see open question 2.)*
 - **Git is the source of truth**, even though a friendly console sits in front; the console writes to Git, it does not bypass it.
 
 ## Out of scope (for now)
@@ -69,7 +70,7 @@ We will use **Infrastructure as Code (IaC)** — defining cloud resources in tex
 ## Open questions for your review
 
 1. **Project layout** (also affects cost tracking, R12): confirm **one project per environment** (3 projects; per-cluster cost works via labels + GKE Cost Allocation). Alternatives: **one project per environment × purpose** (6 projects, one cluster each — cost attribution is trivial, but more projects to manage), or split only prod.
-2. **Confidential nodes:** which clusters actually need the memory-encrypting node pool? (Likely only prod Management Plane, where sensitive end-user data lives.)
-3. **Approval gates:** require a human approval before applying to **stage and prod**, with **dev** fully automatic — agree?
-4. **Reaching the clusters:** to run audits and policy installs, the console needs network access to clusters whose endpoints are locked down. Plan to use **GKE Connect Gateway** (reach clusters through Google's fleet service, no IP allow-listing) — OK to include?
+2. **Confidential scope** (decided: stage + prod use Confidential nodes): make the **whole** stage/prod cluster Confidential (every node memory-encrypting), or a **dedicated Confidential pool** alongside normal pools? *Lean: whole-cluster, for simplicity and a clear security story.*
+3. **Approval gates** (these gate **infrastructure changes** — building/modifying clusters, the Terraform apply): confirm **dev automatic, stage + prod require a reviewer**. Also: do you want the **in-cluster hardening config** changes gated the same way, or only the infrastructure layer?
+4. **Reaching the clusters:** use **GKE Connect Gateway** so the console/audits reach the locked-down clusters via Google's fleet service (IAM-controlled, no IP allow-listing, no VPN). *Explained; confirm OK to adopt.*
 5. **Code repository:** start a fresh `iac-gke` repository for this, or keep building in the existing proof-of-concept repository?
