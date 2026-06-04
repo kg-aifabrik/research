@@ -14,4 +14,5 @@ Reports are written in Markdown.
 | [host-net-config](host-net-config/) | Declarative host network configuration: Netbox-driven intent rendered to Netplan + cloud-init for B300 and non-GPU hosts. |
 | [iac-k8s](iac-k8s/) | Operator console to build and run hardened GKE clusters across dev/stage/prod × FOP/MGMT: Terraform + GitHub Actions + a custom console, ArgoCD closed-loop security, Connect Gateway access. Requirements, exploration/POC, end-to-end design, and console screens. |
 | [k8s-fed](k8s-fed/) | Open source Kubernetes federation technologies for a 50+ edge inference platform. |
+| [k8s-hardening](k8s-hardening/) | Securing on-prem kubeadm and GKE clusters to a common posture: layered threat model, a severity-ranked manual/automation control catalog with verified CVEs, and the kube-bench/kubescape measurement workflow. |
 | [mgmt-plane-setup](mgmt-plane-setup/) | Production management plane on managed K8s: AWS EKS vs GCP GKE cost and architecture comparison (multi-region HA, SOC 2, Cloudflare ingress). |
