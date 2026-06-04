@@ -34,7 +34,7 @@ The work to harden these two clusters has been spread across three repositories 
 
 Confirmed with the requester before this write-up:
 
-- Cover **two cluster types only**: managed **GKE** and self-managed **on-prem `kubeadm`**. (EKS, present in the current tooling, is out of scope for this catalog.)
+- Cover **two cluster types only**: managed **GKE** and self-managed **on-prem `kubeadm`**.
 - Produce **one consolidated catalog** organised as: common controls (apply to both), GKE-specific controls (not applicable on-prem), on-prem-specific controls (not applicable on GKE).
 - **Two sections**, each with its own table: **Section 1 — Manual controls**, **Section 2 — Automation controls** (automation = applied by tooling such as the `k8s-hardening` project).
 - Each table has columns: **Control ID** (e.g. `CTRL-A1`), **Exposure** (what is at risk and how it is exploited), **CVE / published-ID + risk score**, **How to fix**.
@@ -124,7 +124,7 @@ The tooling that turns "are we hardened?" into a number with evidence. It lives 
 |---|---|---|
 | Runs as | A `DaemonSet` Job on **every node** ([`scan/kube-bench-job.yaml`](https://github.com/kg-aifabrik/k8s-hardening/blob/main/scan/kube-bench-job.yaml), image `v0.10.4`), tolerating control-plane taints with `hostPID` + host mounts | The kubescape CLI run **locally against the API**, no in-cluster deploy |
 | Sees | Node-level files & flags: static-pod manifests, kubelet config, etcd, PKI, file permissions (CIS sections 1–4) | API-server state: RBAC, PSS, NetworkPolicy, ServiceAccounts, admission (CIS section 5 + framework controls) |
-| Benchmark | `cis-<ver>` auto-detected; override `--benchmark gke-1.6.0` on GKE, `eks-1.5.0` on EKS | Framework `cis-v1.10.0` (on-prem), GKE framework in cloud |
+| Benchmark | `cis-<ver>` auto-detected on on-prem; `--benchmark gke-1.6.0` on GKE | Framework `cis-v1.10.0` (on-prem), GKE framework in cloud |
 | Output | Per-control pass/fail/warn JSON, aggregated per pod and **deduplicated** (control-plane sections counted once; node/policy sections deduped across nodes) | Per-control status + native `complianceScore`, failed-resource list |
 | Why both | kube-bench reaches what only a node can see; kubescape reaches what only the API can see. Together they cover the control plane *and* the workload layer. | |
 

@@ -12,4 +12,4 @@ Securing two Kubernetes worlds — self-managed on-prem `kubeadm` and managed Go
 
 - The measurement flow is two-point (baseline → hardened); the catalog's workflow calls for a **third post-manual measurement** and an operator-facing manual-controls checklist derived into `k8s-hardening/docs/` — captured in a pending implementation plan.
 - Bake-offs still unresolved: admission engine (Kyverno vs GKE Policy Controller vs OPA Gatekeeper), supply-chain enforcement (Binary Authorization vs Kyverno `verifyImages`), runtime detection (Falco vs Tetragon), on-prem node OS (Talos/Flatcar vs conventional), CNI/L7 egress (Cilium vs Calico + mesh), on-prem KMS v2 provider, and encrypted storage (Rook-Ceph vs Longhorn).
-- EKS exists in the current tooling but is out of scope for this catalog (GKE + on-prem only).
+- Scope is **GKE + on-prem `kubeadm` only**.
