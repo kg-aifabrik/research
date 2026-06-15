@@ -1,0 +1,33 @@
+# Multus NetworkAttachmentDefinitions for the two secondary pod interfaces.
+# macvlan over the host's tagged VLAN sub-interfaces; Whereabouts IPAM.
+# Host IPs (.1/.2/.3) and the RGW shim (.250) live in the low /26, excluded here.
+# No default route on either (eth0/Cilium keeps the pod default route).
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: north-south-net
+  namespace: default
+spec:
+  config: |
+    {
+      "cniVersion": "0.3.1",
+      "type": "macvlan",
+      "master": "vlan2033",
+      "mode": "bridge",
+      "ipam": { "type": "whereabouts", "range": "10.6.33.0/24", "exclude": ["10.6.33.0/26"] }
+    }
+---
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: storage-net
+  namespace: default
+spec:
+  config: |
+    {
+      "cniVersion": "0.3.1",
+      "type": "macvlan",
+      "master": "vlan2032",
+      "mode": "bridge",
+      "ipam": { "type": "whereabouts", "range": "10.6.32.0/24", "exclude": ["10.6.32.0/26"] }
+    }
