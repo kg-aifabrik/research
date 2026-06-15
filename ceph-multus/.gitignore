@@ -1,0 +1,10 @@
+# Throwaway VM artifacts (should live in ~/cm-feasibility, but guard anyway)
+*.qcow2
+*.img
+*.iso
+*.fd
+*.pid
+serial.log
+hub.log
+node*/
+run/
