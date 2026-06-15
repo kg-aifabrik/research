@@ -1,0 +1,38 @@
+# Object storage: a Ceph Object Store (RGW S3) + a bucket StorageClass + an
+# ObjectBucketClaim that mints a bucket and S3 credentials. Pools use osd
+# failure domain for the single-node lab.
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: my-store
+  namespace: rook-ceph
+spec:
+  metadataPool:
+    failureDomain: osd
+    replicated: { size: 2, requireSafeReplicaSize: false }
+  dataPool:
+    failureDomain: osd
+    replicated: { size: 2, requireSafeReplicaSize: false }
+  preservePoolsOnDelete: false
+  gateway:
+    port: 80
+    instances: 1
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-ceph-bucket
+provisioner: rook-ceph.ceph.rook.io/bucket
+reclaimPolicy: Delete
+parameters:
+  objectStoreName: my-store
+  objectStoreNamespace: rook-ceph
+---
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: seed-bucket
+  namespace: default
+spec:
+  generateBucketName: seed
+  storageClassName: rook-ceph-bucket

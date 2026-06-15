@@ -1,0 +1,18 @@
+# Pins Ceph's public+cluster networks to the storage VLAN (10.6.32.0/24) so all
+# Ceph traffic rides VLAN 2032, and tunes memory down for a 24 GB lab (POC-only,
+# below Ceph's documented OSD floor). Must exist before the CephCluster.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rook-config-override
+  namespace: rook-ceph
+data:
+  config: |
+    [global]
+    public_network = 10.6.32.0/24
+    cluster_network = 10.6.32.0/24
+    osd_memory_target = 1610612736
+    osd_pool_default_size = 2
+    osd_pool_default_min_size = 1
+    mon_warn_on_pool_no_redundancy = false
+    auth_allow_insecure_global_id_reclaim = false

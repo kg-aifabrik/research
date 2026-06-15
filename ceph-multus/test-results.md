@@ -15,8 +15,8 @@ Toolchain: containerd 2.2.1, kubeadm/kubelet/kubectl **v1.31.14**, Cilium **1.19
 | M0 — multi-VLAN substrate | ✅ pass |
 | M1 — kubeadm + Cilium primary | ✅ pass |
 | M2 — Multus + 3-interface pod | ✅ pass |
-| M3 — Rook-Ceph block + object | ⏳ |
-| M4 — scale to 3 nodes | ⏳ |
+| M3 — Rook-Ceph block + object | ✅ pass |
+| M4 — scale to 3 nodes | ⏸ not run (single-node; see notes) |
 | M5 — seed object store ~1 GB | ⏳ |
 | M6 — demo workload | ⏳ |
 
@@ -82,3 +82,31 @@ the *same* node needs a host **macvlan shim** (added in M3) rather than targetin
 
 **Fix recorded:** `03-multus.sh` originally ran `ls /etc/cni/net.d` without sudo under `set -o pipefail`,
 which aborted the script before the NADs applied; changed to `sudo … || true`.
+
+## M3 — Rook-Ceph: block (RBD) + object (RGW/S3) on the storage VLAN ✅
+
+**Actions** ([k8s/04-rook.sh](k8s/04-rook.sh), [k8s/rook/](k8s/rook/), [k8s/05-block.sh](k8s/05-block.sh),
+[k8s/06-object.sh](k8s/06-object.sh), [k8s/storage-shim.sh](k8s/storage-shim.sh)):
+
+1. Rook operator via Helm; `CephCluster` with `network.provider: host` + a `rook-config-override` setting `public_network=10.6.32.0/24` so Ceph binds on the storage VLAN; OSDs on raw disks `vdb`/`vdc`; memory tuned (`osd_memory_target≈1.5 GiB`).
+2. `CephBlockPool` (`failureDomain: osd`, `size 2`) + RBD StorageClass → PVC mounted in a pod.
+3. `CephObjectStore` (RGW) + `ObjectBucketClaim` → bucket + S3 creds; host macvlan **shim** so storage-net pods can reach RGW over the VLAN; S3 PUT/GET from a pod.
+
+**Result:** Ceph **HEALTH_OK**, **2 OSDs UP on the storage VLAN** (`10.6.32.1:68xx`), RGW active.
+
+```
+# BLOCK (RBD): PVC bound, /dev/rbd0 mounted, write+read verified
+block-pvc   Bound   pvc-...   3Gi   RWO   rook-ceph-block
+/dev/rbd0  2.9G  /mnt/block  ext4 ;  cat test.txt -> hello-ceph-block-1781560893
+
+# OBJECT (RGW/S3) from a pod over the storage VLAN (net2 macvlan -> shim -> RGW):
+GET hello.txt -> hello-object-over-storage-vlan      # PUT+GET+LIST all OK
+```
+
+**Three real issues found & fixed (the meat of this milestone):**
+
+1. **Rook v1.20 CSI never deployed the RBD driver.** v1.20's mandatory `ceph-csi-operator` reconciled the `ClientProfile` but produced **no `Driver` CRs / no `csi-rbdplugin` pods**, so PVCs stuck `Pending` — even after manually creating `Driver` CRs. This is the documented v1.20 CSI breaking change. **Fix:** pin **Rook v1.16.9 + Ceph v19.2.2** (embedded CSI, `enableRbdDriver: true`) — RBD provisions out of the box.
+2. **Ceph mon stays on the in-band VLAN.** With host networking Rook pins the mon endpoint to the node IP (`10.6.31.1`) regardless of `network.addressRanges`. The **data path (OSD/RBD/RGW + replication) is on the storage VLAN**; only the mon control channel is in-band. Chasing this with `addressRanges` + in-place recreate corrupted the cluster (mon `store.db` wiped out from under it → CrashLoopBackOff), forcing a rebuild — so this is accepted and documented rather than forced.
+3. **OSD disks must be truly pristine.** ceph-volume raw-mode bluestore labels survive `dd`/`sgdisk` (the disks keep "belonging to a different ceph cluster"); reliable reuse needed recreating the virtual disk **files** + a clean rebuild. **Lesson baked into [vm/full-build.sh](vm/full-build.sh):** always build on a fresh VM with fresh disks; never recreate a CephCluster in place.
+
+**macvlan shim return-path fix (object on the storage VLAN):** a storage-net pod's S3 request reached the host shim, but replies left via the **parent** `vlan2032` (which can't reach macvlan children). Pinning the Whereabouts pod range (`10.6.32.64/26`, `10.6.32.128/25`) to `dev storage-shim` in [storage-shim.sh](k8s/storage-shim.sh) routes replies out the sibling shim → pod S3 works.

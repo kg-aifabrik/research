@@ -1,0 +1,50 @@
+# Single-node, memory-tuned Rook-CephCluster for the POC. Host networking so
+# Ceph binds on the storage VLAN (public_network set in rook-config-override),
+# and host-network CSI reaches it natively. OSDs on the raw disks vdb/vdc.
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  cephVersion:
+    image: quay.io/ceph/ceph:v19.2.2   # tested image for Rook v1.16.9 (embedded CSI)
+    allowUnsupported: false
+  dataDirHostPath: /var/lib/rook
+  skipUpgradeChecks: false
+  mon:
+    count: 1
+    allowMultiplePerNode: true
+  mgr:
+    count: 1
+    allowMultiplePerNode: true
+  dashboard:
+    enabled: false
+  monitoring:
+    enabled: false
+  crashCollector:
+    disable: true
+  network:
+    provider: host
+    # OSDs honor public_network (10.6.32.0/24, set in rook-config-override) and bind on
+    # the storage VLAN. With host networking Rook pins the mon endpoint to the node IP
+    # (in-band 10.6.31.1) regardless of addressRanges — a documented single-node artifact;
+    # the data path (OSD/RBD/RGW + replication) rides the storage VLAN.
+  storage:
+    useAllNodes: true
+    useAllDevices: false
+    deviceFilter: "^vd[bc]$"   # vda=OS, vdb/vdc=OSDs, seed iso skipped (has fs)
+  resources:
+    osd:
+      requests: { memory: "1Gi", cpu: "250m" }
+      limits: { memory: "2Gi" }
+    mon:
+      requests: { memory: "512Mi" }
+      limits: { memory: "1Gi" }
+    mgr:
+      requests: { memory: "512Mi" }
+      limits: { memory: "1Gi" }
+  healthCheck:
+    daemonHealth:
+      mon: { interval: 45s }
+      osd: { interval: 60s }

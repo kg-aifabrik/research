@@ -30,5 +30,5 @@ kubectl apply -f "$HOME/k8s/nads.yaml"
 kubectl get net-attach-def
 kubectl apply -f "$HOME/k8s/test-pod-3if.yaml"
 kubectl wait --for=condition=Ready pod/tri-net --timeout=150s
-echo "--- interfaces in tri-net ---"
-kubectl exec tri-net -- ip -br addr
+echo "--- interfaces in tri-net (eth0=Cilium, net1=north-south, net2=storage) ---"
+kubectl exec tri-net -- ip -o addr show 2>/dev/null | grep "inet 10" | awk '{print $2, $4}'
