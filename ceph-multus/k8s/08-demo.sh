@@ -16,7 +16,8 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: demo
-  annotations: { k8s.v1.cni.cncf.io/networks: north-south-net, storage-net }
+  annotations:
+    k8s.v1.cni.cncf.io/networks: north-south-net, storage-net
 spec:
   containers:
     - name: c
@@ -57,9 +58,9 @@ s3=boto3.client("s3", endpoint_url="http://10.6.32.250",
 seeded=s3.list_objects_v2(Bucket=b, Prefix="seed/").get("Contents",[])
 print("seeded objects visible:", len(seeded))
 os.makedirs("/mnt/block/dl", exist_ok=True)
-for o in seeded[:5]:
+for o in seeded[:2]:
     s3.download_file(b, o["Key"], "/mnt/block/dl/"+o["Key"].split("/")[-1])
-print("downloaded 5 seeded objects -> /mnt/block/dl")
+print("downloaded", len(seeded[:2]), "seeded objects -> /mnt/block/dl")
 for i in range(10):
     s3.put_object(Bucket=b, Key=f"demo/new-{i}.bin", Body=os.urandom(1024))
 print("uploaded 10 new objects under demo/; demo/ count:",

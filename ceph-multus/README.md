@@ -17,11 +17,14 @@ storage VLAN. It builds the storage half the Suiri lab left unbuilt, on a faithf
   object store.
 - **Demo:** a pod mounts a block volume, downloads a small Hugging Face model onto it, then reads
   and writes objects in the S3 store over the storage VLAN.
-- **Status:** the network substrate is **proven on the Mac** (M0 — 18/18 cross-VLAN mesh, 802.1Q
-  tags captured on the wire). The K8s/Cilium/Multus/Rook layers (M1–M6) are designed and
-  version-pinned, not yet built.
+- **Status: built and verified end-to-end on the Mac (single-node).** M0–M3, M5, M6 pass — Cilium
+  primary + Multus (3 NICs/pod), Rook-Ceph block (RBD) + object (RGW/S3) with all Ceph data on the
+  storage VLAN, ~1.3 GB seeded, and a demo pod that stores a Hugging Face model on block and does an
+  S3 round-trip over the storage VLAN. Full run log in [test-results.md](test-results.md). The 3-node
+  scale (M4) was left as follow-up. Pinned **Rook v1.16.9 + Ceph v19.2.2** (embedded CSI) after
+  v1.20's ceph-csi-operator wouldn't deploy the RBD driver.
 
-**Full plan:** [implementation-plan.md](implementation-plan.md) · **Proven harness:** [feasibility/](feasibility/)
+**Full plan:** [implementation-plan.md](implementation-plan.md) · **Results:** [test-results.md](test-results.md) · **Harness:** [feasibility/](feasibility/) + [vm/full-build.sh](vm/full-build.sh)
 
 ## Open threads
 

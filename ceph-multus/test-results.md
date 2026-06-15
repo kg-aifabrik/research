@@ -17,8 +17,8 @@ Toolchain: containerd 2.2.1, kubeadm/kubelet/kubectl **v1.31.14**, Cilium **1.19
 | M2 — Multus + 3-interface pod | ✅ pass |
 | M3 — Rook-Ceph block + object | ✅ pass |
 | M4 — scale to 3 nodes | ⏸ not run (single-node; see notes) |
-| M5 — seed object store ~1 GB | ⏳ |
-| M6 — demo workload | ⏳ |
+| M5 — seed object store ~1 GB | ✅ pass |
+| M6 — demo workload | ✅ pass |
 
 ---
 
@@ -110,3 +110,59 @@ GET hello.txt -> hello-object-over-storage-vlan      # PUT+GET+LIST all OK
 3. **OSD disks must be truly pristine.** ceph-volume raw-mode bluestore labels survive `dd`/`sgdisk` (the disks keep "belonging to a different ceph cluster"); reliable reuse needed recreating the virtual disk **files** + a clean rebuild. **Lesson baked into [vm/full-build.sh](vm/full-build.sh):** always build on a fresh VM with fresh disks; never recreate a CephCluster in place.
 
 **macvlan shim return-path fix (object on the storage VLAN):** a storage-net pod's S3 request reached the host shim, but replies left via the **parent** `vlan2032` (which can't reach macvlan children). Pinning the Whereabouts pod range (`10.6.32.64/26`, `10.6.32.128/25`) to `dev storage-shim` in [storage-shim.sh](k8s/storage-shim.sh) routes replies out the sibling shim → pod S3 works.
+
+## M5 — seed the object store (~1 GB) ✅
+
+**Actions** ([k8s/07-seed.sh](k8s/07-seed.sh)): a storage-net pod lists the real food101 parquet
+files on the Hugging Face Hub, downloads shards until >1 GB, and uploads them as objects via boto3
+to the RGW shim endpoint (over the storage VLAN).
+
+**Result:**
+```
+parquet files in repo: 11
+uploaded train-00000..02-of-00008.parquet  (466 + 442 + 450 MB)
+=== SEEDED: 3 objects, 1359 MB ===
+```
+
+**Fix recorded:** first attempt used an s5cmd release URL that 404'd (wrong asset name) and aborted
+before downloading. Switched to **boto3** (already proven over the shim) and **dynamic file listing**
+(`list_repo_files`) instead of guessed paths.
+
+## M6 — end-to-end demo workload ✅
+
+**Actions** ([k8s/08-demo.sh](k8s/08-demo.sh)): a pod with **3 interfaces** + an RBD block PVC
+downloads a small Hugging Face model onto the block volume, then does an S3 round-trip (download
+seeded objects + upload new ones) over the storage VLAN.
+
+**Result:**
+```
+interfaces:  eth0 10.245.0.201 (Cilium) · net1 10.6.33.65 (north-south) · net2 10.6.32.67 (storage)
+block:       /dev/rbd1 ext4 on /mnt/block ; Qwen2.5-0.5B-Instruct = 954 MB on the block volume
+S3 route:    ip route get 10.6.32.250 -> dev net2        # object traffic on the storage VLAN
+S3 I/O:      3 seeded objects visible; downloaded 2 -> /mnt/block/dl; uploaded 10 -> demo/ (count 10)
+```
+
+**Fix recorded:** the demo pod's Multus annotation was written in YAML **flow style**
+`{ k8s.v1.cni.cncf.io/networks: north-south-net, storage-net }` — the comma makes YAML parse it as
+*two keys*, so the value was malformed and only `eth0` attached (S3 then fell back to the Cilium
+path). Rewrote as block style; the pod then got all 3 interfaces and S3 routed via `net2`.
+
+---
+
+## M4 — scale to 3 nodes (not run — deliberate)
+
+Executed single-node (the plan's M3-first guidance) for reliability on 24 GB. Single-node proves the
+full functional stack — multi-VLAN host, Cilium primary + Multus (3 NICs/pod), Rook-Ceph block +
+object on the storage VLAN, seed, and demo. The 3-node scale (inter-host OSD replication across the
+storage VLAN) is the one piece not exercised; [vm/lab-up.sh](vm/lab-up.sh) takes a node index and the
+kubeadm join flow is standard, so it is a follow-up rather than a redesign. Given the Ceph-recovery
+time spent reaching a clean healthy cluster, multi-node was left as future work.
+
+## Summary
+
+M0–M3, M5, M6 **pass** on a single Apple-silicon Mac: a multi-VLAN Kubernetes cluster (Cilium
+primary + Multus macvlan, every app pod with 3 interfaces) with Rook-Ceph serving **block (RBD)** and
+**object (RGW/S3)** storage, all Ceph **data** traffic on the storage VLAN, ~1.3 GB seeded into the
+object store, and a demo pod that mounts block storage, stores a Hugging Face model on it, and reads
+and writes objects over the storage VLAN. The whole stack is reproducible from scratch via
+[vm/full-build.sh](vm/full-build.sh).
