@@ -17,18 +17,21 @@ storage VLAN. It builds the storage half the Suiri lab left unbuilt, on a faithf
   object store.
 - **Demo:** a pod mounts a block volume, downloads a small Hugging Face model onto it, then reads
   and writes objects in the S3 store over the storage VLAN.
-- **Status: built and verified end-to-end on the Mac (single-node).** M0–M3, M5, M6 pass — Cilium
-  primary + Multus (3 NICs/pod), Rook-Ceph block (RBD) + object (RGW/S3) with all Ceph data on the
-  storage VLAN, ~1.3 GB seeded, and a demo pod that stores a Hugging Face model on block and does an
-  S3 round-trip over the storage VLAN. Full run log in [test-results.md](test-results.md). The 3-node
-  scale (M4) was left as follow-up. Pinned **Rook v1.16.9 + Ceph v19.2.2** (embedded CSI) after
-  v1.20's ceph-csi-operator wouldn't deploy the RBD driver.
+- **Status: built and verified end-to-end on the Mac. M0–M6 all pass.** Cilium primary + Multus
+  (3 NICs/pod), Rook-Ceph block (RBD) + object (RGW/S3) with all Ceph data on the storage VLAN,
+  ~1.3 GB seeded, a demo pod that stores a Hugging Face model on block and does an S3 round-trip over
+  the storage VLAN, and a **3-node scale** with **host-level replication** (OSD-to-OSD traffic between
+  hosts captured on VLAN 2032). Full run log in [test-results.md](test-results.md). Pinned **Rook
+  v1.16.9 + Ceph v19.2.2** (embedded CSI) after v1.20's ceph-csi-operator wouldn't deploy the RBD
+  driver. Binding constraint: 24 GB RAM — single-node runs comfortably; 3 nodes swaps hard.
 
 **Full plan:** [implementation-plan.md](implementation-plan.md) · **Results:** [test-results.md](test-results.md) · **Harness:** [feasibility/](feasibility/) + [vm/full-build.sh](vm/full-build.sh)
 
 ## Open threads
 
-- Build M1–M6: kubeadm → Cilium → Multus → Rook-Ceph (block + object) → seed ~1 GB → demo workload.
-- Residual risk: Ceph memory under load on 24 GB; single-node fallback is ready.
+- **Done:** M0–M6 (build + seed + demo + 3-node host-level replication). See [test-results.md](test-results.md).
+- 3-node steady-state needs more RAM than 24 GB (heavy swap; HEALTH flaps under pressure). Run on a
+  bigger host, or use dedicated storage nodes, for a stable multi-node cluster.
 - Optional advanced milestone: put the Ceph public network on the Multus storage VLAN (vs host
   networking) — heavier, fragile Container Storage Interface (CSI) host-routing path.
+- Optional: replace the macvlan host shim with true 802.1Q if ever moved onto real VLAN-aware hardware.

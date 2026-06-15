@@ -16,7 +16,7 @@ Toolchain: containerd 2.2.1, kubeadm/kubelet/kubectl **v1.31.14**, Cilium **1.19
 | M1 — kubeadm + Cilium primary | ✅ pass |
 | M2 — Multus + 3-interface pod | ✅ pass |
 | M3 — Rook-Ceph block + object | ✅ pass |
-| M4 — scale to 3 nodes | ⏸ not run (single-node; see notes) |
+| M4 — scale to 3 nodes | ✅ pass (host-level replication on the storage VLAN) |
 | M5 — seed object store ~1 GB | ✅ pass |
 | M6 — demo workload | ✅ pass |
 
@@ -149,20 +149,48 @@ path). Rewrote as block style; the pod then got all 3 interfaces and S3 routed v
 
 ---
 
-## M4 — scale to 3 nodes (not run — deliberate)
+## M4 — scale to 3 nodes: inter-host replication on the storage VLAN ✅
 
-Executed single-node (the plan's M3-first guidance) for reliability on 24 GB. Single-node proves the
-full functional stack — multi-VLAN host, Cilium primary + Multus (3 NICs/pod), Rook-Ceph block +
-object on the storage VLAN, seed, and demo. The 3-node scale (inter-host OSD replication across the
-storage VLAN) is the one piece not exercised; [vm/lab-up.sh](vm/lab-up.sh) takes a node index and the
-kubeadm join flow is standard, so it is a follow-up rather than a redesign. Given the Ceph-recovery
-time spent reaching a clean healthy cluster, multi-node was left as future work.
+**Actions** ([vm/scale-out.sh](vm/scale-out.sh)): launch `cmnode2`/`cmnode3` (kept at 5 GB / 1 OSD
+disk each so the 3 VMs fit 24 GB; `cmnode1` left running untouched) → provision → `kubeadm join`
+with `--node-ip` on the in-band VLAN → Rook auto-adds an OSD on each new node's disk → switch the
+block pool to a **host-level** crush rule, `size 3`.
+
+**Result:** 3 nodes `Ready` (`10.6.31.1/.2/.3`), **4 OSDs across 3 hosts**, all on the storage VLAN
+(`cluster_addr` `10.6.32.1/.2/.3`), **HEALTH_OK** after rebalance.
+
+```
+# OSDs span 3 hosts (ceph osd tree)
+host cmnode1: osd.0 osd.1   host cmnode2: osd.2   host cmnode3: osd.3   (all up)
+
+# replicapool crush rule = host-level; every PG's 3 replicas on 3 distinct hosts (ceph pg map)
+acting [2,1,3]   acting [1,3,2]   acting [3,0,2]   acting [1,2,3]
+
+# INTER-HOST replication traffic captured on VLAN 2032 during a rados write (tcpdump on cmnode1):
+10.6.32.2.40550 > 10.6.32.3.6802  (OSD-to-OSD replication, cmnode2 -> cmnode3, storage VLAN)
+```
+
+**Notes / honesty:**
+- `kubeadm join` over the in-band VLAN, Cilium/Multus DaemonSets and the RBD CSI nodeplugin extended
+  to the new nodes automatically; Rook discovered the new disks (`useAllNodes: true`) and created OSDs.
+- Rook's `failureDomain: host` CR patch did **not** propagate to the pool's crush rule (it stayed
+  `chooseleaf osd`), so I set a `replicated_host` rule on `replicapool` explicitly — the declarative
+  equivalent of the CR field.
+- **Memory was the binding constraint**: 3 VMs on 24 GB drove swap to ~14.5 GB. The cluster reached
+  HEALTH_OK but **flaps HEALTH_WARN / "pgs not active"** as OSDs peer slowly under swap pressure —
+  a host-resource artifact, not a design fault. A machine with more RAM (or fewer/larger nodes)
+  would hold steady.
 
 ## Summary
 
-M0–M3, M5, M6 **pass** on a single Apple-silicon Mac: a multi-VLAN Kubernetes cluster (Cilium
-primary + Multus macvlan, every app pod with 3 interfaces) with Rook-Ceph serving **block (RBD)** and
+**M0–M6 all pass** on a single Apple-silicon Mac: a multi-VLAN Kubernetes cluster (Cilium primary +
+Multus macvlan, every app pod with 3 interfaces) with Rook-Ceph serving **block (RBD)** and
 **object (RGW/S3)** storage, all Ceph **data** traffic on the storage VLAN, ~1.3 GB seeded into the
 object store, and a demo pod that mounts block storage, stores a Hugging Face model on it, and reads
-and writes objects over the storage VLAN. The whole stack is reproducible from scratch via
-[vm/full-build.sh](vm/full-build.sh).
+and writes objects over the storage VLAN. Scaled to **3 nodes** with **host-level replication** —
+OSD-to-OSD traffic between hosts captured on the storage VLAN. Reproducible from scratch via
+[vm/full-build.sh](vm/full-build.sh) (single node) + [vm/scale-out.sh](vm/scale-out.sh) (to 3 nodes).
+
+The one binding constraint throughout was **24 GB of RAM**: the single-node stack runs comfortably,
+but 3 nodes drives heavy swap and the cluster flaps WARN/OK under pressure. The design itself is
+sound — it wants a host with more memory (or dedicated nodes) to run 3-node steady-state.

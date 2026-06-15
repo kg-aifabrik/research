@@ -10,7 +10,7 @@ Reports are written in Markdown.
 
 | Link | Description |
 |---|---|
-| [ceph-multus](ceph-multus/) | Local POC: multi-VLAN Kubernetes on one Apple-silicon Mac with Rook-Ceph block (RBD) + object (RGW/S3) storage over a dedicated storage VLAN; Cilium primary CNI + Multus macvlan secondaries. Built & verified end-to-end (single-node): block + object over the storage VLAN. |
+| [ceph-multus](ceph-multus/) | Local POC: multi-VLAN Kubernetes on one Apple-silicon Mac with Rook-Ceph block (RBD) + object (RGW/S3) storage over a dedicated storage VLAN; Cilium primary CNI + Multus macvlan secondaries. Built & verified end-to-end: block + object over the storage VLAN, scaled to 3 nodes with host-level replication. |
 | [gpu-infra](gpu-infra/) | GPU infrastructure: NVIDIA Blackwell reference architectures, scale-out fabrics, K8s operator stack, multi-tenant inference platforms. |
 | [host-net-config](host-net-config/) | Declarative host network configuration: Netbox-driven intent rendered to Netplan + cloud-init for B300 and non-GPU hosts. |
 | [iac-k8s](iac-k8s/) | Operator console to build and run hardened GKE clusters across dev/stage/prod × FOP/MGMT: Terraform + GitHub Actions + a custom console, ArgoCD closed-loop security, Connect Gateway access. Requirements, exploration/POC, end-to-end design, and console screens. |
