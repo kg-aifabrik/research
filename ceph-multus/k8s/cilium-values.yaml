@@ -1,0 +1,16 @@
+# Cilium primary CNI for ceph-multus. Native routing on the in-band VLAN,
+# kube-proxy kept (replacement off), and cni.exclusive=false so Multus can
+# chain secondary interfaces (the single most important setting for this design).
+kubeProxyReplacement: false
+routingMode: native
+ipv4NativeRoutingCIDR: "10.245.0.0/16"   # pod CIDR only: pod-to-pod stays native; node/NAT-DNS/internet get masqueraded
+autoDirectNodeRoutes: true
+ipam:
+  mode: kubernetes
+cni:
+  exclusive: false
+operator:
+  replicas: 1
+k8sClientRateLimit:
+  qps: 30
+  burst: 50
