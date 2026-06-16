@@ -1,0 +1,9 @@
+# Dedicated S3 bucket in Ceph RGW used as the pull-through model cache.
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: model-cache
+  namespace: default
+spec:
+  generateBucketName: modelcache
+  storageClassName: rook-ceph-bucket

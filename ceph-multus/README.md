@@ -29,7 +29,9 @@ storage VLAN. It builds the storage half the Suiri lab left unbuilt, on a faithf
 
 ## Open threads
 
-- **Done:** M0–M6 (build + seed + demo + 3-node host-level replication). See [test-results.md](test-results.md).
+- **Done:** M0–M6 (build + seed + demo + 3-node host-level replication) **plus a pull-through model
+  cache** on Ceph object store — Hugging Face models cached in RGW and loaded by pods **over the
+  storage VLAN** (TTL via S3 lifecycle + app-level freshness). See [test-results.md](test-results.md).
 - 3-node steady-state needs more RAM than 24 GB (heavy swap; HEALTH flaps under pressure). Run on a
   bigger host, or use dedicated storage nodes, for a stable multi-node cluster.
 - Optional advanced milestone: put the Ceph public network on the Multus storage VLAN (vs host

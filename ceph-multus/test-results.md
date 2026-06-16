@@ -217,3 +217,32 @@ seeded data was force-recreated empty — re-run `07-seed.sh` to repopulate). **
 Ceph host *gracefully* — `ceph osd out` and wait for backfill (or ensure another host holds a replica)
 **before** killing it; never yank a host while a pool keeps replicas there. This is now called out in
 [baremetal-deployment-guide.md](baremetal-deployment-guide.md).
+
+## Model cache: Hugging Face → Ceph object store, model loads on the storage VLAN ✅
+
+**Question answered first — does a model download use the north-south VLAN today?** **No.** The node's
+default route is `default via 10.0.2.2 dev mgmt` (the lab's NAT uplink), and a pod's default route is
+`eth0` (Cilium); the north-south NAD carries **no** default route. So a `huggingface_hub` pull goes
+pod `eth0` → node → **mgmt** → internet — it touches neither north-south nor storage. (In the *real*
+Suiri lab, `bond0.2033`/north-south holds the default route, so internet egress — incl. HF — *would*
+ride north-south there.) Either way, model pulls shouldn't compete with ingress on north-south.
+
+**Feature** ([k8s/model-cache.py](k8s/model-cache.py), [k8s/09-model-cache.sh](k8s/09-model-cache.sh),
+[k8s/model-cache-obc.yaml](k8s/model-cache-obc.yaml)): a **pull-through model cache** on Ceph RGW (S3).
+A miss fetches from HF once and caches to the object store; every subsequent load is served **from
+Ceph over the storage VLAN** (pod macvlan → RGW shim). TTL is enforced two ways: an app-level
+`.cache-meta.json` timestamp (any granularity) **and** an RGW-native S3 lifecycle `Expiration` rule.
+
+**Result:**
+```
+RUN 1  MISS  -> filled from HF, cached 16 files (953 MB) to s3://modelcache-.../models/Qwen/Qwen2.5-0.5B-Instruct@main/
+RUN 2  HIT   -> served 16 files FROM CEPH over the storage VLAN, zero HF traffic
+       proof: 14,550 packets captured on VLAN 2032 during the hit —
+              10.6.32.66 (pod net2) <-> 10.6.32.250:80 (RGW shim)
+RUN 3  TTL_SECONDS=1 -> STALE -> re-filled from HF (TTL expiry works)
+S3 lifecycle: {"Expiration":{"Days":1},"ID":"model-cache-ttl","Filter":{"Prefix":"models/"},"Status":"Enabled"}
+```
+
+So after the one-time fill, **model loads ride the storage VLAN entirely** — the goal. Only a cache
+miss/expiry touches Hugging Face. On baremetal, point the S3 endpoint at the RGW service on the storage
+VLAN and the same applies; see [baremetal-deployment-guide.md](baremetal-deployment-guide.md#model-distribution).

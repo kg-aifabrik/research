@@ -155,6 +155,26 @@ live on **different** hosts), and the `active-backup` bond substitute (use real 
   ~14 GB of swap and the cluster flapped `HEALTH_WARN`/`pgs not active` (a host-resource artifact, not a
   Ceph fault). It reached `HEALTH_OK` but wasn't steady.
 
+## Model distribution
+
+**Do**
+- **Cache models in the Ceph object store and pull them over the storage VLAN**, not from the internet
+  on every pod start. A pull-through cache (miss → fetch from Hugging Face once → store in RGW; hit →
+  serve from RGW) keeps model traffic on the dedicated storage network and off north-south/ingress.
+  Verified in the POC: after the one-time fill, a 953 MB model loaded entirely over VLAN 2032
+  (14.5k packets pod ↔ RGW), zero HF traffic. Point the S3 client at the RGW endpoint **on the storage
+  VLAN** (on baremetal, the RGW service/VIP reachable via the pod's storage interface; no shim needed
+  across hosts).
+- Give cached models a **TTL**: an S3 **lifecycle `Expiration`** rule on the cache bucket (RGW-native;
+  day-granular) plus, if you need finer control, an app-level freshness check on a per-model manifest.
+- Pin a model **revision** in the cache key so a moved upstream tag doesn't silently change bits.
+
+**Don't**
+- Don't have every inference/training pod hit `huggingface.co` directly — it puts WAN/egress traffic on
+  the serving path, is slow, and breaks in airgapped sites. The cache is the airgap story too.
+- Don't forget to size the cache bucket's pool for your model corpus, and watch the lifecycle interval
+  (RGW lifecycle runs on a schedule; tune `rgw_lc_debug_interval` only for testing).
+
 ## Workflow discipline
 
 **Do**
