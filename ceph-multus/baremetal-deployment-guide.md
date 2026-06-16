@@ -122,6 +122,11 @@ live on **different** hosts), and the `active-backup` bond substitute (use real 
 - Don't reach for `network.provider: multus` for Ceph unless you need it: the RBD/CephFS CSI plugin runs
   in the host netns and can't reach a macvlan-only Ceph public net without per-node `public-shim` +
   routes that Rook won't auto-configure.
+- **Don't decommission/yank a host while a pool still keeps replicas on it.** Drain first
+  (`ceph osd out <ids>`, wait for backfill, then `purge`) — and mind your **failure domain**: an
+  `osd`-domain, `size 2` pool can land *both* replicas on the same node, so removing that node loses
+  data. Our scale-down lost (throwaway) RGW objects exactly this way; the host-level block pool, which
+  always kept a copy elsewhere, survived. Use `host` failure domain for anything you care about.
 
 ## OSD disks
 

@@ -194,3 +194,26 @@ OSD-to-OSD traffic between hosts captured on the storage VLAN. Reproducible from
 The one binding constraint throughout was **24 GB of RAM**: the single-node stack runs comfortably,
 but 3 nodes drives heavy swap and the cluster flaps WARN/OK under pressure. The design itself is
 sound — it wants a host with more memory (or dedicated nodes) to run 3-node steady-state.
+
+## Scale-down back to single node ([vm/scale-down.sh](vm/scale-down.sh))
+
+Returned to a single-node cluster (cmnode1) and freed the worker images. **Recovery was messier than
+expected and is itself a lesson:** killing the two worker VMs while the **RGW pools were
+`failureDomain: osd, size 2`** meant some object PGs had *both* replicas on the worker OSDs
+(osd.2+osd.3) — losing both at once left 12 **stale** PGs and a backlog of blocked ops (made worse by
+swap not yet reclaimed, so the mon itself had slow ops and couldn't drive recovery). The block pool
+(`replicapool`) was host-level size 3, so cmnode1 always held a full copy — **the model on block
+survived intact**. Sequence to a clean single node:
+
+1. Kill workers → frees RAM (compressed memory 13 GB → 3 GB).
+2. `ceph osd down/out` + **purge** osd.2/osd.3; `kubectl delete node cmnode2 cmnode3`; remove empty CRUSH host buckets.
+3. **Restart** osd.0/osd.1 to clear the stuck op queues (now that RAM is free).
+4. `ceph osd force-create-pg` the lost (throwaway) RGW PGs to clear the stale state.
+5. Set **every pool** to the osd-domain rule, `size ≤ 2`, `min_size 1` (RGW auto-pools had defaulted to
+   host-domain → unsatisfiable on one host).
+
+Final: **HEALTH_OK**, 2 OSDs on cmnode1, block RBD images intact (the object store survives but its
+seeded data was force-recreated empty — re-run `07-seed.sh` to repopulate). **Lesson:** decommission a
+Ceph host *gracefully* — `ceph osd out` and wait for backfill (or ensure another host holds a replica)
+**before** killing it; never yank a host while a pool keeps replicas there. This is now called out in
+[baremetal-deployment-guide.md](baremetal-deployment-guide.md).
