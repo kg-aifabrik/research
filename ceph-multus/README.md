@@ -25,7 +25,7 @@ storage VLAN. It builds the storage half the Suiri lab left unbuilt, on a faithf
   v1.16.9 + Ceph v19.2.2** (embedded CSI) after v1.20's ceph-csi-operator wouldn't deploy the RBD
   driver. Binding constraint: 24 GB RAM — single-node runs comfortably; 3 nodes swaps hard.
 
-**Full plan:** [implementation-plan.md](implementation-plan.md) · **Results:** [test-results.md](test-results.md) · **Harness:** [feasibility/](feasibility/) + [vm/full-build.sh](vm/full-build.sh)
+**Full plan:** [implementation-plan.md](implementation-plan.md) · **Results:** [test-results.md](test-results.md) · **Baremetal do's & don'ts:** [baremetal-deployment-guide.md](baremetal-deployment-guide.md) · **Harness:** [feasibility/](feasibility/) + [vm/full-build.sh](vm/full-build.sh)
 
 ## Open threads
 
