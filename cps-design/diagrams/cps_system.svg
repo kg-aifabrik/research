@@ -1,15 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1460" height="1130" viewBox="0 0 1460 1130" font-family="'Excalifont','Virgil','Chalkboard SE','Comic Sans MS','Comic Neue',sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1560" height="1180" viewBox="0 0 1560 1180" font-family="'Excalifont','Virgil','Chalkboard SE','Comic Sans MS','Comic Neue',sans-serif">
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 L3,5 z" fill="#495057"/></marker><marker id="arrowS" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M10,0 L0,5 L10,10 L7,5 z" fill="#495057"/></marker></defs>
-<rect x="0" y="0" width="1460" height="1130" fill="#ffffff"/>
+<rect x="0" y="0" width="1560" height="1180" fill="#ffffff"/>
 <rect x="40" y="185" width="1010" height="700" rx="14" fill="#f8f9fa" stroke="#adb5bd" stroke-width="1.5" stroke-dasharray="none"/>
 <text x="58" y="215" font-size="22" font-weight="700" fill="#1971c2">Management Plane — GKE</text>
 <rect x="70" y="315" width="950" height="555" rx="14" fill="#f8f9fa" stroke="#adb5bd" stroke-width="1.5" stroke-dasharray="none"/>
 <text x="88" y="345" font-size="22" font-weight="700" fill="#6741d9">Compute Provisioning Service (CPS)</text>
 <rect x="1070" y="415" width="360" height="375" rx="14" fill="#f8f9fa" stroke="#adb5bd" stroke-width="1.5" stroke-dasharray="none"/>
 <text x="1088" y="445" font-size="22" font-weight="700" fill="#e8590c">External — SaaS / other teams</text>
-<rect x="40" y="930" width="1390" height="185" rx="14" fill="#f8f9fa" stroke="#adb5bd" stroke-width="1.5" stroke-dasharray="none"/>
+<rect x="40" y="930" width="1500" height="200" rx="14" fill="#f8f9fa" stroke="#adb5bd" stroke-width="1.5" stroke-dasharray="none"/>
 <text x="58" y="960" font-size="22" font-weight="700" fill="#2f9e44">Site — NJ</text>
-<line x1="40" y1="900" x2="1430" y2="900" stroke="#fa5252" stroke-width="2.5" stroke-dasharray="9 7" stroke-linecap="round"/>
+<line x1="40" y1="905" x2="1540" y2="905" stroke="#fa5252" stroke-width="2.5" stroke-dasharray="9 7" stroke-linecap="round"/>
 <rect x="60" y="110" width="150" height="52" rx="10" fill="#e9ecef" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
 <text x="135.0" y="132.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Tenant</text>
 <text x="135.0" y="148.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">portal user</text>
@@ -62,24 +62,24 @@
 <rect x="1090" y="700" width="320" height="64" rx="10" fill="#ffffff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="7 5"/>
 <text x="1250.0" y="728.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Tenant API Access</text>
 <text x="1250.0" y="744.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">Rafay ZTKA — OPEN ITEM</text>
-<rect x="90" y="990" width="240" height="70" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
-<text x="210.0" y="1021.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">GPU Servers — B300</text>
-<text x="210.0" y="1037.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">tenant workers + Weka NVMe</text>
-<rect x="350" y="990" width="230" height="70" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
-<text x="465.0" y="1021.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">CPU Servers</text>
-<text x="465.0" y="1037.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">tenant ctrl planes + Weka</text>
-<rect x="600" y="990" width="210" height="70" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
-<text x="705.0" y="1021.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">QFX Fabric</text>
-<text x="705.0" y="1037.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">backend RDMA + frontend</text>
-<rect x="840" y="990" width="200" height="70" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
-<text x="940.0" y="1021.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Rafay Connector</text>
-<text x="940.0" y="1037.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">provisioning agent</text>
-<rect x="1060" y="990" width="160" height="70" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
-<text x="1140.0" y="1021.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Juniper Apstra</text>
-<text x="1140.0" y="1037.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">fabric controller</text>
-<rect x="1240" y="990" width="170" height="70" rx="10" fill="#96f2d7" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
-<text x="1325.0" y="1021.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Weka Cluster</text>
-<text x="1325.0" y="1037.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">disaggregated NVMe</text>
+<rect x="90" y="995" width="240" height="72" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="210.0" y="1027.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">GPU Servers — B300</text>
+<text x="210.0" y="1043.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">tenant workers + Weka NVMe</text>
+<rect x="350" y="995" width="220" height="72" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="460.0" y="1027.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">CPU Servers</text>
+<text x="460.0" y="1043.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">tenant ctrl planes + Weka</text>
+<rect x="590" y="995" width="190" height="72" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="685.0" y="1027.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">QFX Fabric</text>
+<text x="685.0" y="1043.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">backend RDMA + frontend</text>
+<rect x="840" y="995" width="190" height="72" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="935.0" y="1027.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Rafay Connector</text>
+<text x="935.0" y="1043.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">provisioning agent</text>
+<rect x="1050" y="995" width="170" height="72" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="1135.0" y="1027.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Juniper Apstra</text>
+<text x="1135.0" y="1043.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">fabric controller</text>
+<rect x="1245" y="995" width="180" height="72" rx="10" fill="#96f2d7" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="1335.0" y="1027.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Weka Cluster</text>
+<text x="1335.0" y="1043.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">disaggregated NVMe</text>
 <line x1="135.0" y1="162" x2="245.0" y2="240" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
 <line x1="245.0" y1="298" x2="280.0" y2="360" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
 <line x1="280.0" y1="420" x2="280.0" y2="450" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
@@ -102,13 +102,12 @@
 <line x1="730" y1="632.0" x2="1090" y2="632.0" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
 <rect x="865.4" y="621.0" width="89.2" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
 <text x="910.0" y="636.0" font-size="12.5" fill="#495057" text-anchor="middle">fs + access</text>
-<line x1="1250.0" y1="700" x2="1250.0" y2="584" stroke="#495057" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-<line x1="1250.0" y1="504" x2="1140.0" y2="990" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
-<line x1="1250.0" y1="584" x2="940.0" y2="990" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
-<line x1="1250.0" y1="664" x2="1325.0" y2="990" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
-<text x="730.0" y="38" font-size="26" font-weight="700" fill="#1e1e1e" text-anchor="middle">Compute Provisioning Service (CPS) — System Components</text>
-<text x="730.0" y="64" font-size="14" font-weight="400" fill="#868e96" text-anchor="middle">single site (us-east-1 / NJ)  ·  per-tenant dedicated GPU nodes + dedicated K8s control plane</text>
-<text x="730.0" y="86" font-size="12.5" font-weight="400" fill="#adb5bd" text-anchor="middle">blue = CPS service   violet = orchestrator   gray = cross-cutting   orange = external dependency   green = site substrate   teal = inventory / storage</text>
-<text x="730.0" y="922" font-size="13" font-weight="700" fill="#fa5252" text-anchor="middle">— VPN tunnel —   cloud above / site (NJ) below</text>
-<text x="715" y="1100" font-size="12.5" font-weight="400" fill="#868e96" text-anchor="middle">(fabric &amp; storage wiring detailed in the interface / VRF diagram)</text>
+<polyline points="1410.0,472.0 1520.0,472.0 1520.0,940.0 1135.0,940.0 1135.0,995.0" fill="none" stroke="#495057" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
+<polyline points="1410.0,552.0 1490.0,552.0 1490.0,912.0 935.0,912.0 935.0,995.0" fill="none" stroke="#495057" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
+<polyline points="1410.0,632.0 1455.0,632.0 1455.0,968.0 1335.0,968.0 1335.0,995.0" fill="none" stroke="#495057" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
+<text x="780.0" y="38" font-size="26" font-weight="700" fill="#1e1e1e" text-anchor="middle">Compute Provisioning Service (CPS) — System Components</text>
+<text x="780.0" y="64" font-size="14" font-weight="400" fill="#868e96" text-anchor="middle">single site (us-east-1 / NJ)  ·  per-tenant dedicated GPU nodes + dedicated K8s control plane</text>
+<text x="780.0" y="86" font-size="12.5" font-weight="400" fill="#adb5bd" text-anchor="middle">blue = CPS service   violet = orchestrator   gray = cross-cutting   orange = external dependency   green = site substrate   teal = inventory / storage</text>
+<text x="780.0" y="925" font-size="13" font-weight="700" fill="#fa5252" text-anchor="middle">— VPN tunnel —   cloud above / site (NJ) below</text>
+<text x="780.0" y="1118" font-size="12.5" font-weight="400" fill="#868e96" text-anchor="middle">(fabric &amp; storage wiring detailed in the interface / VRF diagram)</text>
 </svg>

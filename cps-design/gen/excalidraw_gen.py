@@ -80,6 +80,12 @@ class Line:           # plain connector / divider (no arrowheads)
     x1: float; y1: float; x2: float; y2: float
     dashed: bool = True; color: str = "#adb5bd"; width: float = 2.0
 
+@dataclass
+class Route:          # multi-segment (orthogonal) connector through waypoints
+    points: list      # [(x, y), ...]
+    dashed: bool = False; color: str = "#495057"; arrow: bool = True
+    width: float = 2.2
+
 
 class Scene:
     def __init__(self, width: int, height: int, title: str = ""):
@@ -88,6 +94,7 @@ class Scene:
         self.edges: list[Edge] = []
         self.frees: list[Free] = []
         self.lines: list[Line] = []
+        self.routes: list[Route] = []
         self._n = 0
         if title:
             self.frees.append(Free(width / 2, 38, title, size=26, color=INK,
@@ -120,6 +127,13 @@ class Scene:
     def line(self, p1, p2, dashed=True, color="#adb5bd", width=2.0) -> Line:
         ln = Line(p1[0], p1[1], p2[0], p2[1], dashed=dashed, color=color, width=width)
         self.lines.append(ln); return ln
+
+    def route(self, points, dashed=False, color="#495057", arrow=True, width=2.2) -> Route:
+        """Orthogonal/multi-segment connector. `points` is a list of (x, y)
+        waypoints; arrowhead (if any) sits on the final segment."""
+        r = Route(points=[(float(x), float(y)) for x, y in points],
+                  dashed=dashed, color=color, arrow=arrow, width=width)
+        self.routes.append(r); return r
 
     # ---- anchor helpers (edge endpoints on a box border) -------------------
     @staticmethod
@@ -210,6 +224,21 @@ class Scene:
             le["startArrowhead"] = None
             le["endArrowhead"] = None
             elements.append(le)
+        for r in self.routes:
+            xs = [p[0] for p in r.points]; ys = [p[1] for p in r.points]
+            x0, y0 = r.points[0]
+            re = self._common(self._id("route"), min(xs), min(ys),
+                              max(xs) - min(xs), max(ys) - min(ys),
+                              r.color, "transparent",
+                              strokestyle="dashed" if r.dashed else "solid",
+                              roundness=False)
+            re["type"] = "arrow"
+            re["x"] = x0; re["y"] = y0
+            re["points"] = [[p[0] - x0, p[1] - y0] for p in r.points]
+            re["startArrowhead"] = None
+            re["endArrowhead"] = "arrow" if r.arrow else None
+            re["roundness"] = None
+            elements.append(re)
         for f in self.frees:
             tid = self._id("free")
             t = self._text_el(tid, None, f.text, f.x, f.y, len(f.text) * f.size * 0.6,
@@ -302,6 +331,15 @@ class Scene:
                 out.append(
                     f'<text x="{mx:.1f}" y="{my + 4}" font-size="12.5" '
                     f'fill="#495057" text-anchor="middle">{_esc(ed.label)}</text>')
+
+        for r in self.routes:
+            pts = " ".join(f"{x},{y}" for x, y in r.points)
+            dash = 'stroke-dasharray="7 5" ' if r.dashed else ""
+            marker = 'marker-end="url(#arrow)" ' if r.arrow else ""
+            out.append(
+                f'<polyline points="{pts}" fill="none" stroke="{r.color}" '
+                f'stroke-width="{r.width}" stroke-linejoin="round" '
+                f'stroke-linecap="round" {dash}{marker}/>')
 
         for f in self.frees:
             wt = "700" if f.bold else "400"

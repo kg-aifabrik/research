@@ -3,6 +3,11 @@ Build the CPS system-level component diagram.
 
 Run:  python3 gen/build_system_diagram.py
 Emits to ../diagrams/: cps_system.excalidraw (editable), .svg, .png
+
+Layout note: the three external->site connectors use orthogonal routing
+(exit right -> drop down a dedicated lane in the right margin -> step in to the
+target) so they never fan across each other or the boxes. Topmost source takes
+the farthest lane so the exit segments don't cross.
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -13,7 +18,7 @@ GEN = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.normpath(os.path.join(GEN, "..", "diagrams"))
 os.makedirs(OUT, exist_ok=True)
 
-W, H = 1460, 1130
+W, H = 1560, 1180
 s = Scene(W, H, "Compute Provisioning Service (CPS) — System Components")
 s.note(W/2, 64, "single site (us-east-1 / NJ)  ·  per-tenant dedicated GPU nodes + dedicated K8s control plane",
        size=14, color="#868e96", bold=False, anchor="middle")
@@ -53,19 +58,19 @@ wcp  = s.box(1090, 600, 320, 64, "Weka Control Plane", "filesystem / quota · or
 ztka = s.box(1090, 700, 320, 64, "Tenant API Access", "Rafay ZTKA — OPEN ITEM", "white", dashed=True)
 
 # ---- site ----
-site = s.zone(40, 930, 1390, 185, "Site — NJ", "#2f9e44")
-gpu = s.box(90, 990, 240, 70, "GPU Servers — B300", "tenant workers + Weka NVMe", "green")
-cpu = s.box(350, 990, 230, 70, "CPU Servers", "tenant ctrl planes + Weka", "green")
-qfx = s.box(600, 990, 210, 70, "QFX Fabric", "backend RDMA + frontend", "green")
-conn = s.box(840, 990, 200, 70, "Rafay Connector", "provisioning agent", "green")
-apstra = s.box(1060, 990, 160, 70, "Juniper Apstra", "fabric controller", "green")
-weka = s.box(1240, 990, 170, 70, "Weka Cluster", "disaggregated NVMe", "teal")
+site = s.zone(40, 930, 1500, 200, "Site — NJ", "#2f9e44")
+gpu = s.box(90, 995, 240, 72, "GPU Servers — B300", "tenant workers + Weka NVMe", "green")
+cpu = s.box(350, 995, 220, 72, "CPU Servers", "tenant ctrl planes + Weka", "green")
+qfx = s.box(590, 995, 190, 72, "QFX Fabric", "backend RDMA + frontend", "green")
+conn = s.box(840, 995, 190, 72, "Rafay Connector", "provisioning agent", "green")
+apstra = s.box(1050, 995, 170, 72, "Juniper Apstra", "fabric controller", "green")
+weka = s.box(1245, 995, 180, 72, "Weka Cluster", "disaggregated NVMe", "teal")
 
 # VPN divider
-s.line((40, 900), (1430, 900), dashed=True, color="#fa5252", width=2.5)
-s.note(W/2, 922, "— VPN tunnel —   cloud above / site (NJ) below",
+s.line((40, 905), (1540, 905), dashed=True, color="#fa5252", width=2.5)
+s.note(W/2, 925, "— VPN tunnel —   cloud above / site (NJ) below",
        size=13, color="#fa5252", bold=True, anchor="middle")
-s.note(715, 1100, "(fabric & storage wiring detailed in the interface / VRF diagram)",
+s.note(W/2, 1118, "(fabric & storage wiring detailed in the interface / VRF diagram)",
        size=12.5, color="#868e96", bold=False, anchor="middle")
 
 # ---- edges ----
@@ -79,17 +84,17 @@ s.edge(A(orch, "b"), A(cat, "t"), label="read/write", bidir=True, src=orch.eid, 
 for tgt in (inv, net, prov, stor):
     s.edge(A(orch, "r"), A(tgt, "l"), src=orch.eid, dst=tgt.eid)
 
-# adapters -> their systems
+# adapters -> their systems (clean horizontals)
 s.edge(A(inv, "r"), A(netbox, "b"), label="reserve", src=inv.eid, dst=netbox.eid)
 s.edge(A(net, "r"), A(napi, "l"), label="VRF ops", src=net.eid, dst=napi.eid)
 s.edge(A(prov, "r"), A(rctl, "l"), label="provision", src=prov.eid, dst=rctl.eid)
 s.edge(A(stor, "r"), A(wcp, "l"), label="fs + access", src=stor.eid, dst=wcp.eid)
-s.edge(A(ztka, "t"), A(rctl, "b"), dashed=True, src=ztka.eid, dst=rctl.eid)
 
-# external -> site (across VPN)
-s.edge(A(napi, "b"), A(apstra, "t"), src=napi.eid, dst=apstra.eid)
-s.edge(A(rctl, "b"), A(conn, "t"), src=rctl.eid, dst=conn.eid)
-s.edge(A(wcp, "b"), A(weka, "t"), src=wcp.eid, dst=weka.eid)
+# external API -> its site agent (across VPN), orthogonal: right -> lane -> in.
+# Topmost source uses the farthest lane; horizontals stagger highest=leftmost target.
+s.route([(1410, 472), (1520, 472), (1520, 940), (1135, 940), (1135, 995)])  # Networking API -> Apstra
+s.route([(1410, 552), (1490, 552), (1490, 912), (935, 912), (935, 995)])    # Rafay Controller -> Connector
+s.route([(1410, 632), (1455, 632), (1455, 968), (1335, 968), (1335, 995)])  # Weka CP -> Weka cluster
 
 base = os.path.join(OUT, "cps_system")
 s.save_excalidraw(base + ".excalidraw")
