@@ -3,10 +3,9 @@
 The **Compute Provisioning Service (CPS)** provisions a Kubernetes (K8s) cluster for
 a tenant on site hardware.
 
-This describes the system as built. It covers the path from a Frontend Platform
-request to a running, AiFabrik-managed K8s cluster. Storage (Weka), kubeconfig
-delivery, and client connectivity are still to be built — see
-[To be included](#to-be-included).
+The provisioning path runs from a Frontend Platform request to a running,
+AiFabrik-managed K8s cluster. Storage (Weka), kubeconfig delivery, and client
+connectivity are still to be built — see [To be included](#to-be-included).
 
 ## Executive summary
 
@@ -39,26 +38,6 @@ All cloud components run in the Management Plane (GCP).
 | **Rafay Head Node** | Site | Last-mile agent: IPMI discovery, PXE boot, host config. |
 | **Site servers** | Site | CPU servers (control plane) + GPU servers (workers). |
 
-## Provisioning workflow
-
-The API is async: `ProvisionCluster` starts the workflow and returns an operation
-handle; the Frontend Platform polls `GetOperation`/`GetCluster`. Every mutating step
-has a compensating action, and activities are idempotent so Temporal can safely
-retry them. `ProvisionCluster` takes a client-supplied idempotency key, so a retry
-does not start a duplicate workflow.
-
-![CPS K8s cluster-provisioning workflow](diagrams/cps_provision_flow.png)
-
-> Diagram source: [`gen/build_provision_flow.py`](gen/build_provision_flow.py) →
-> `diagrams/cps_provision_flow.{excalidraw,svg,png}`. Regenerate with
-> `python3 gen/build_provision_flow.py`.
-
-**Failure handling.** When an activity exhausts its retries, the workflow
-transitions to `AWAITING_REVIEW` and waits on a human signal — **resume**
-(retry/continue) or **cancel** (run compensations in reverse to free resources).
-There is no automatic rollback: GPU nodes are expensive, so the default is to hold
-resources rather than release them.
-
 ## State & systems of record
 
 - CPS holds no durable state of its own beyond Temporal workflow state — it can be
@@ -79,7 +58,7 @@ resources rather than release them.
   - spreads control-plane nodes for high availability (HA).
 - **Reservation is serialized by a CPS-held lock**: acquire before reserving,
   release after; the lock auto-expires, and callers wait to acquire it. (Single
-  site, low volume — a concurrency-safe reserve is [to be included](#to-be-included).)
+  site, low volume — a concurrency-safe reserve is [future work](#future-work).)
 - **Reserved nodes pass a preflight** health/reachability check before being
   committed to the tenant.
 
@@ -104,6 +83,33 @@ resources rather than release them.
 - The AiFabrik management/monitoring workload deploys as a **Rafay addon/blueprint**
   (declarative, re-applied).
 
+## CPS Workflows
+
+### Provisioning workflow
+
+The API is async: `ProvisionCluster` starts the workflow and returns an operation
+handle; the Frontend Platform polls `GetOperation`/`GetCluster`. Every mutating step
+has a compensating action, and activities are idempotent so Temporal can safely
+retry them. `ProvisionCluster` takes a client-supplied idempotency key, so a retry
+does not start a duplicate workflow.
+
+![CPS K8s cluster-provisioning workflow](diagrams/cps_provision_flow.png)
+
+> Diagram source: [`gen/build_provision_flow.py`](gen/build_provision_flow.py) →
+> `diagrams/cps_provision_flow.{excalidraw,svg,png}`. Regenerate with
+> `python3 gen/build_provision_flow.py`.
+
+**Failure handling.** When an activity exhausts its retries, the workflow
+transitions to `AWAITING_REVIEW` and waits on a human signal — **resume**
+(retry/continue) or **cancel** (run compensations in reverse to free resources).
+There is no automatic rollback: GPU nodes are expensive, so the default is to hold
+resources rather than release them.
+
+### Future workflows
+
+Additional workflows attach here as they are designed — for example deprovision,
+expand, and shrink a cluster, plus the periodic NetBox→Rafay inventory sync.
+
 ## To be included
 
 These pieces complete the capability; each gets its own design pass.
@@ -114,5 +120,8 @@ These pieces complete the capability; each gets its own design pass.
   kubeconfig** (no Rafay zero-trust kubectl access, "ZTKA"). Two problems: a network
   path from the Management Plane or tenant to the API server inside the tenant VRF at
   the site, and credential lifecycle (issue/rotate/revoke).
+
+## Future Work
+
 - **Concurrency-safe reservation.** Replace the single CPS lock with an atomic
   compare-and-set reserve in NPS once request volume outgrows serialized access.
