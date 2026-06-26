@@ -1,23 +1,24 @@
 # CPS — K8s Cluster Provisioning (First Capability)
 
-Living design plan for the **Compute Provisioning Service (CPS)** first capability:
-provision a Kubernetes (K8s) cluster for a tenant and (follow-up) hand back a
-kubeconfig. Built up through design discussion; updated as decisions land.
+Design snapshot for the **Compute Provisioning Service (CPS)** first capability:
+provisioning a Kubernetes (K8s) cluster for a tenant on site hardware.
 
-> Scope of this capability: from a Tenant Management Service (TMS) request through
-> a running, AiFabrik-managed K8s cluster on reserved site hardware. **Storage
-> (Weka) and tenant kubeconfig delivery are deferred** (see Follow-ups).
+This describes the system as built. It covers the path from a Tenant Management
+Service (TMS) request to a running, AiFabrik-managed K8s cluster. Storage (Weka),
+kubeconfig delivery, and client connectivity belong to the same capability and are
+still to be built — see [To be included](#to-be-included).
 
 ## Executive summary
 
 CPS is a **stateless Temporal orchestrator** exposing gRPC to its single client,
-TMS. A provision request runs as one Temporal workflow (saga) that: reserves
-hardware in NetBox via the Network Provisioning Service (NPS), creates a tenant
-network (VRF/VLAN) via NPS→Apstra, provisions OS + builds K8s via the Rafay
-Controller, and deploys the AiFabrik management/monitoring addon. NetBox is the
-**System of Record (SoR)** for inventory and allocation; TMS/PGSQL owns the
-business mapping tenant→cluster→assets (for billing). The call is **async**: the
-API returns an operation handle and TMS polls for status.
+TMS. A provision request runs as one Temporal workflow (a saga): it reserves
+hardware in NetBox through the Network Provisioning Service (NPS), creates a tenant
+network (VRF/VLAN + IP addressing) through NPS→Apstra, provisions the operating
+system (OS) and builds K8s through the Rafay Controller, and deploys the AiFabrik
+management/monitoring addon. NetBox is the **System of Record (SoR)** for inventory
+and allocation; TMS — backed by PostgreSQL (PGSQL) — owns the business mapping
+tenant→cluster→assets used for billing. The API is **async**: a call returns an
+operation handle and TMS polls for status.
 
 ## Actors & systems
 
@@ -26,27 +27,22 @@ All cloud components run in Google Cloud Platform (GCP).
 | Component | Where | Role |
 |-----------|-------|------|
 | **TMS** (Tenant Management Service) | GCP / mgmt plane | CPS's client; owns tenant→cluster→assets mapping in PGSQL (billing). |
-| **CPS** (Compute Provisioning Service) | GCP | Temporal orchestrator, gRPC API. **Stateless** beyond Temporal workflow state. Owns scheduling/selection + reservation lock. |
-| **NPS** (Network Provisioning Service) | GCP | gRPC/Proto wrapper over NetBox (inventory reads + allocation writes); drives Apstra for VRF/VLAN + IPAM. |
+| **CPS** (Compute Provisioning Service) | GCP | Temporal orchestrator, gRPC API. **Stateless** beyond Temporal workflow state. Owns scheduling/selection + the reservation lock. |
+| **NPS** (Network Provisioning Service) | GCP | gRPC/Proto wrapper over NetBox (inventory reads + allocation writes); drives Apstra for VRF/VLAN + IP addressing (IPAM). |
 | **NetBox** | GCP | Inventory **SoR**. Two writers, non-overlapping fields: Aravolta (physical) + CPS/NPS (allocation). |
-| **Aravolta** | GCP | Physical DC infra management; feeds host/switch/router facts into NetBox. |
+| **Aravolta** | GCP | Physical data-center infra management; feeds host/switch/router facts into NetBox. |
 | **Juniper Apstra** | GCP | Underlay fabric controller; configures site switches over the VPN. |
-| **Rafay Controller** | GCP (separate GKE cluster) | Bare-metal OS + K8s lifecycle + addons. **CPS↔Rafay = REST.** |
+| **Rafay Controller** | GCP (separate GKE cluster) | Bare-metal OS + K8s lifecycle + addons. CPS↔Rafay is REST. |
 | **Rafay Head Node** | Site | Last-mile agent: IPMI discovery, PXE boot, host config. |
 | **Site servers** | Site | CPU servers (control plane) + GPU servers (workers). |
 
-**Networks at site:** PXE/provisioning rides a **separate OOB VLAN**, distinct from
-the tenant data network/VRF.
-
-**Trust boundaries:** our services (TMS/CPS/NPS/NetBox/Apstra) are all cloud-side,
-one trust domain. The only VPN crossings are vendor-internal: Apstra→switches and
-Rafay Controller↔Rafay Head Node (head node dials out).
-
 ## Provisioning workflow (Temporal saga)
 
-Async: `ProvisionCluster` starts the workflow and returns an operation handle;
-TMS polls `GetOperation`/`GetCluster`. Each mutating step has a compensating
-action; activities are idempotent (Temporal retries them).
+The API is async: `ProvisionCluster` starts the workflow and returns an operation
+handle; TMS polls `GetOperation`/`GetCluster`. Every mutating step has a
+compensating action, and activities are idempotent so Temporal can safely retry
+them. `ProvisionCluster` takes a client-supplied idempotency key, so a TMS retry
+does not start a duplicate workflow.
 
 ![CPS K8s cluster-provisioning workflow — Temporal saga](diagrams/cps_provision_flow.png)
 
@@ -54,33 +50,64 @@ action; activities are idempotent (Temporal retries them).
 > `diagrams/cps_provision_flow.{excalidraw,svg,png}`. Regenerate with
 > `python3 gen/build_provision_flow.py`.
 
-**Failure handling (D2):** when an activity exhausts retries, the workflow
+**Failure handling.** When an activity exhausts its retries, the workflow
 transitions to `AWAITING_REVIEW` and waits on a human signal — **resume**
-(retry/continue) or **cancel** (run compensations in reverse, free resources). No
-automatic rollback. GPU nodes are expensive; default is to hold, not auto-release.
+(retry/continue) or **cancel** (run compensations in reverse to free resources).
+There is no automatic rollback: GPU nodes are expensive, so the default is to hold
+resources rather than release them.
 
-## Decisions
+## State & systems of record
 
-| # | Decision |
-|---|----------|
-| D1 | **Start small, no reservation concurrency.** A **CPS-held lock** serializes reservation requests to NPS: acquire to reserve, release after; lock has auto-expiry; callers wait if it's held. |
-| D2 | **On failure: pause → human review → resume or rollback.** Temporal workflow waits on a signal; cancel runs compensations to free resources. Not auto-rollback. |
-| D3 | **NetBox is the allocation SoR.** Aravolta (physical facts) and CPS/NPS (allocation facts) write **non-overlapping fields** on a NetBox object. |
-| D4 | **NetBox→Rafay inventory sync is a separate periodic CPS workflow** (every few hours) — the second use case, not part of the provision path. |
-| D5 | **Preflight check** on reserved nodes (health/reachability) before committing them to the tenant. |
-| D6 | **PXE on a separate OOB VLAN**, distinct from the tenant data network/VRF. |
-| D7 | **CPS is stateless** (only Temporal workflow state). TMS/PGSQL owns tenant→cluster→assets for billing. |
-| D8 | **Scheduling/selection logic lives in CPS** (GPU type/count match, RDMA rail/leaf locality, control-plane anti-affinity). |
-| D9 | **Idempotency key** on `ProvisionCluster` so TMS retries don't start a duplicate workflow. |
-| D10 | **CPS↔Rafay over REST** (cross-cluster, vendor product). TMS↔CPS↔NPS over gRPC/Proto in-cloud. VPN crossings are vendor-internal (Apstra→switches, Rafay Ctrl↔Head). Rafay REST creds from a secrets manager; Rafay project/RBAC mapped 1:1 to tenants. |
-| D11 | **AiFabrik management/monitoring workload** deployed via a **Rafay addon/blueprint** (declarative, re-applied). |
+- CPS holds no durable state of its own beyond Temporal workflow state — it can be
+  wiped and rebuilt.
+- **NetBox is the SoR for inventory and allocation.** It has two writers on
+  non-overlapping fields: Aravolta writes physical facts; CPS/NPS write allocation
+  facts. After a CPS wipe, NetBox still reflects which assets belong to which tenant.
+- **TMS/PGSQL owns the tenant→cluster→assets mapping** (consumed by billing).
+- NetBox→Rafay node inventory is kept current by a **separate periodic CPS
+  workflow** (every few hours), not by the provisioning path.
 
-## Follow-ups
+## Scheduling & reservation
 
-- **F1 — Kubeconfig delivery.** No Rafay ZTKA. Direct API-server kubeconfig — needs
-  (a) network reachability from cloud/tenant to the API server in the tenant VRF at
-  site, and (b) credential lifecycle (issue/rotate/revoke). Design after cluster
-  build is settled.
-- **F2 — Storage (Weka).** Filesystem + CSI integration; deferred.
-- **F3 — Concurrency-safe reservation.** Replace the single CPS lock with an atomic
-  compare-and-set reserve in NPS when we scale past serialized requests.
+- **Node selection lives in CPS.** It matches the request against GPU type/count,
+  keeps GPU workers rail/leaf-local for backend Remote Direct Memory Access (RDMA),
+  and spreads control-plane nodes for high availability (HA).
+- **Reservation is serialized by a CPS-held lock**: acquire before reserving,
+  release after; the lock auto-expires, and callers wait to acquire it. (Single
+  site, low volume — a concurrency-safe reserve is [to be included](#to-be-included).)
+- **Reserved nodes pass a preflight** health/reachability check before being
+  committed to the tenant.
+
+## Networking
+
+- Per-tenant isolation is a **tenant VRF/VLAN with IP addressing (IPAM)**, created
+  through NPS→Apstra before OS install.
+- **PXE/IPMI provisioning rides a separate out-of-band (OOB) VLAN**, distinct from
+  the tenant data network, so attaching nodes to the tenant VRF never strands the
+  boot.
+
+## Interfaces & security
+
+- **TMS↔CPS↔NPS** speak gRPC with Protocol Buffers (Proto); NPS presents NetBox and
+  Apstra behind that same gRPC surface.
+- **CPS↔Rafay is REST** (Rafay is a vendor product in a separate GKE cluster). Rafay
+  credentials come from a secrets manager, never hardcoded.
+- All our services run cloud-side in one trust domain. The only VPN crossings are
+  vendor-internal: Apstra→switches and Rafay Controller↔Rafay Head Node (the head
+  node dials out). Rafay's project/RBAC model maps 1:1 to tenants to bound blast
+  radius.
+- The AiFabrik management/monitoring workload deploys as a **Rafay addon/blueprint**
+  (declarative, re-applied).
+
+## To be included
+
+The capability is not complete without these; each gets its own design pass.
+
+- **Storage (Weka).** Per-tenant filesystem plus the K8s Container Storage Interface
+  (CSI) integration.
+- **Kubeconfig & client connectivity.** Tenants get a **direct API-server
+  kubeconfig** (no Rafay zero-trust kubectl access, "ZTKA"). Two problems: a network
+  path from cloud/tenant to the API server inside the tenant VRF at the site, and
+  credential lifecycle (issue/rotate/revoke).
+- **Concurrency-safe reservation.** Replace the single CPS lock with an atomic
+  compare-and-set reserve in NPS once request volume outgrows serialized access.

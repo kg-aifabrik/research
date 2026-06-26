@@ -95,8 +95,8 @@ msg("cps", "tms", y + 744, "SUCCEEDED  ·  TMS records tenant→cluster→assets
     dashed=True)
 
 s.note(W / 2, 970,
-       "Storage (Weka) and tenant kubeconfig delivery are out of scope for this "
-       "capability — see Follow-ups.",
+       "Storage (Weka), kubeconfig and client connectivity are still to be built — "
+       "see 'To be included'.",
        size=12.5, color="#868e96", bold=False, anchor="middle")
 
 base = os.path.join(OUT, "cps_provision_flow")
