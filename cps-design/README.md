@@ -4,8 +4,8 @@ Design artifacts for the **Compute Provisioning Service (CPS)** — the system t
 bridges *supply* (racked B300 GPU + CPU servers, Juniper QFX fabric, NetBox
 inventory) and *demand* (a tenant requesting a Kubernetes-as-a-Service cluster
 with GPUs). CPS uses **Rafay** for bare-metal provisioning + K8s control-plane
-lifecycle, **Juniper Apstra** (via the Networking team's API) for fabric/VRF
-isolation, and **Weka** for storage.
+lifecycle, the **Network Provisioning Service (NPS)** — which drives **Juniper
+Apstra** — for fabric/VRF isolation, and **Weka** for storage.
 
 ## Layout
 
@@ -23,7 +23,7 @@ cps-design/
 | File | What it shows |
 |------|---------------|
 | `cps_system` | System-level component map: CPS internals, external dependencies, site substrate. |
-| `cps_provision_flow` | K8s cluster-provisioning workflow (Temporal saga): the sequence from a TMS request to a running, AiFabrik-managed cluster, with compensations. |
+| `cps_provision_flow` | K8s cluster-provisioning workflow: from a Frontend Platform request to a running, AiFabrik-managed cluster, with compensations. |
 
 ## Regenerate
 

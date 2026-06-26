@@ -20,9 +20,9 @@ OUT = os.path.normpath(os.path.join(GEN, "..", "diagrams"))
 os.makedirs(OUT, exist_ok=True)
 
 W, H = 1560, 1000
-s = Scene(W, H, "CPS — K8s Cluster Provisioning Workflow (Temporal saga)")
+s = Scene(W, H, "CPS — K8s Cluster Provisioning Workflow")
 s.note(W/2, 62,
-       "async · TMS polls for status   ·   compensating actions in orange   ·   "
+       "async · Frontend Platform polls for status   ·   compensating actions in orange   ·   "
        "on failure: pause → human review → resume / rollback",
        size=13, color="#868e96", bold=False, anchor="middle")
 
@@ -35,7 +35,7 @@ def participant(key, x, title, sub, fill):
     s.line((x, LL_TOP), (x, LL_BOT), dashed=True, color="#ced4da", width=1.8)
     parts[key] = x
 
-participant("tms", 110,  "TMS", "client", "gray")
+participant("tms", 110,  "Frontend Platform", "caller", "gray")
 participant("cps", 360,  "CPS", "Temporal orchestrator", "violet")
 participant("nps", 590,  "NPS", "NetBox + Apstra", "blue")
 participant("nb",  800,  "NetBox", "inventory SoR", "teal")
@@ -91,7 +91,7 @@ comp("cps", y + 664, "delete cluster")
 
 msg("cps", "rc", y + 702, "11   deploy AiFabrik addon (mgmt / monitoring)")
 
-msg("cps", "tms", y + 744, "SUCCEEDED  ·  TMS records tenant→cluster→assets",
+msg("cps", "tms", y + 744, "SUCCEEDED  ·  Frontend Platform records mapping",
     dashed=True)
 
 s.note(W / 2, 970,
