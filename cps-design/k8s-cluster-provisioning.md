@@ -48,34 +48,11 @@ Async: `ProvisionCluster` starts the workflow and returns an operation handle;
 TMS polls `GetOperation`/`GetCluster`. Each mutating step has a compensating
 action; activities are idempotent (Temporal retries them).
 
-```mermaid
-sequenceDiagram
-    participant TMS
-    participant CPS as CPS (Temporal)
-    participant NPS
-    participant NB as NetBox
-    participant AP as Apstra
-    participant RC as Rafay Controller
-    participant RH as Rafay Head (site)
+![CPS K8s cluster-provisioning workflow — Temporal saga](diagrams/cps_provision_flow.png)
 
-    TMS->>CPS: ProvisionCluster(idempotency_key, tenant, spec)
-    CPS-->>TMS: operation handle (async)
-    Note over CPS: acquire reservation lock (auto-expiry; wait if held)
-    CPS->>NPS: list available servers
-    NPS->>NB: query inventory
-    Note over CPS: schedule/select subset (GPU match · RDMA locality · CP anti-affinity)
-    CPS->>NPS: reserve nodes for tenant  [compensate: release]
-    NPS->>NB: write allocation fields
-    Note over CPS: release reservation lock
-    CPS->>NPS: create tenant VRF/VLAN + IPAM  [compensate: delete]
-    NPS->>AP: configure fabric + leaf data ports
-    Note over CPS: preflight health/reachability check on reserved nodes
-    CPS->>RC: provision OS on nodes  [compensate: wipe/decommission]
-    RC->>RH: IPMI power + PXE over OOB VLAN
-    CPS->>RC: build K8s cluster (CP + workers)  [compensate: delete cluster]
-    CPS->>RC: deploy AiFabrik addon (mgmt/monitoring)
-    CPS-->>TMS: SUCCEEDED (TMS records tenant→cluster→assets in PGSQL)
-```
+> Diagram source: [`gen/build_provision_flow.py`](gen/build_provision_flow.py) →
+> `diagrams/cps_provision_flow.{excalidraw,svg,png}`. Regenerate with
+> `python3 gen/build_provision_flow.py`.
 
 **Failure handling (D2):** when an activity exhausts retries, the workflow
 transitions to `AWAITING_REVIEW` and waits on a human signal — **resume**

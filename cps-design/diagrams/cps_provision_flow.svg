@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1560" height="1000" viewBox="0 0 1560 1000" font-family="'Excalifont','Virgil','Chalkboard SE','Comic Sans MS','Comic Neue',sans-serif">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 L3,5 z" fill="#495057"/></marker><marker id="arrowS" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M10,0 L0,5 L10,10 L7,5 z" fill="#495057"/></marker></defs>
+<rect x="0" y="0" width="1560" height="1000" fill="#ffffff"/>
+<line x1="110" y1="130" x2="110" y2="925" stroke="#ced4da" stroke-width="1.8" stroke-dasharray="9 7" stroke-linecap="round"/>
+<line x1="360" y1="130" x2="360" y2="925" stroke="#ced4da" stroke-width="1.8" stroke-dasharray="9 7" stroke-linecap="round"/>
+<line x1="590" y1="130" x2="590" y2="925" stroke="#ced4da" stroke-width="1.8" stroke-dasharray="9 7" stroke-linecap="round"/>
+<line x1="800" y1="130" x2="800" y2="925" stroke="#ced4da" stroke-width="1.8" stroke-dasharray="9 7" stroke-linecap="round"/>
+<line x1="1000" y1="130" x2="1000" y2="925" stroke="#ced4da" stroke-width="1.8" stroke-dasharray="9 7" stroke-linecap="round"/>
+<line x1="1210" y1="130" x2="1210" y2="925" stroke="#ced4da" stroke-width="1.8" stroke-dasharray="9 7" stroke-linecap="round"/>
+<line x1="1430" y1="130" x2="1430" y2="925" stroke="#ced4da" stroke-width="1.8" stroke-dasharray="9 7" stroke-linecap="round"/>
+<rect x="25" y="78" width="170" height="52" rx="10" fill="#e9ecef" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="110.0" y="100.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">TMS</text>
+<text x="110.0" y="116.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">client</text>
+<rect x="275" y="78" width="170" height="52" rx="10" fill="#d0bfff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="360.0" y="100.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">CPS</text>
+<text x="360.0" y="116.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">Temporal orchestrator</text>
+<rect x="505" y="78" width="170" height="52" rx="10" fill="#a5d8ff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="590.0" y="100.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">NPS</text>
+<text x="590.0" y="116.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">NetBox + Apstra</text>
+<rect x="715" y="78" width="170" height="52" rx="10" fill="#96f2d7" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="800.0" y="100.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">NetBox</text>
+<text x="800.0" y="116.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">inventory SoR</text>
+<rect x="915" y="78" width="170" height="52" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="1000.0" y="100.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Apstra</text>
+<text x="1000.0" y="116.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">fabric controller</text>
+<rect x="1125" y="78" width="170" height="52" rx="10" fill="#ffd8a8" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="1210.0" y="100.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Rafay Controller</text>
+<text x="1210.0" y="116.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">OS + K8s · REST</text>
+<rect x="1345" y="78" width="170" height="52" rx="10" fill="#ffd8a8" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="1430.0" y="100.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Rafay Head</text>
+<text x="1430.0" y="116.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">site agent</text>
+<rect x="229.0" y="234" width="262" height="46" rx="10" fill="#ffec99" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="360.0" y="253.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">2   acquire reservation lock</text>
+<text x="360.0" y="269.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">auto-expiry · wait if held</text>
+<rect x="179.0" y="384" width="362" height="46" rx="10" fill="#ffec99" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="360.0" y="403.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">4   schedule / select subset</text>
+<text x="360.0" y="419.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">GPU match · RDMA locality · CP anti-affinity</text>
+<rect x="238.0" y="534" width="244" height="32" rx="10" fill="#ffec99" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="360.0" y="555.2" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">6   release reservation lock</text>
+<rect x="199.0" y="670" width="322" height="46" rx="10" fill="#ffec99" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="360.0" y="689.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">8   preflight check</text>
+<text x="360.0" y="705.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">health · reachability on reserved nodes</text>
+<line x1="110" y1="168" x2="360" y2="168" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="71.6" y="157.0" width="326.8" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="235.0" y="172.0" font-size="12.5" fill="#495057" text-anchor="middle">1   ProvisionCluster(idem_key, tenant, spec)</text>
+<line x1="360" y1="206" x2="110" y2="206" stroke="#adb5bd" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<rect x="143.6" y="195.0" width="182.8" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="235.0" y="210.0" font-size="12.5" fill="#495057" text-anchor="middle">operation handle (async)</text>
+<line x1="360" y1="318" x2="590" y2="318" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="376.4" y="307.0" width="197.2" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="475.0" y="322.0" font-size="12.5" fill="#495057" text-anchor="middle">3   list available servers</text>
+<line x1="590" y1="356" x2="800" y2="356" stroke="#adb5bd" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="636.0" y="345.0" width="118.0" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="695.0" y="360.0" font-size="12.5" fill="#495057" text-anchor="middle">query inventory</text>
+<line x1="360" y1="468" x2="590" y2="468" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="369.2" y="457.0" width="211.6" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="475.0" y="472.0" font-size="12.5" fill="#495057" text-anchor="middle">5   reserve nodes for tenant</text>
+<line x1="590" y1="506" x2="800" y2="506" stroke="#adb5bd" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="607.2" y="495.0" width="175.6" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="695.0" y="510.0" font-size="12.5" fill="#495057" text-anchor="middle">write allocation fields</text>
+<line x1="360" y1="604" x2="590" y2="604" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="344.0" y="593.0" width="262.0" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="475.0" y="608.0" font-size="12.5" fill="#495057" text-anchor="middle">7   create tenant VRF / VLAN + IPAM</text>
+<line x1="590" y1="642" x2="1000" y2="642" stroke="#adb5bd" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="667.6" y="631.0" width="254.8" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="795.0" y="646.0" font-size="12.5" fill="#495057" text-anchor="middle">configure fabric + leaf data ports</text>
+<line x1="360" y1="754" x2="1210" y2="754" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="690.0" y="743.0" width="190.0" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="785.0" y="758.0" font-size="12.5" fill="#495057" text-anchor="middle">9   provision OS on nodes</text>
+<line x1="1210" y1="792" x2="1430" y2="792" stroke="#adb5bd" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="1207.0" y="781.0" width="226.0" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="1320.0" y="796.0" font-size="12.5" fill="#495057" text-anchor="middle">IPMI power + PXE over OOB VLAN</text>
+<line x1="360" y1="832" x2="1210" y2="832" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="646.8" y="821.0" width="276.4" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="785.0" y="836.0" font-size="12.5" fill="#495057" text-anchor="middle">10   build K8s cluster (CP + workers)</text>
+<line x1="360" y1="870" x2="1210" y2="870" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="614.4" y="859.0" width="341.2" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="785.0" y="874.0" font-size="12.5" fill="#495057" text-anchor="middle">11   deploy AiFabrik addon (mgmt / monitoring)</text>
+<line x1="360" y1="912" x2="110" y2="912" stroke="#495057" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<rect x="60.8" y="901.0" width="348.4" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="235.0" y="916.0" font-size="12.5" fill="#495057" text-anchor="middle">SUCCEEDED  ·  TMS records tenant→cluster→assets</text>
+<text x="780.0" y="38" font-size="26" font-weight="700" fill="#1e1e1e" text-anchor="middle">CPS — K8s Cluster Provisioning Workflow (Temporal saga)</text>
+<text x="780.0" y="62" font-size="13" font-weight="400" fill="#868e96" text-anchor="middle">async · TMS polls for status   ·   compensating actions in orange   ·   on failure: pause → human review → resume / rollback</text>
+<text x="374" y="483" font-size="11.5" font-weight="700" fill="#e8590c" text-anchor="start">compensate: release</text>
+<text x="374" y="619" font-size="11.5" font-weight="700" fill="#e8590c" text-anchor="start">compensate: delete VRF / VLAN</text>
+<text x="374" y="769" font-size="11.5" font-weight="700" fill="#e8590c" text-anchor="start">compensate: wipe / decommission</text>
+<text x="374" y="847" font-size="11.5" font-weight="700" fill="#e8590c" text-anchor="start">compensate: delete cluster</text>
+<text x="780.0" y="970" font-size="12.5" font-weight="400" fill="#868e96" text-anchor="middle">Storage (Weka) and tenant kubeconfig delivery are out of scope for this capability — see Follow-ups.</text>
+</svg>

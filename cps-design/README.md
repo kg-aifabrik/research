@@ -23,13 +23,15 @@ cps-design/
 | File | What it shows |
 |------|---------------|
 | `cps_system` | System-level component map: CPS internals, external dependencies, site substrate. |
+| `cps_provision_flow` | K8s cluster-provisioning workflow (Temporal saga): the sequence from a TMS request to a running, AiFabrik-managed cluster, with compensations. |
 
 ## Regenerate
 
 Prereqs: Python 3 and Google Chrome (or Chromium) — no Node toolchain required.
 
 ```sh
-python3 gen/build_system_diagram.py     # writes diagrams/cps_system.{excalidraw,svg,png}
+python3 gen/build_system_diagram.py      # writes diagrams/cps_system.{excalidraw,svg,png}
+python3 gen/build_provision_flow.py      # writes diagrams/cps_provision_flow.{excalidraw,svg,png}
 ```
 
 Edit a diagram either by tweaking its `build_*.py` and re-running, or by opening
