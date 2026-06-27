@@ -22,8 +22,8 @@ os.makedirs(OUT, exist_ok=True)
 W, H = 1560, 1000
 s = Scene(W, H, "CPS — K8s Cluster Provisioning Workflow")
 s.note(W/2, 62,
-       "async · Frontend Platform polls for status   ·   compensating actions in orange   ·   "
-       "on failure: pause → human review → resume / rollback",
+       "async · Frontend Platform polls the Operation   ·   teardown counterpart of each step in orange   ·   "
+       "on failure: workflow fails cleanly → retry or DeleteCluster",
        size=13, color="#868e96", bold=False, anchor="middle")
 
 # ---- participants (lifelines) ----

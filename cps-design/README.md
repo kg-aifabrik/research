@@ -2,8 +2,9 @@
 
 Design artifacts for the **Compute Provisioning Service (CPS)** — the system that
 bridges *supply* (racked B300 GPU + CPU servers, Juniper QFX fabric, NetBox
-inventory) and *demand* (a tenant requesting a Kubernetes-as-a-Service cluster
-with GPUs). CPS uses **Rafay** for bare-metal provisioning + K8s control-plane
+inventory) and *demand* (a tenant requesting **GPU-as-a-Service (GPUaaS)** — a
+dedicated K8s cluster sized by the requested GPUs, control plane transparent). CPS
+uses **Rafay** for bare-metal provisioning + K8s control-plane
 lifecycle, the **Network Provisioning Service (NPS)** — which drives **Juniper
 Apstra** — for fabric/VRF isolation, and **Weka** for storage.
 
