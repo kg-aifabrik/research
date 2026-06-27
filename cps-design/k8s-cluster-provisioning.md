@@ -18,7 +18,8 @@ provisioned automatically and never surfaced.
   `ListClusters`, `UpdateCluster`, `DeleteCluster`, `GetOperation`) over a `Cluster`
   resource. Mutating calls return an `Operation`; `Get`/`List` read current state.
 - **Mechanics** — each mutating call is realized by **one bounded Temporal workflow**
-  that runs to completion or fails cleanly, then ends. No long-lived workflows.
+  scoped to that operation (not a long-lived entity workflow). While the platform
+  matures, a failure pauses the workflow for human review.
 - **State** — CPS is **stateful** and uses **Rafay as its state store** (for now).
   **NetBox** is the System of Record (SoR) for inventory and allocation; the
   **Frontend Platform** — backed by PostgreSQL (PGSQL) — owns the mapping
@@ -36,7 +37,7 @@ message Cluster {
   string gpu_type    = 2;   // e.g. B300
   int32  gpu_count   = 3;   // the tenant's unit; reconciled to this target
   string k8s_version = 4;   // optional; CPS manages a default
-  Status status      = 5;   // observed: PROVISIONING | RUNNING | RECONCILING | DELETING | ERROR
+  Status status      = 5;   // observed: PROVISIONING | RUNNING | RECONCILING | DELETING | AWAITING_REVIEW | ERROR
   // endpoint / kubeconfig -> see To be included
   // control plane is provisioned automatically and is not represented here
 }
@@ -46,8 +47,8 @@ message Cluster {
   tenant and a GPU server packs a fixed number of GPUs (e.g., 8 on a B300 box), so
   CPS validates/rounds the request to whole servers.
 - **spec vs status.** The tenant sets desired state (`gpu_type`, `gpu_count`,
-  `k8s_version`); `status` is observed. An error needing human attention surfaces on
-  the `Operation`/`Cluster` status — not as a parked workflow.
+  `k8s_version`); `status` is observed. An error needing human attention surfaces as
+  `AWAITING_REVIEW` on the `Operation`/`Cluster` status (see Failure handling).
 
 ## API methods
 
@@ -138,9 +139,9 @@ All cloud components run in the Management Plane (GCP).
 
 ## CPS Workflows
 
-Each API mutation is realized by **one bounded Temporal workflow**: it runs to
-completion or fails cleanly, then ends. Activities are idempotent so Temporal can
-safely retry them.
+Each API mutation is realized by **one bounded Temporal workflow** scoped to that
+operation — not a long-lived entity workflow. Activities are idempotent so Temporal
+can safely retry them.
 
 ### Provisioning workflow — realizes `CreateCluster`
 
@@ -150,13 +151,20 @@ safely retry them.
 > `diagrams/cps_provision_flow.{excalidraw,svg,png}`. Regenerate with
 > `python3 gen/build_provision_flow.py`.
 
-**Failure handling.** A workflow never parks waiting for input. On an unrecoverable
-error it stops and records the failure plus the resources held so far on the
-`Operation`/`Cluster` status (`ERROR`); it does **not** auto-release them (GPU nodes
-are expensive). Resolution is out-of-band and idempotent: **retry** the mutation (a
-fresh bounded workflow continues from current state toward the target) or
-**`DeleteCluster`** (a bounded teardown that releases the reservation and tears down
-the tenant VRF). Compensation is thus an explicit Delete, not a parked rollback.
+**Failure handling (transitional human review).** While the platform matures, an
+unrecoverable activity failure **pauses the workflow** in `AWAITING_REVIEW` (surfaced
+on the `Operation`/`Cluster` status) and it awaits a human signal:
+
+- **resume** — the operator fixes the underlying problem; the workflow re-attempts
+  from the failed step and continues to completion;
+- **cancel** — compensations run in reverse (release the NetBox reservation, tear
+  down the tenant VRF, …) and the workflow ends rolled back.
+
+The pause is a **bounded gate inside a single-purpose workflow** — not a long-lived
+entity workflow; the workflow still terminates, on resume-to-completion or
+cancel-with-rollback. The same gate applies to the reconcile and teardown workflows.
+**Once the platform matures, the human gate is removed** and the failure path becomes
+automated (retry/backoff, then rollback or hold per policy).
 
 ### Reconcile & teardown — realize `UpdateCluster` / `DeleteCluster`
 
