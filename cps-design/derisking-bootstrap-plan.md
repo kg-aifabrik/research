@@ -5,6 +5,8 @@ is first proven manually with scripts against Rafay. Each script is a stand-in f
 CPS capability; the mapping below is the transition contract. Companion design:
 [k8s-cluster-provisioning.md](k8s-cluster-provisioning.md).
 
+![Whiteboard: derisking steps (green) mapped to CPS end state (red)](diagrams/derisking-bootstrap-whiteboard.jpg)
+
 ## Executive summary
 
 Scripts-first derisking: prove the Rafay integration (timing, failure modes,
