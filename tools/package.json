@@ -1,0 +1,9 @@
+{
+  "name": "research-tools",
+  "private": true,
+  "description": "Helper scripts for this research repo (see each script's header for usage)",
+  "type": "module",
+  "dependencies": {
+    "puppeteer-core": "25.3.0"
+  }
+}

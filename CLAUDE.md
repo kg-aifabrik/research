@@ -38,6 +38,8 @@ Each topic is a single Markdown report. **Do not generate an HTML version.**
 
 For visuals, prefer Mermaid, inline SVG, or referenced image/diagram files (Excalidraw, SVG in a `diagrams/` subfolder) embedded into the Markdown — anything that renders cleanly in a standard Markdown viewer.
 
+Whenever a `.excalidraw` file is added or updated, also regenerate and commit a PNG next to it (same basename, `.png` extension) so the diagram is viewable without Excalidraw tooling. Render with [`tools/excalidraw-to-png.mjs`](tools/excalidraw-to-png.mjs) — see the header comment for usage.
+
 ## Report structure
 
 Each topic report uses this section order:
