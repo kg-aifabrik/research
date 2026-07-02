@@ -67,17 +67,37 @@ All confirmed in discussion:
 | 7 | Trigger cluster creation via Rafay | delete cluster | CPS `CreateCluster` provisioning workflow |
 | 8 | Configure public internet → K8s API server connectivity | remove exposure | CPS orchestrates with Platform Connectivity |
 | 9 | Configure public internet → workload services connectivity | remove exposure | CPS orchestrates with Platform Connectivity |
+| 10 | Download admin kubeconfig from Rafay (long-lived cert — bootstrap only, never the end-state mechanism) | rotate cluster CA / discard credential | CPS issues short-lived, revocable credentials via central OIDC identity — **Paralus under evaluation** (see below) |
 
 Steps 6/7 order per Rafay's flow; the runbook records the actual dependency graph
 (inventory → network values → netplan → BMaaS → cluster → connectivity) with wait
 conditions and durations — the encoding Temporal needs.
 
+## Credential issuance (step 10)
+
+Steps 8/9 give a network path to the API server; step 10 is the credential half.
+We rejected **Rafay zero-trust kubectl access (ZTKA)** because of tight coupling to
+Rafay — not because of its proxy architecture. **[Paralus](https://www.paralus.io/)
+(CNCF sandbox) is that same architecture open-sourced by Rafay**, which removes the
+coupling objection; it is under evaluation as the end-state issuer. It federates
+tenant identity providers over OIDC (per-IdP configuration with group-claim
+mapping; [Okta is documented
+first-class](https://www.paralus.io/docs/single-sign-on/okta)). Alternative if a
+proxy in the kubectl path is undesirable: native OIDC flags on the API server (Dex/
+Keycloak) or Pinniped.
+
+To verify in the derisking phase:
+
+- Rafay blueprint control over kubeadm `certSANs` (public hostname must be in the
+  API server serving cert **at create time**) and, if going flag-based, `oidc-*`
+  API-server flags.
+- Paralus per-tenant IdP multiplexing — each tenant bringing their own Okta/IdP
+  mapped to Paralus groups/projects.
+
 ## Open items
 
 Not covered by the scripts phase; each needs a pass before or during CPS build:
 
-- **Kubeconfig & credential issuance** — steps 8/9 give a network path, not
-  credentials (issue/rotate/revoke).
 - **Preflight health checks** before committing nodes to a tenant.
 - **Per-step verification** — the manual analog of `GetOperation`: define the check
   that proves each step succeeded, and record it in the runbook.

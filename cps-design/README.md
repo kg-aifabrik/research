@@ -14,8 +14,9 @@ Apstra** — for fabric/VRF isolation, and **Weka** for storage.
   GPU-centric resource API, Rafay as state store, bounded Temporal workflows.
 - [derisking-bootstrap-plan.md](derisking-bootstrap-plan.md) — scripts-first
   bootstrap: each provisioning step proven manually (create + teardown pairs,
-  end-state-shaped stubs) before CPS wraps it. Open threads: kubeconfig/credential
-  lifecycle, preflight checks, per-step verification, Weka.
+  end-state-shaped stubs) before CPS wraps it. Credential issuance targets central
+  OIDC (Paralus under evaluation). Open threads: certSANs/OIDC flags via Rafay
+  blueprint, preflight checks, per-step verification, Weka.
 
 ## Layout
 
