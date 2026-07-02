@@ -8,6 +8,15 @@ uses **Rafay** for bare-metal provisioning + K8s control-plane
 lifecycle, the **Network Provisioning Service (NPS)** — which drives **Juniper
 Apstra** — for fabric/VRF isolation, and **Weka** for storage.
 
+## Topics
+
+- [k8s-cluster-provisioning.md](k8s-cluster-provisioning.md) — CPS design: GKE-style
+  GPU-centric resource API, Rafay as state store, bounded Temporal workflows.
+- [derisking-bootstrap-plan.md](derisking-bootstrap-plan.md) — scripts-first
+  bootstrap: each provisioning step proven manually (create + teardown pairs,
+  end-state-shaped stubs) before CPS wraps it. Open threads: kubeconfig/credential
+  lifecycle, preflight checks, per-step verification, Weka.
+
 ## Layout
 
 ```
