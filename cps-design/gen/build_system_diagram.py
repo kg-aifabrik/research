@@ -51,11 +51,12 @@ meter = s.box(420, 700, 230, 64, "Metering & Billing", "usage → invoices", "gr
 obs   = s.box(680, 700, 320, 64, "Observability & Audit", "logs · metrics · traces · audit", "gray")
 
 # external dependencies
-ext = s.zone(1070, 415, 360, 375, "External — SaaS / other teams", "#e8590c")
-napi = s.box(1090, 440, 320, 64, "Networking Team API", "VRF lifecycle → Juniper Apstra", "orange")
-rctl = s.box(1090, 520, 320, 64, "Rafay Controller", "SaaS · BM + K8s lifecycle", "orange")
-wcp  = s.box(1090, 600, 320, 64, "Weka Control Plane", "filesystem / quota · org · access", "orange")
-ztka = s.box(1090, 700, 320, 64, "Tenant API Access", "Rafay ZTKA — OPEN ITEM", "white", dashed=True)
+ext = s.zone(1070, 415, 360, 455, "External — SaaS / other teams", "#e8590c")
+hwinv = s.box(1090, 460, 320, 64, "Hardware Inventory Service", "server hw facts · reservation → NetBox DCIM", "orange")
+napi = s.box(1090, 540, 320, 64, "Network Provisioning (NPS)", "tenant onboarding · VRF/VLAN/IPAM → Apstra", "orange")
+rctl = s.box(1090, 620, 320, 64, "Rafay Controller", "SaaS · BM + K8s lifecycle", "orange")
+wcp  = s.box(1090, 700, 320, 64, "Weka Control Plane", "filesystem / quota · org · access", "orange")
+ztka = s.box(1090, 780, 320, 64, "Tenant API Access", "Rafay ZTKA — OPEN ITEM", "white", dashed=True)
 
 # ---- site ----
 site = s.zone(40, 930, 1500, 200, "Site — NJ", "#2f9e44")
@@ -85,16 +86,19 @@ for tgt in (inv, net, prov, stor):
     s.edge(A(orch, "r"), A(tgt, "l"), src=orch.eid, dst=tgt.eid)
 
 # adapters -> their systems (clean horizontals)
-s.edge(A(inv, "r"), A(netbox, "b"), label="reserve", src=inv.eid, dst=netbox.eid)
+s.edge(A(inv, "r"), A(hwinv, "l"), label="list · hw facts · reserve", src=inv.eid, dst=hwinv.eid)
+# HIS -> NetBox exits right, climbs outside the ext zone, then runs left into NetBox's bottom edge
+s.route([(1410, 492), (1445, 492), (1445, 330), (950, 330), (950, 306)])
+s.note(1170, 318, "DCIM reads · allocation writes", size=12.5, color="#495057", anchor="middle")
 s.edge(A(net, "r"), A(napi, "l"), label="VRF ops", src=net.eid, dst=napi.eid)
 s.edge(A(prov, "r"), A(rctl, "l"), label="provision", src=prov.eid, dst=rctl.eid)
 s.edge(A(stor, "r"), A(wcp, "l"), label="fs + access", src=stor.eid, dst=wcp.eid)
 
 # external API -> its site agent (across VPN), orthogonal: right -> lane -> in.
 # Topmost source uses the farthest lane; horizontals stagger highest=leftmost target.
-s.route([(1410, 472), (1520, 472), (1520, 940), (1135, 940), (1135, 995)])  # Networking API -> Apstra
-s.route([(1410, 552), (1490, 552), (1490, 912), (935, 912), (935, 995)])    # Rafay Controller -> Connector
-s.route([(1410, 632), (1455, 632), (1455, 968), (1335, 968), (1335, 995)])  # Weka CP -> Weka cluster
+s.route([(1410, 572), (1520, 572), (1520, 940), (1135, 940), (1135, 995)])  # NPS -> Apstra
+s.route([(1410, 652), (1490, 652), (1490, 912), (935, 912), (935, 995)])    # Rafay Controller -> Connector
+s.route([(1410, 732), (1455, 732), (1455, 968), (1335, 968), (1335, 995)])  # Weka CP -> Weka cluster
 
 base = os.path.join(OUT, "cps_system")
 s.save_excalidraw(base + ".excalidraw")

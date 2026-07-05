@@ -81,8 +81,9 @@ All cloud components run in the Management Plane (GCP).
 |-----------|-------|------|
 | **Frontend Platform** | Management Plane (GCP) | Calls CPS to provision clusters; owns tenant→cluster→assets mapping in PGSQL (billing). |
 | **CPS** (Compute Provisioning Service) | Management Plane (GCP) | GKE-style resource API (gRPC/Proto). **Stateful** — uses Rafay as its state store (for now). Realizes each mutation with a bounded Temporal workflow. Owns scheduling/selection + the reservation lock. |
-| **NPS** (Network Provisioning Service) | Management Plane (GCP) | gRPC/Proto wrapper over NetBox (inventory reads + allocation writes); drives Apstra for VRF/VLAN + IP addressing (IPAM). |
-| **NetBox** | Management Plane (GCP) | Inventory **SoR**. Two writers, non-overlapping fields: Aravolta (physical) + CPS/NPS (allocation). |
+| **HIS** (Hardware Inventory Service) | Management Plane (GCP) | gRPC/Proto wrapper over NetBox dcim: free-pool listing, per-server hardware facts (BMC/IPMI IP + credentials, bootstrap + RDMA/data NIC MACs, server type, rack/switch ports) and node reservation (allocation writes). BMC credentials come from the secret store. |
+| **NPS** (Network Provisioning Service) | Management Plane (GCP) | gRPC/Proto wrapper over NetBox ipam: tenant onboarding (tenant + per-fabric VRFs + segments + IRB, async) and per-scope network config (VRF/VLAN/IP ranges/MTU); drives Apstra for fabric changes. |
+| **NetBox** | Management Plane (GCP) | Inventory **SoR**. Three writers, non-overlapping fields: Aravolta (physical) + HIS (allocation) + NPS (network/ipam). |
 | **Aravolta** | Management Plane (GCP) | Physical data-center infra management; feeds host/switch/router facts into NetBox. |
 | **Juniper Apstra** | Management Plane (GCP) | Underlay fabric controller; configures site switches over the VPN. |
 | **Rafay Controller** | Management Plane (GCP, separate GKE cluster) | Bare-metal OS + K8s lifecycle + addons; also CPS's cluster state store. CPS↔Rafay is REST. |
@@ -94,10 +95,10 @@ All cloud components run in the Management Plane (GCP).
 - CPS is **stateful**; for now it uses **Rafay as the cluster state store** — Rafay
   already holds cluster and (internal) node-pool definitions plus their status.
   `Get`/`List` read through to Rafay.
-- **NetBox is the SoR for inventory and allocation.** It has two writers on
-  non-overlapping fields: Aravolta writes physical facts; CPS/NPS write allocation
-  facts. After a CPS restart, NetBox still reflects which assets belong to which
-  tenant.
+- **NetBox is the SoR for inventory and allocation.** It has three writers on
+  non-overlapping fields: Aravolta writes physical facts; HIS writes allocation
+  facts (driven by CPS); NPS writes network objects (VRFs, VLANs, prefixes). After
+  a CPS restart, NetBox still reflects which assets belong to which tenant.
 - **The Frontend Platform (PGSQL) owns the tenant→cluster→assets mapping** (consumed
   by billing).
 - NetBox→Rafay node inventory is kept current by a **separate periodic CPS workflow**
@@ -110,6 +111,10 @@ All cloud components run in the Management Plane (GCP).
   - keeps GPU workers rail/leaf-local for backend Remote Direct Memory Access (RDMA);
   - **provisions the control plane automatically** on CPU servers, spread for high
     availability (HA) — transparent to the tenant.
+- **Inventory access goes through HIS**, never NetBox directly: CPS lists the free
+  pool, reserves nodes to the tenant, and fetches per-server hardware facts
+  (BMC/IPMI IP + credentials, bootstrap + RDMA/data NIC MACs, switch ports) by
+  device id.
 - **Reservation is serialized by a CPS-held lock**: acquire before reserving, release
   after; the lock auto-expires, and callers wait to acquire it. (Single site, low
   volume — a concurrency-safe reserve is [future work](#future-work).)
@@ -118,16 +123,21 @@ All cloud components run in the Management Plane (GCP).
 
 ## Networking
 
+- **Tenant onboarding precedes everything.** CPS calls the NPS onboarding API
+  (async) and polls until success before any inventory read or reservation;
+  onboarding creates the tenant, the per-fabric VRFs (frontend + backend), the
+  network segments (in-band mgmt, storage, north-south) and the IRB.
 - Per-tenant isolation is a **tenant VRF/VLAN with IP addressing (IPAM)**, created
-  through NPS→Apstra before OS install.
+  through NPS→Apstra at onboarding; reserved-node leaf ports are attached to the
+  tenant VLANs after reservation, before OS install.
 - **PXE/IPMI provisioning rides a separate out-of-band (OOB) VLAN**, distinct from
   the tenant data network, so attaching nodes to the tenant VRF never strands the
   boot.
 
 ## Interfaces & security
 
-- **Frontend Platform↔CPS↔NPS** speak gRPC with Proto; NPS presents NetBox and Apstra
-  behind that same gRPC surface.
+- **Frontend Platform↔CPS↔HIS/NPS** speak gRPC with Proto; HIS presents NetBox dcim,
+  and NPS presents NetBox ipam and Apstra, behind that same gRPC surface.
 - **CPS↔Rafay is REST** (Rafay is a vendor product in a separate GKE cluster). Rafay
   credentials come from a secrets manager, never hardcoded.
 - All our services run in the Management Plane — one trust domain. The only VPN
@@ -157,7 +167,7 @@ on the `Operation`/`Cluster` status) and it awaits a human signal:
 
 - **resume** — the operator fixes the underlying problem; the workflow re-attempts
   from the failed step and continues to completion;
-- **cancel** — compensations run in reverse (release the NetBox reservation, tear
+- **cancel** — compensations run in reverse (release the reservation via HIS, tear
   down the tenant VRF, …) and the workflow ends rolled back.
 
 The pause is a **bounded gate inside a single-purpose workflow** — not a long-lived
@@ -172,7 +182,7 @@ automated (retry/backoff, then rollback or hold per policy).
   actual; a bounded workflow reserves + attaches new GPU servers, or drains +
   releases them, then ends.
 - **`DeleteCluster` → deprovision.** A bounded workflow deletes the cluster, tears
-  down the tenant VRF/VLAN, and releases the NetBox reservation, then ends.
+  down the tenant VRF/VLAN, and releases the reservation via HIS, then ends.
 
 These follow the provisioning pattern; detailed designs come with their own passes.
 
@@ -190,4 +200,4 @@ These pieces complete the capability; each gets its own design pass.
 ## Future Work
 
 - **Concurrency-safe reservation.** Replace the single CPS lock with an atomic
-  compare-and-set reserve in NPS once request volume outgrows serialized access.
+  compare-and-set reserve in HIS [Hardware inventory service] once request volume outgrows serialized access.

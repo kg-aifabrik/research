@@ -162,44 +162,60 @@ class Scene:
         }
 
     def _text_el(self, tid, container_id, text, x, y, w, h, size=16,
-                 align="center", color=INK):
-        lines = text.split("\n")
+                 align="center", color=INK, auto=True):
+        # auto=False lets Excalidraw wrap/center the text inside its container
         return {
             **self._common(tid, x, y, w, h, color, "transparent", roundness=False),
             "type": "text", "text": text, "rawText": text, "originalText": text,
             "fontSize": size, "fontFamily": 1, "textAlign": align,
             "verticalAlign": "middle", "containerId": container_id,
             "lineHeight": 1.25, "baseline": int(size * 0.9),
-            "autoResize": True,
+            "autoResize": auto,
         }
 
     def to_excalidraw(self) -> dict:
+        # Paint order mirrors the SVG emitter: zones -> lines -> boxes ->
+        # edges (+label pills) -> routes -> free text, so boxes cover the
+        # lifelines/dividers running beneath them.
         elements = []
-        for e in self.els:
-            bg = PALETTE.get(e.fill, e.fill) if e.kind == "box" else ZONE_FILL
-            stroke = e.stroke if e.kind == "box" else "# adb5bd".replace(" ", "")
-            rect = self._common(e.eid, e.x, e.y, e.w, e.h, stroke, bg,
+        for e in [z for z in self.els if z.kind == "zone"]:
+            rect = self._common(e.eid, e.x, e.y, e.w, e.h, "#adb5bd", ZONE_FILL,
+                                 strokestyle="dashed" if e.dashed else "solid")
+            rect["type"] = "rectangle"
+            rect["boundElements"] = []
+            elements.append(rect)
+            # zone title sits top-left as a separate text, not bound/centered
+            t = self._text_el(e.text_id or self._id("txt"), None, e.title,
+                              e.x + 16, e.y + 10, max(40, len(e.title) * 11),
+                              26, align="left", color=e.title_color)
+            t["containerId"] = None
+            elements.append(t)
+        for ln in self.lines:
+            dx, dy = ln.x2 - ln.x1, ln.y2 - ln.y1
+            le = self._common(self._id("line"), ln.x1, ln.y1, abs(dx), abs(dy),
+                              ln.color, "transparent",
+                              strokestyle="dashed" if ln.dashed else "solid",
+                              roundness=False)
+            le["type"] = "line"
+            le["points"] = [[0, 0], [dx, dy]]
+            le["startArrowhead"] = None
+            le["endArrowhead"] = None
+            elements.append(le)
+        for e in [b for b in self.els if b.kind == "box"]:
+            rect = self._common(e.eid, e.x, e.y, e.w, e.h, e.stroke,
+                                 PALETTE.get(e.fill, e.fill),
                                  strokestyle="dashed" if e.dashed else "solid")
             rect["type"] = "rectangle"
             label = e.title + (("\n" + e.sub) if e.sub else "")
-            if e.kind == "zone":
-                # zone title sits top-left as a separate text, not bound/centered
-                rect["boundElements"] = []
-                elements.append(rect)
-                t = self._text_el(e.text_id or self._id("txt"), None, e.title,
-                                  e.x + 16, e.y + 10, max(40, len(e.title) * 11),
-                                  26, align="left", color=e.title_color)
-                t["containerId"] = None
-                elements.append(t)
-            else:
-                rect["boundElements"] = [{"type": "text", "id": e.text_id}]
-                elements.append(rect)
-                t = self._text_el(e.text_id, e.eid, label, e.x + 8, e.y + 8,
-                                  e.w - 16, e.h - 16, size=15)
-                elements.append(t)
+            rect["boundElements"] = [{"type": "text", "id": e.text_id}]
+            elements.append(rect)
+            t = self._text_el(e.text_id, e.eid, label, e.x + 10, e.y + 6,
+                              e.w - 20, e.h - 12, size=14, auto=False)
+            elements.append(t)
         for ed in self.edges:
             dx, dy = ed.x2 - ed.x1, ed.y2 - ed.y1
-            arr = self._common(self._id("arr"), ed.x1, ed.y1, abs(dx), abs(dy),
+            aid = self._id("arr")
+            arr = self._common(aid, ed.x1, ed.y1, abs(dx), abs(dy),
                                ed.color, "transparent",
                                strokestyle="dashed" if ed.dashed else "solid",
                                roundness=False)
@@ -213,17 +229,22 @@ class Scene:
             if ed.dst:
                 arr["endBinding"] = {"elementId": ed.dst, "focus": 0, "gap": 6}
             elements.append(arr)
-        for ln in self.lines:
-            dx, dy = ln.x2 - ln.x1, ln.y2 - ln.y1
-            le = self._common(self._id("line"), ln.x1, ln.y1, abs(dx), abs(dy),
-                              ln.color, "transparent",
-                              strokestyle="dashed" if ln.dashed else "solid",
-                              roundness=False)
-            le["type"] = "line"
-            le["points"] = [[0, 0], [dx, dy]]
-            le["startArrowhead"] = None
-            le["endArrowhead"] = None
-            elements.append(le)
+            if ed.label:
+                # SVG-style pill: white rounded rect + text riding above the line,
+                # so the arrow itself stays fully visible underneath
+                mx, my = (ed.x1 + ed.x2) / 2, (ed.y1 + ed.y2) / 2
+                lw = len(ed.label) * 8.0 + 16
+                rid = self._id("lbox"); tid = self._id("elab")
+                rect = self._common(rid, mx - lw / 2, my - 28, lw, 22,
+                                    "#dee2e6", "#ffffff")
+                rect["type"] = "rectangle"
+                rect["strokeWidth"] = 1
+                rect["boundElements"] = [{"type": "text", "id": tid}]
+                elements.append(rect)
+                t = self._text_el(tid, rid, ed.label, mx - lw / 2 + 5, my - 26,
+                                  lw - 10, 18, size=12.5, color="#495057",
+                                  auto=False)
+                elements.append(t)
         for r in self.routes:
             xs = [p[0] for p in r.points]; ys = [p[1] for p in r.points]
             x0, y0 = r.points[0]
@@ -241,7 +262,12 @@ class Scene:
             elements.append(re)
         for f in self.frees:
             tid = self._id("free")
-            t = self._text_el(tid, None, f.text, f.x, f.y, len(f.text) * f.size * 0.6,
+            # SVG semantics: f.x is the anchor point, f.y the baseline. Excalidraw
+            # wants top-left, so shift by estimated width/ascent.
+            est_w = len(f.text) * f.size * 0.6
+            fx = f.x - est_w / 2 if f.anchor == "middle" else f.x
+            fy = f.y - f.size * 1.15
+            t = self._text_el(tid, None, f.text, fx, fy, est_w,
                               f.size * 1.4, size=f.size, color=f.color,
                               align=("center" if f.anchor == "middle" else "left"))
             t["containerId"] = None
@@ -323,13 +349,14 @@ class Scene:
                 f'stroke="{ed.color}" stroke-width="2.2" {dash}{start_marker}'
                 f'marker-end="url(#arrow)"/>')
             if ed.label:
+                # label rides just above the line so arrowheads stay visible
                 mx, my = (ed.x1 + ed.x2) / 2, (ed.y1 + ed.y2) / 2
                 w = len(ed.label) * 7.2 + 10
                 out.append(
-                    f'<rect x="{mx - w/2:.1f}" y="{my - 11}" width="{w:.1f}" height="20" '
+                    f'<rect x="{mx - w/2:.1f}" y="{my - 26}" width="{w:.1f}" height="20" '
                     f'rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>')
                 out.append(
-                    f'<text x="{mx:.1f}" y="{my + 4}" font-size="12.5" '
+                    f'<text x="{mx:.1f}" y="{my - 11}" font-size="12.5" '
                     f'fill="#495057" text-anchor="middle">{_esc(ed.label)}</text>')
 
         for r in self.routes:

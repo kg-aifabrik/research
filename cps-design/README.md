@@ -4,9 +4,12 @@ Design artifacts for the **Compute Provisioning Service (CPS)** — the system t
 bridges *supply* (racked B300 GPU + CPU servers, Juniper QFX fabric, NetBox
 inventory) and *demand* (a tenant requesting **GPU-as-a-Service (GPUaaS)** — a
 dedicated K8s cluster sized by the requested GPUs, control plane transparent). CPS
-uses **Rafay** for bare-metal provisioning + K8s control-plane
-lifecycle, the **Network Provisioning Service (NPS)** — which drives **Juniper
-Apstra** — for fabric/VRF isolation, and **Weka** for storage.
+uses **Rafay** for bare-metal provisioning + K8s control-plane lifecycle, the
+**Hardware Inventory Service (HIS)** — fronting NetBox dcim — for server hardware
+facts (BMC/IPMI, NIC MACs) and node reservation, the **Network Provisioning
+Service (NPS)** — which drives **Juniper Apstra** — for tenant onboarding and
+fabric/VRF isolation, and **Weka** for storage. Tenant onboarding through NPS is
+asynchronous and must succeed before CPS reads inventory or reserves nodes.
 
 ## Topics
 
@@ -38,7 +41,7 @@ cps-design/
 
 ## Regenerate
 
-Prereqs: Python 3 and Google Chrome (or Chromium) — no Node toolchain required.
+Prereqs: Python 3.10+ and Google Chrome (or Chromium) — no Node toolchain required.
 
 ```sh
 python3 gen/build_system_diagram.py      # writes diagrams/cps_system.{excalidraw,svg,png}

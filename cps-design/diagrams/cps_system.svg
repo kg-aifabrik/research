@@ -5,7 +5,7 @@
 <text x="58" y="215" font-size="22" font-weight="700" fill="#1971c2">Management Plane — GKE</text>
 <rect x="70" y="315" width="950" height="555" rx="14" fill="#f8f9fa" stroke="#adb5bd" stroke-width="1.5" stroke-dasharray="none"/>
 <text x="88" y="345" font-size="22" font-weight="700" fill="#6741d9">Compute Provisioning Service (CPS)</text>
-<rect x="1070" y="415" width="360" height="375" rx="14" fill="#f8f9fa" stroke="#adb5bd" stroke-width="1.5" stroke-dasharray="none"/>
+<rect x="1070" y="415" width="360" height="455" rx="14" fill="#f8f9fa" stroke="#adb5bd" stroke-width="1.5" stroke-dasharray="none"/>
 <text x="1088" y="445" font-size="22" font-weight="700" fill="#e8590c">External — SaaS / other teams</text>
 <rect x="40" y="930" width="1500" height="200" rx="14" fill="#f8f9fa" stroke="#adb5bd" stroke-width="1.5" stroke-dasharray="none"/>
 <text x="58" y="960" font-size="22" font-weight="700" fill="#2f9e44">Site — NJ</text>
@@ -50,18 +50,21 @@
 <rect x="680" y="700" width="320" height="64" rx="10" fill="#e9ecef" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
 <text x="840.0" y="728.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Observability &amp; Audit</text>
 <text x="840.0" y="744.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">logs · metrics · traces · audit</text>
-<rect x="1090" y="440" width="320" height="64" rx="10" fill="#ffd8a8" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
-<text x="1250.0" y="468.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Networking Team API</text>
-<text x="1250.0" y="484.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">VRF lifecycle → Juniper Apstra</text>
-<rect x="1090" y="520" width="320" height="64" rx="10" fill="#ffd8a8" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
-<text x="1250.0" y="548.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Rafay Controller</text>
-<text x="1250.0" y="564.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">SaaS · BM + K8s lifecycle</text>
-<rect x="1090" y="600" width="320" height="64" rx="10" fill="#ffd8a8" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
-<text x="1250.0" y="628.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Weka Control Plane</text>
-<text x="1250.0" y="644.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">filesystem / quota · org · access</text>
-<rect x="1090" y="700" width="320" height="64" rx="10" fill="#ffffff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="7 5"/>
-<text x="1250.0" y="728.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Tenant API Access</text>
-<text x="1250.0" y="744.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">Rafay ZTKA — OPEN ITEM</text>
+<rect x="1090" y="460" width="320" height="64" rx="10" fill="#ffd8a8" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="1250.0" y="488.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Hardware Inventory Service</text>
+<text x="1250.0" y="504.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">server hw facts · reservation → NetBox DCIM</text>
+<rect x="1090" y="540" width="320" height="64" rx="10" fill="#ffd8a8" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="1250.0" y="568.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Network Provisioning (NPS)</text>
+<text x="1250.0" y="584.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">tenant onboarding · VRF/VLAN/IPAM → Apstra</text>
+<rect x="1090" y="620" width="320" height="64" rx="10" fill="#ffd8a8" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="1250.0" y="648.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Rafay Controller</text>
+<text x="1250.0" y="664.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">SaaS · BM + K8s lifecycle</text>
+<rect x="1090" y="700" width="320" height="64" rx="10" fill="#ffd8a8" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
+<text x="1250.0" y="728.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Weka Control Plane</text>
+<text x="1250.0" y="744.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">filesystem / quota · org · access</text>
+<rect x="1090" y="780" width="320" height="64" rx="10" fill="#ffffff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="1250.0" y="808.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Tenant API Access</text>
+<text x="1250.0" y="824.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">Rafay ZTKA — OPEN ITEM</text>
 <rect x="90" y="995" width="240" height="72" rx="10" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="none"/>
 <text x="210.0" y="1027.8" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">GPU Servers — B300</text>
 <text x="210.0" y="1043.9" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">tenant workers + Weka NVMe</text>
@@ -84,30 +87,32 @@
 <line x1="245.0" y1="298" x2="280.0" y2="360" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
 <line x1="280.0" y1="420" x2="280.0" y2="450" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
 <line x1="280.0" y1="580" x2="280.0" y2="610" stroke="#495057" stroke-width="2.2" marker-start="url(#arrowS)" marker-end="url(#arrow)"/>
-<rect x="239.0" y="584.0" width="82.0" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
-<text x="280.0" y="599.0" font-size="12.5" fill="#495057" text-anchor="middle">read/write</text>
+<rect x="239.0" y="569.0" width="82.0" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="280.0" y="584.0" font-size="12.5" fill="#495057" text-anchor="middle">read/write</text>
 <line x1="410" y1="515.0" x2="470" y2="392.0" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
 <line x1="410" y1="515.0" x2="470" y2="472.0" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
 <line x1="410" y1="515.0" x2="470" y2="552.0" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
 <line x1="410" y1="515.0" x2="470" y2="632.0" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
-<line x1="730" y1="392.0" x2="895.0" y2="306" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="782.3" y="338.0" width="60.4" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
-<text x="812.5" y="353.0" font-size="12.5" fill="#495057" text-anchor="middle">reserve</text>
-<line x1="730" y1="472.0" x2="1090" y2="472.0" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="879.8" y="461.0" width="60.4" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
-<text x="910.0" y="476.0" font-size="12.5" fill="#495057" text-anchor="middle">VRF ops</text>
-<line x1="730" y1="552.0" x2="1090" y2="552.0" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="872.6" y="541.0" width="74.8" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
-<text x="910.0" y="556.0" font-size="12.5" fill="#495057" text-anchor="middle">provision</text>
-<line x1="730" y1="632.0" x2="1090" y2="632.0" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="865.4" y="621.0" width="89.2" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
-<text x="910.0" y="636.0" font-size="12.5" fill="#495057" text-anchor="middle">fs + access</text>
-<polyline points="1410.0,472.0 1520.0,472.0 1520.0,940.0 1135.0,940.0 1135.0,995.0" fill="none" stroke="#495057" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
-<polyline points="1410.0,552.0 1490.0,552.0 1490.0,912.0 935.0,912.0 935.0,995.0" fill="none" stroke="#495057" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
-<polyline points="1410.0,632.0 1455.0,632.0 1455.0,968.0 1335.0,968.0 1335.0,995.0" fill="none" stroke="#495057" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
+<line x1="730" y1="392.0" x2="1090" y2="492.0" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="815.0" y="416.0" width="190.0" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="910.0" y="431.0" font-size="12.5" fill="#495057" text-anchor="middle">list · hw facts · reserve</text>
+<line x1="730" y1="472.0" x2="1090" y2="572.0" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="879.8" y="496.0" width="60.4" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="910.0" y="511.0" font-size="12.5" fill="#495057" text-anchor="middle">VRF ops</text>
+<line x1="730" y1="552.0" x2="1090" y2="652.0" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="872.6" y="576.0" width="74.8" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="910.0" y="591.0" font-size="12.5" fill="#495057" text-anchor="middle">provision</text>
+<line x1="730" y1="632.0" x2="1090" y2="732.0" stroke="#495057" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="865.4" y="656.0" width="89.2" height="20" rx="5" fill="#ffffff" stroke="#dee2e6" stroke-width="1"/>
+<text x="910.0" y="671.0" font-size="12.5" fill="#495057" text-anchor="middle">fs + access</text>
+<polyline points="1410.0,492.0 1445.0,492.0 1445.0,330.0 950.0,330.0 950.0,306.0" fill="none" stroke="#495057" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
+<polyline points="1410.0,572.0 1520.0,572.0 1520.0,940.0 1135.0,940.0 1135.0,995.0" fill="none" stroke="#495057" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
+<polyline points="1410.0,652.0 1490.0,652.0 1490.0,912.0 935.0,912.0 935.0,995.0" fill="none" stroke="#495057" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
+<polyline points="1410.0,732.0 1455.0,732.0 1455.0,968.0 1335.0,968.0 1335.0,995.0" fill="none" stroke="#495057" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
 <text x="780.0" y="38" font-size="26" font-weight="700" fill="#1e1e1e" text-anchor="middle">Compute Provisioning Service (CPS) — System Components</text>
 <text x="780.0" y="64" font-size="14" font-weight="400" fill="#868e96" text-anchor="middle">single site (us-east-1 / NJ)  ·  per-tenant dedicated GPU nodes + dedicated K8s control plane</text>
 <text x="780.0" y="86" font-size="12.5" font-weight="400" fill="#adb5bd" text-anchor="middle">blue = CPS service   violet = orchestrator   gray = cross-cutting   orange = external dependency   green = site substrate   teal = inventory / storage</text>
 <text x="780.0" y="925" font-size="13" font-weight="700" fill="#fa5252" text-anchor="middle">— VPN tunnel —   cloud above / site (NJ) below</text>
 <text x="780.0" y="1118" font-size="12.5" font-weight="400" fill="#868e96" text-anchor="middle">(fabric &amp; storage wiring detailed in the interface / VRF diagram)</text>
+<text x="1170" y="318" font-size="12.5" font-weight="400" fill="#495057" text-anchor="middle">DCIM reads · allocation writes</text>
 </svg>
