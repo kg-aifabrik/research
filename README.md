@@ -18,3 +18,4 @@ Reports are written in Markdown.
 | [k8s-fed](k8s-fed/) | Open source Kubernetes federation technologies for a 50+ edge inference platform. |
 | [k8s-hardening](k8s-hardening/) | Securing on-prem kubeadm and GKE clusters to a common posture: layered threat model, a severity-ranked manual/automation control catalog with verified CVEs, and the kube-bench/kubescape measurement workflow. |
 | [mgmt-plane-setup](mgmt-plane-setup/) | Production management plane on managed K8s: AWS EKS vs GCP GKE cost and architecture comparison (multi-region HA, SOC 2, Cloudflare ingress). |
+| [temporal](temporal/) | Shared self-hosted Temporal on GKE + Cloud SQL PostgreSQL as a multi-team workflow engine: instance architecture, out-of-the-box/community tooling, and the platform build list for per-team namespaces. |
