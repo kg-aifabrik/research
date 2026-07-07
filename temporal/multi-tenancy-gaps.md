@@ -1,84 +1,90 @@
-# What the platform team must build for multi-team Temporal
+# Making one Temporal serve many teams: what we have to build
 
 ## Executive Summary
 
-Namespaces give logical isolation only — task queues, workflow IDs, retention, rate-limit boundaries, access-control scope — while all teams share the same frontend/history/matching services and the same PostgreSQL instance. Everything that makes the shared instance *safe* and *self-service* is platform work:
+Temporal's namespaces separate teams' *names and configuration* — workflows, task queues, retention — but not their *machines*: every namespace shares the same four services and the same PostgreSQL instance, and Open Source Software (OSS) Temporal ships with no authentication, no self-service, and no per-team billing. Closing that gap is the platform team's actual job. The build list, in dependency order: (1) authentication and per-namespace authorization — the largest single build; (2) an automated team-onboarding pipeline; (3) a worker "chassis" and CI (Continuous Integration) template; (4) a shared codec server; (5) dashboard templating; (6) cost showback, only if demanded.
 
-| Capability | Status in OSS | Platform work |
-|---|---|---|
-| Namespace provisioning | CLI/gRPC only; no official Terraform | **Build**: onboarding automation (namespace + quotas + dashboards + auth) |
-| Per-team quotas / noisy-neighbor limits | Dynamic-config keys exist, per-namespace, no wildcards | **Configure + template** per team |
-| Authentication / authorization | Pluggable, default = wide open | **Build**: OIDC + claim mapping; custom mapper means recompiling the server |
-| Worker deploy golden path | Worker Versioning + worker-controller GA | **Assemble**: chassis library + CI template + replay gate |
-| Payload encryption / codec server | Samples only | **Build**: central codec service, per-namespace keys |
-| Cost attribution | Namespace-tagged metrics | **Build** (thin): showback dashboard |
-| Cross-team calls | Nexus (GA) | **Govern**: endpoint registry conventions |
-
-On the open worker-topology question: **commit to per-team workers now.** Temporal's design binds one worker to one namespace ([deliberately, to prevent cross-namespace starvation](https://community.temporal.io/t/sharing-activity-workers-across-namespaces/9921)), so a "common worker pool" across per-team namespaces would mean one deployment running every team's code — coupled deploys, shared blast radius — and no published platform (Netflix, Datadog) does it. The good news: worker/task-queue layout is cheap to change later; **namespace layout is not** (no supported migration of running workflows between namespaces). Spend the design care on namespace granularity, and give teams a platform-provided worker chassis instead of a shared pool.
+On the open worker-pool question: **per-team workers from day one, and it's not close.** A Temporal worker serves exactly one namespace by design, so with per-team namespaces a "common pool" would mean one deployment carrying every team's code — and no published platform does that. The genuinely irreversible choice is elsewhere: **namespace layout.** Workflows cannot move between namespaces, ever. Design namespace granularity carefully; everything else can be refactored later.
 
 ## Requirements
 
-- Identify what must be built (vs configured vs free) for multiple teams to use one self-hosted Temporal cluster (GKE — Google Kubernetes Engine, Cloud SQL PostgreSQL, per-team namespaces) independently.
-- Resolve the open item: common worker pool first vs per-team workers — and whether committing early matters.
+- Determine what must be *built*, vs merely *configured*, vs free, for multiple teams to share one self-hosted Temporal (GKE — Google Kubernetes Engine, Cloud SQL PostgreSQL, per-team namespaces) independently.
+- Resolve the open item: start with a common worker pool, or per-team workers? Does committing early matter?
 
 ## Assumptions Made
 
-- O(5–20) teams, not thousands of namespaces — the per-team-namespace model is well inside Temporal's guidance at this scale.
-- Teams own their workflow code and worker deployments; the platform team owns cluster, database, auth, and shared services.
-- An OIDC (OpenID Connect) Identity Provider with custom-claim support is available (Google Workspace/Identity Platform).
+- 5–20 teams, not thousands of tenants — comfortably inside the per-team-namespace pattern.
+- Teams own their workflow code and workers; the platform owns cluster, database, auth, and shared services.
+- An OpenID Connect (OIDC) identity provider that can mint custom claims is available (Google Workspace / Identity Platform).
 
-## Worker topology: the open item, resolved
+## First, the right mental model: what a namespace is and isn't
 
-Facts that settle it:
+A namespace is a **logical boundary**: its own workflow IDs, task queues, retention policy, and — once auth exists — its own access-control scope. When team A's worker misbehaves, it can only touch team A's workflows. That's real, useful isolation, and per-team namespaces are the pattern [Temporal's own guidance](https://docs.temporal.io/best-practices/managing-namespace) points to at our scale.
 
-- **One worker instance serves exactly one namespace.** Maxim Fateev (Temporal co-founder): workers can't span namespaces because "one namespace could get starved for workers by another" ([forum](https://community.temporal.io/t/sharing-activity-workers-across-namespaces/9921)). With per-team namespaces, a shared pool degenerates to one process hosting N per-namespace workers containing all teams' code — dependency conflicts, one team's OOM kills everyone's pollers, every deploy is everyone's deploy.
-- **No published multi-team platform shares worker processes across teams.** [Netflix](https://community.temporal.io/t/automating-temporal-a-full-view-of-the-netflix-temporal-platform/13624) (namespace operator, mTLS, SDK shims — teams run their own workers) and [Datadog](https://opensource.datadoghq.com/projects/temporal/) (built the [temporal-worker-controller](https://github.com/temporalio/temporal-worker-controller), which models per-service worker deployments) both converge on per-team workers on a paved road.
-- **Switching worker layout later is cheap; switching namespace layout is not.** Moving activities/workflows to different task queues [needs no versioning](https://community.temporal.io/t/clarity-on-task-queue-and-worker-segregation-patterns/4429) — queue names aren't replay-validated. But running workflows [cannot move between namespaces](https://community.temporal.io/t/switch-workflow-execution-to-another-namespace-task-queue/5627) and there's [no supported history migration](https://community.temporal.io/t/migrate-a-namespace-between-servers-and-namespace/18497) — a wrong namespace split means drain-and-restart.
+What a namespace is **not**: a resource boundary. All namespaces flow through the same frontend, the same history service, the same database. A Temporal staffer [confirms the consequence plainly](https://community.temporal.io/t/noisy-neighbor-namespace/18728): one namespace under heavy load can degrade all the others. Nothing prevents it by default — the platform has to set limits (below).
 
-**Recommendation:** per-team worker deployments from day one, built on a **platform chassis**: a base image + small init library per language (Netflix's "SDK shim" pattern) that wires mTLS, metrics, tracing, the encryption data converter, and standard interceptors; deployed via a CI template using the worker-controller. The "shared" part of the vision lives in the chassis and golden path, not in shared processes. Where a genuinely common capability is needed (e.g., a platform-owned "provision bare-metal via Rafay" service), expose it as a **Nexus endpoint** from a platform namespace rather than putting platform code in team workers.
+Keep this split in mind throughout: **namespaces isolate names; only quotas and worker separation isolate resources.**
 
-## Noisy neighbors: quotas to set per team
+## The worker question, answered
 
-One loaded namespace [can degrade others](https://community.temporal.io/t/noisy-neighbor-namespace/18728) — the shared surfaces are frontend RPS (requests per second), persistence QPS (queries per second), and history shards. OSS mitigations are [dynamic-config keys](https://docs.temporal.io/references/dynamic-configuration), settable per namespace via `constraints` blocks:
+The request was to start with a common worker pool shared by all teams, moving to per-team workers later if needed. Three findings say to start per-team instead:
 
-- `frontend.namespaceRPS` (default 2400/instance), `frontend.globalNamespaceRPS`; poller cap `frontend.namespaceCount` (default 1200).
-- `frontend/history/matching.persistenceNamespaceMaxQPS` — the knob that actually protects Cloud SQL.
-- Size guardrails: `limit.blobSize.*` (512 KB warn / 2 MB error), `limit.historySize.*` (10/50 MB), `limit.historyCount.*` (10k/51k events).
+**1. Temporal's design already decided.** A worker connects to exactly one namespace. This is deliberate — Temporal's co-founder [explains](https://community.temporal.io/t/sharing-activity-workers-across-namespaces/9921) that a multi-namespace worker would let one namespace starve another of capacity, exactly what namespaces exist to prevent. So with per-team namespaces, a "common pool" can't be a pool at all; it degenerates into one deployment running a separate worker per namespace, with **every team's code compiled into one artifact**. One team's memory leak evicts everyone's pollers; one team's dependency upgrade forces everyone's redeploy; shipping anything means shipping everything.
 
-Two catches: per-namespace overrides [must enumerate namespaces explicitly — no wildcards](https://github.com/temporalio/temporal/issues/6237), so onboarding must template the dynamic-config file; and exact key names drift between 1.2x/1.3x releases — verify against [constants.go](https://github.com/temporalio/temporal/blob/main/common/dynamicconfig/constants.go) for the deployed version.
+**2. Nobody runs it that way.** [Netflix's Temporal platform](https://community.temporal.io/t/automating-temporal-a-full-view-of-the-netflix-temporal-platform/13624) (namespace automation, mTLS, per-language init libraries — built by ~1.5 engineers in a quarter) and [Datadog's](https://opensource.datadoghq.com/projects/temporal/) (they wrote the worker-controller) both converge on the same shape: **teams run their own workers on a platform-paved road.**
 
-[Task Queue Priority & Fairness](https://docs.temporal.io/develop/task-queue-priority-fairness) (GA [May 2026](https://temporal.io/changelog/priority-fairness-generally-available)) adds priorities (1–5) and weighted fairness keys — but *within one task queue*, so with per-team namespaces it's a within-team tool (e.g., prioritizing urgent re-provisions over bulk builds), not the cross-team isolation mechanism.
+**3. The asymmetry of regret is the clincher.** Suppose we start shared and it hurts — how bad is the switch? For workers: painless. Task-queue names aren't validated on replay, so [moving work to new queues and workers needs no versioning](https://community.temporal.io/t/clarity-on-task-queue-and-worker-segregation-patterns/4429). For namespaces: brutal. A running workflow [cannot change namespace](https://community.temporal.io/t/switch-workflow-execution-to-another-namespace-task-queue/5627), and there is [no supported way to migrate histories](https://community.temporal.io/t/migrate-a-namespace-between-servers-and-namespace/18497) — fixing a wrong split means draining months-long provisioning workflows to completion. **Spend the design meeting on namespace granularity** (per team? per team per environment? — per-environment namespaces like `team-prod` / `team-staging` are the documented pattern), not on worker topology.
 
-## AuthN/AuthZ: the largest single build
+The "shared" idea survives in better form: share the **chassis**, not the process. A base image plus a thin per-language init library that pre-wires mTLS, metrics, tracing, encryption, and standard interceptors — Netflix's exact pattern — so a team's first worker is an afternoon, not a sprint. And when something genuinely common is needed (one blessed "provision bare-metal via Rafay" implementation), publish it as a **Nexus endpoint** from a platform-owned namespace; teams call it without hosting it.
 
-- OSS default is **no auth**: anyone with network access can read histories, terminate workflows, delete namespaces. The [pluggable model](https://docs.temporal.io/self-hosted-guide/security) is `ClaimMapper` (JWT — JSON Web Token → claims) + `Authorizer` (per-API allow/deny).
-- The built-in JWT mapper expects `permissions: ["<namespace>:<role>"]` (read/write/worker/admin). Google's tokens don't carry it → either mint custom claims in the IdP (group-to-namespace mapping) or write a custom claim mapper — which requires [compiling your own server binary](https://community.temporal.io/t/custom-claim-mapper/12706). Budget for the custom-binary path; the default mapper also has [known `sub`-handling quirks](https://github.com/temporalio/temporal/issues/8218). Worked examples: [Bitovi RBAC](https://www.bitovi.com/blog/implementing-role-based-authentication-for-self-hosted-temporal), [Keycloak walkthrough](https://piotrmucha.blog/2025/12/26/implementing-authorization-in-temporal-server/).
-- Web UI has no roles of its own — it forwards the user's token; enforcement is server-side. Per-team UI visibility falls out of the authorizer.
-- Server v1.31 adds a non-spoofable [`Principal` field on history events](https://github.com/temporalio/temporal/releases/tag/v1.31.0) — use it for audit.
-- Workers authenticate with mTLS certs or JWTs scoped `<namespace>:worker` — issue per-team credentials at onboarding.
+## Build 1 — authentication and authorization (do this before sharing anything)
 
-## Namespace lifecycle: build the onboarding pipeline
+Out of the box, anyone with network reach can read every team's payloads, terminate any workflow, delete namespaces. The [security model](https://docs.temporal.io/self-hosted-guide/security) is two pluggable hooks: a **claim mapper** (turns a JWT — JSON Web Token — into "this caller has these roles in these namespaces") and an **authorizer** (allows or denies each API call against those roles).
 
-No official self-hosted IaC (Infrastructure as Code) exists (the [Terraform provider is Cloud-only](https://github.com/temporalio/terraform-provider-temporalcloud)). Onboarding a team touches ~6 systems, so script it once: create namespace (retention, naming `<team>-<domain>-<env>` per [best practices](https://docs.temporal.io/best-practices/managing-namespace)) → append dynamic-config quota block → IdP group/claim mapping → worker credentials → Grafana folder with namespace-scoped dashboards/alerts → codec-server key registration. Options for the namespace step: [community Terraform provider](https://github.com/platacard/terraform-provider-temporal), `temporal operator namespace` in CI, or the temporal-operator's CRD (version-lagged). Per-env = per-namespace (`team-prod`, `team-staging`); names are effectively permanent (no migration), so gate naming at onboarding.
+The built-in mapper expects a `permissions: ["<namespace>:<role>"]` claim (roles: read / write / worker / admin). Google-issued tokens don't carry it, leaving two options:
 
-## Golden path and guardrails
+- **Mint the claim in the identity provider** — map groups to namespace roles at token issuance. No Temporal code changes; do this if the IdP cooperates.
+- **Write a custom claim mapper** — here's the catch: custom mappers are [compiled into the server binary](https://community.temporal.io/t/custom-claim-mapper/12706). That means maintaining our own server build and rebuilding on every upgrade. Worked examples exist ([Bitovi](https://www.bitovi.com/blog/implementing-role-based-authentication-for-self-hosted-temporal), [Keycloak walkthrough](https://piotrmucha.blog/2025/12/26/implementing-authorization-in-temporal-server/)), but budget it as a real project.
 
-- **Replay gate in CI** (highest-value guardrail): run the SDK WorkflowReplayer against sampled production histories on every worker build; fail on non-determinism ([safe deployments](https://docs.temporal.io/develop/safe-deployments)). Pair with Worker Versioning pinned mode + [worker-controller](https://github.com/temporalio/temporal-worker-controller) progressive rollout.
-- **Chassis interceptor stack**: metrics, tracing, logging, encryption codec, optionally the [workflow-security interceptor](https://github.com/temporalio/samples-go/tree/main/workflow-security-interceptor) to whitelist child-workflow types.
-- **SDK governance**: pin a supported language/SDK-version matrix; feature parity differs by language (see [oob-utilities-and-ecosystem.md](oob-utilities-and-ecosystem.md)).
-- **Local dev**: `temporal server start-dev` covers laptops; staging namespaces on the shared cluster cover integration.
+The Web UI needs no separate work — it forwards the user's token, so a team member sees exactly their namespaces. Workers get their own credentials (mTLS certificates or `<namespace>:worker`-scoped JWTs), issued per team at onboarding. Since v1.31 the server stamps a tamper-proof [`Principal`](https://github.com/temporalio/temporal/releases/tag/v1.31.0) on history events — who-terminated-this audit for free.
 
-## Cost attribution and ops
+## Build 2 — the onboarding pipeline (and the quota trap inside it)
 
-- **Showback**: all server metrics are namespace-tagged — a thin dashboard over `service_requests`/state-transition rates and per-namespace storage approximates [Temporal Cloud's actions-based billing](https://temporal.io/blog/improved-cost-transparency-with-usage-based-billing). Build only if chargeback is actually demanded; start with a usage report.
-- **What breaks in practice**: Postgres connection exhaustion ([documented failure mode](https://community.temporal.io/t/postgres-connection-churn/9612) — stuck workflows, UI 500s), hot shards from high-event-rate single workflows ([per-shard throughput is DB-latency-bound](https://planetscale.com/blog/temporal-workflows-at-scale-sharding-in-production)), and upgrade-train coordination (sequential minors, schema-first). On-call: platform owns cluster/DB/auth; teams own their workers and workflow failures — per-namespace alerts route accordingly.
-- **Scale ceiling**: Cloud SQL can't shard, so the scale-out path is a second cluster (cells) with namespaces pinned to cells — [Datadog runs dozens of clusters](https://temporal.io/resources/on-demand/surviving-the-challenges-of-self-hosting-temporal-at-datadog); irrelevant at provisioning-workflow scale but it caps how much to invest in the one-cluster design.
+There is no self-service anything in OSS Temporal, and the official Terraform provider is [Cloud-only](https://github.com/temporalio/terraform-provider-temporalcloud). Onboarding a team touches six things — script it once, run it per team:
 
-## Suggested build order
+1. Create the namespace(s) (retention, `<team>-<env>` naming — remember: permanent).
+2. Add the team's quota block to the dynamic-config file.
+3. Map the team's IdP group to namespace roles.
+4. Issue worker credentials.
+5. Stamp out the team's Grafana folder and alerts.
+6. Register the team's key with the codec server (Build 4).
 
-1. mTLS + OIDC auth + claim mapping (nothing else is safe to share without it).
-2. Namespace onboarding automation (namespace + quotas + credentials + dashboards).
-3. Worker chassis + CI template with replay gate and worker-controller.
-4. Codec server with per-namespace keys.
-5. Per-team Grafana dashboards/alerts (mostly templating).
-6. Showback, Nexus endpoint conventions — as demand appears.
+Step 2 is where the noisy-neighbor protection actually lives, via per-namespace [dynamic-config](https://docs.temporal.io/references/dynamic-configuration) overrides: `frontend.namespaceRPS` caps a team's request rate (requests per second), `*.persistenceNamespaceMaxQPS` caps their database pressure — the one that really protects Cloud SQL — and `limit.blobSize.*` / `limit.historySize.*` / `limit.historyCount.*` stop oversized payloads and runaway histories before they hurt the shared database.
+
+Two traps: overrides [can't be wildcarded](https://github.com/temporalio/temporal/issues/6237) — every namespace must be listed explicitly, hence the templating; and key names drift between releases — verify against [constants.go](https://github.com/temporalio/temporal/blob/main/common/dynamicconfig/constants.go) for the deployed version. (The newer [Task Queue Priority & Fairness](https://docs.temporal.io/develop/task-queue-priority-fairness) feature, GA May 2026, sounds relevant but operates *within* one task queue — useful to a team prioritizing its own work, e.g. urgent re-provisions over bulk builds; not a cross-team isolation tool.)
+
+## Build 3 — the paved road for workers
+
+Assembly, not invention:
+
+- **The chassis** (from the worker discussion): base image + init library with mTLS, metrics, tracing, encryption codec, standard interceptors pre-wired. Optionally the [workflow-security interceptor](https://github.com/temporalio/samples-go/tree/main/workflow-security-interceptor) to restrict which child workflow types run.
+- **A CI template with a replay gate** — the highest-value guardrail on the list. Replay production histories against the new build; fail on non-determinism ([safe deployments guide](https://docs.temporal.io/develop/safe-deployments)). This catches broken-running-workflow bugs *before* deploy, which matters enormously when workflows run for days.
+- **Deployment via the [temporal-worker-controller](https://github.com/temporalio/temporal-worker-controller)** with Worker Versioning in pinned mode — old and new worker versions run side by side, old workflows finish on the code that started them.
+- **SDK governance**: a supported language/version matrix (feature parity varies — see [oob-utilities-and-ecosystem.md](oob-utilities-and-ecosystem.md)). Local dev is solved: `temporal server start-dev` is a single binary.
+
+## Build 4 — the codec server
+
+Teams encrypting payloads (they should — the shared database stores every workflow input/output, including machine credentials) need a [codec server](https://docs.temporal.io/production-deployment/data-encryption) so the shared UI can decode payloads for authorized viewers. One platform service, routing on the namespace header the UI sends to per-team keys — Netflix runs [exactly this centralized shape](https://community.temporal.io/t/automating-temporal-a-full-view-of-the-netflix-temporal-platform/13624). It sees plaintext, so it authenticates callers as strictly as the cluster itself.
+
+## Builds 5 & 6 — dashboards and showback
+
+Mostly templating. Metrics are namespace-labelled, so per-team Grafana folders with the three standard alerts (worker starvation, non-determinism tripwire, failure ratio) stamp out per team. For cost attribution, per-namespace request and state-transition rates approximate what [Temporal Cloud bills on](https://temporal.io/blog/improved-cost-transparency-with-usage-based-billing); start with a monthly usage report and build real chargeback only if someone demands it.
+
+## Running it: what actually breaks
+
+- **PostgreSQL connection exhaustion** — the [best-documented failure mode](https://community.temporal.io/t/postgres-connection-churn/9612) (stuck workflows, UI errors). Budget `maxConns` × replicas × 2 against the Cloud SQL limit; alert on connection count.
+- **Hot shards** — one workflow taking a very high event rate serializes on its shard, whose ceiling is [database latency](https://planetscale.com/blog/temporal-workflows-at-scale-sharding-in-production). The history-length guardrails and a word in code review ("split that loop into child workflows") prevent it.
+- **The upgrade train** — sequential minors, schema-first, one org-wide window. Platform coordinates; teams' workers just need SDK compatibility.
+- **On-call split** follows ownership: platform pages on cluster/database/auth; teams page on their own workflow failures and worker starvation. The namespace label routes alerts correctly by construction.
+
+If the org someday outgrows one cluster (Cloud SQL can't shard — [Datadog runs dozens of clusters](https://temporal.io/resources/on-demand/surviving-the-challenges-of-self-hosting-temporal-at-datadog)), the answer is more clusters with teams pinned to each. Provisioning-scale load won't get there — which is itself a design input: keep the platform layer thin enough that a second cluster is an instance of it, not a rewrite.

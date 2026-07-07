@@ -1,65 +1,87 @@
-# Temporal out-of-the-box utilities and ecosystem extensions
+# What teams get out of the box (and what the community adds)
 
 ## Executive Summary
 
-Teams on a shared Temporal instance get, for free: the **Web UI** (event-history inspection, stack-trace and pending-activity debugging, signal/reset/terminate/bulk actions), the **temporal CLI** (batch operations, live workflow tracing, resets, schedules), **seven GA SDKs** (Go, Java, TypeScript, Python, .NET, PHP, Ruby), time-skipping **test frameworks with replay testing**, **Schedules** (cron replacement), **Nexus** for governed cross-team/cross-namespace calls (GA since March 2025), and **Worker Versioning + the temporal-worker-controller** (GA March 2026) for safe rainbow deploys of workers on Kubernetes. Metrics are namespace-tagged out of the box, so per-team success/failure/runtime dashboards are a Grafana-variable exercise, not a build. The genuinely thin spots: Web UI saved views are browser-local (no shared team views), authorization is a server-side plugin you must supply, self-hosted namespace management has no official Terraform provider (community ones exist), and there is no workflow catalog/discovery tool — conventions and search attributes fill that gap.
+More than expected. A team landing on the shared instance gets, without the platform building anything: official SDKs (Software Development Kits) in seven languages, test frameworks that fast-forward time, a Web UI that answers "where is my workflow stuck and why", a CLI (command-line interface) for bulk operations, cron-style Schedules, **Nexus** for calling another team's workflows without touching their code, and **Worker Versioning** for deploying workflow changes without breaking runs already in flight. Metrics are labelled by namespace out of the box, so "my team's dashboard" is Grafana templating, not engineering. The honest gaps: the UI's saved views can't be shared across a team, there is no workflow catalog tool anywhere in the ecosystem, and authorization is a build-your-own affair (covered in [multi-tenancy-gaps.md](multi-tenancy-gaps.md)).
 
 ## Requirements
 
-- Inventory what a shared self-hosted Temporal (GKE — Google Kubernetes Engine, PostgreSQL, per-team namespaces) provides out of the box vs via community extensions.
-- Focus on the utilities teams asked for: reviewing running/past workflows for debugging, and workflow metrics (success/failure, runtime).
-- Code-first only — no visual workflow designers.
+- Inventory what our shared self-hosted Temporal (GKE — Google Kubernetes Engine, PostgreSQL, per-team namespaces) gives teams out of the box vs via community extensions.
+- Cover the utilities named in the ask: reviewing running/past workflows for debugging, and workflow metrics (success/failure, runtime).
+- Code-first only — no visual designers.
 
 ## Assumptions Made
 
-- "Community supported" includes official-but-separate Temporal repos (dashboards, worker-controller, samples) plus third-party OSS (Open Source Software).
-- Feature status is as of July 2026; several items (Nexus SDK coverage, worker-controller) moved fast in 2025–26 and should be re-verified at build time.
+- "Community supported" includes Temporal's own side repos (dashboards, samples, the worker-controller) plus third-party open source.
+- Statuses are as of July 2026. Nexus and Worker Versioning moved fast through 2025–26 — re-verify at build time.
 
-## Debugging and operations tooling
+This report follows a team through the life of a workflow: write it, test it, deploy it, watch it, debug it — then what exists between teams, and what doesn't exist at all.
 
-**[Web UI](https://docs.temporal.io/web-ui)** — the shared debugging surface:
-- Execution lists filtered by status/type/time/custom search attributes; event history in timeline/compact/JSON views; history downloadable as JSON for local replay.
-- Debug views: current **stack trace** of a blocked workflow, **pending activities** with attempt/failure drill-down, parent/child relationship tree, and a built-in **Task Failures** view surfacing workflows with 5 consecutive task failures.
-- Operator actions from the UI: cancel, signal, update, **reset** (rewind to a prior event), terminate, plus **bulk terminate/cancel** driven by a visibility query. Actions can be disabled per-deployment via [UI config](https://docs.temporal.io/references/web-ui-configuration) for lockdown.
-- Limitation for a shared platform: **saved views are browser-local, max 20, per user** — no centrally provisioned "team X's workflows" views. Compensate with naming conventions + custom search attributes + dashboard links.
+## Writing: seven languages, one caveat
 
-**[temporal CLI](https://docs.temporal.io/cli)** — everything the UI does plus: `workflow trace` (live execution tree incl. children), `workflow show --follow`, batch `signal/cancel/terminate/reset` targeted by `--query` with `--rps` throttling, [schedule management](https://docs.temporal.io/cli/schedule), an embedded dev server (`temporal server start-dev`), and operator commands for namespaces/search attributes/Nexus endpoints.
+[Seven GA SDKs](https://docs.temporal.io/develop): Go, Java, TypeScript, Python, .NET, PHP, Ruby (Rust in preview). The caveat is that **new features arrive language by language** — Nexus, for example, is GA in Go/Java/Python but still preview in TypeScript and .NET. The platform should publish a small supported-language matrix rather than promising "any SDK, any feature."
 
-**Replay debugging**: the official [VS Code debugger extension](https://github.com/temporalio/vscode-debugger-extension) replays a production event history against workflow code with breakpoints (TypeScript + Go).
+Day-to-day essentials are uniform everywhere: declarative [retry policies](https://docs.temporal.io/encyclopedia/retry-policies) and timeouts (an activity that calls a flaky API gets retries by configuration, not by code), signals and queries, and [Updates](https://temporal.io/blog/announcing-a-new-operation-workflow-update) — a synchronous "change this running workflow and give me an answer back", the request/reply primitive workflows long lacked.
 
-## Built-in features teams get for free
+## Testing: the part that's genuinely better than it sounds
 
-- **[Schedules](https://docs.temporal.io/schedule)** (GA, replaces cron): calendar/interval specs, jitter, timezones, six overlap policies, pause/backfill, action limits.
-- **Signals, Queries, and [Updates](https://temporal.io/blog/announcing-a-new-operation-workflow-update)** (Update-with-Start GA in server v1.28) — synchronous mutate-and-respond, the missing "request/reply" primitive.
-- **Declarative [retry policies](https://docs.temporal.io/encyclopedia/retry-policies) + timeout model**, child workflows, continue-as-new.
-- **[Nexus](https://temporal.io/blog/temporal-nexus-now-available)** — cross-namespace service calls with contract-first APIs. **This is the multi-team primitive**: team A calls team B's workflow without sharing code, queues, or namespace access. GA since 2025-03 (Go/Java, [Python GA, TypeScript/.NET preview as of Replay 2026](https://temporal.io/blog/replay-2026-product-announcements)). Self-hosted: [enabled by default from server 1.30](https://docs.temporal.io/production-deployment/self-hosted-guide/nexus), single-cluster scope, frontend HTTP port required. The Nexus endpoint registry doubles as a de-facto cross-team service catalog.
-- **[Worker Versioning](https://docs.temporal.io/production-deployment/worker-deployments/worker-versioning)** — GA 2026-03-30: pinned vs auto-upgrade workflows, ramped rollout, instant rollback. Companion **[temporal-worker-controller](https://github.com/temporalio/temporal-worker-controller)** (originated at Datadog, now official; v1.8.0, needs server ≥1.29.1): a Kubernetes controller doing versioned rainbow deployments of workers with per-version autoscaling and cleanup of drained versions. This pair is the golden-path answer for "how do teams deploy workflow changes safely" — the classic [patching APIs](https://docs.temporal.io/develop/go/versioning) remain for surgical fixes.
-- **SDKs**: [seven GA languages](https://docs.temporal.io/develop) — Go, Java, TypeScript, Python, .NET, PHP (needs RoadRunner), Ruby (GA Oct 2025); Rust in preview. Feature parity lags per language (e.g., Nexus in TS/.NET is preview) — pin a supported-language matrix for the platform.
-- **Testing**: every major SDK ships an in-memory **time-skipping test environment** (a 30-day sleep runs in ms) and a **WorkflowReplayer** for determinism checks against recorded histories — [recommended as a CI gate](https://docs.temporal.io/develop/python/testing-suite). This matters unusually much in Temporal: non-deterministic code changes break running workflows.
+Two built-in capabilities matter for our use case:
 
-## Metrics: per-team dashboards are configuration, not construction
+- **Time-skipping test environments.** Every major SDK ships an in-memory test server that fast-forwards timers — a provisioning workflow that waits 30 days for a follow-up runs in milliseconds. Long-running workflows become unit-testable.
+- **Replay testing.** Temporal reconstructs a workflow's state by re-running its code against recorded history — which means *changed* code can silently corrupt *running* workflows. The [WorkflowReplayer](https://docs.temporal.io/develop/python/testing-suite) catches this: feed it production histories in CI and it fails the build if new code diverges. For workflows that run for days, this check is not optional hygiene — it is the safety net.
 
-Two complementary paths, both namespace-sliceable:
+## Deploying: versioning is a solved problem now
 
-1. **Prometheus** — for rates, latencies, alerting. Server metrics carry a `namespace` tag ([`workflow_success`, `workflow_failed`, `service_latency`…](https://docs.temporal.io/references/cluster-metrics)); [SDK metrics](https://docs.temporal.io/references/sdk-metrics) add `workflow_type`/`task_queue`/`activity_type` — per-workflow-type runtime and failure breakdowns come from worker-side scraping. A Grafana dashboard with a `namespace` variable gives every team "my workflows" for free. Start from [temporalio/dashboards](https://github.com/temporalio/dashboards) (server + SDK; explicitly a baseline).
-2. **Visibility API** — for lists, drill-down, exact counts: `ListWorkflowExecutions`/`CountWorkflowExecutions` with custom search attributes; works on PostgreSQL without Elasticsearch (server ≥1.20).
+The historical Temporal headache — "how do I deploy new workflow code while old workflows are mid-flight?" — got a proper answer recently. [Worker Versioning](https://docs.temporal.io/production-deployment/worker-deployments/worker-versioning) (GA March 2026) pins each workflow to the worker version that started it; new versions take new work, old versions drain, rollback is instant. Its companion, the [temporal-worker-controller](https://github.com/temporalio/temporal-worker-controller) (built at Datadog, now an official project; needs server ≥ 1.29.1), automates the whole dance on Kubernetes — running old and new worker versions side by side and cleaning up drained ones. Together they are the ready-made answer to "how do teams ship workflow changes safely."
 
-**Alerting recipes** ([worker health guidance](https://docs.temporal.io/production-deployment/cloud/worker-health)): `workflow_task_schedule_to_start_latency` and `activity_schedule_to_start_latency` near zero (growth = under-provisioned workers); `rate(temporal_workflow_task_execution_failed{failure_reason="NonDeterminismError"})` as a bad-deploy tripwire; per-namespace `workflow_failed`/`workflow_success` ratio; task-queue backlog (`approximate_backlog_count`).
+## Watching: per-team dashboards are configuration, not construction
 
-- **Tracing**: OpenTelemetry interceptors exist for [Go](https://pkg.go.dev/go.temporal.io/sdk/contrib/opentelemetry), [Python](https://python.temporal.io/temporalio.contrib.opentelemetry.TracingInterceptor.html), [TypeScript](https://www.npmjs.com/package/@temporalio/interceptors-opentelemetry); **Java's official module is OpenTracing-only** (OTel via shim or [community module](https://github.com/Groww-OSS/temporal-opentelemetry)) — a real gap if Java is a primary language.
+Everything is already labelled. Server metrics carry `namespace` ([`workflow_success`, `workflow_failed`, latencies…](https://docs.temporal.io/references/cluster-metrics)); [SDK metrics from workers](https://docs.temporal.io/references/sdk-metrics) add `workflow_type` and `task_queue`. So the exact utilities in the original ask — success/failure rates and runtimes per team, per workflow type — fall out of a Grafana dashboard with a namespace variable. Start from [temporalio/dashboards](https://github.com/temporalio/dashboards) and adapt.
+
+Three alerts worth copying from day one:
+
+1. **Schedule-to-start latency creeping up** — tasks are waiting for workers; the team is under-provisioned.
+2. **Workflow task failures where `failure_reason="NonDeterminismError"`** — someone shipped code that breaks running workflows. The bad-deploy tripwire.
+3. **Per-namespace failed/success ratio** — the basic health signal per team.
+
+For lists rather than rates ("show me every failed provisioning run this week"), the **Visibility API** does filtered queries over custom search attributes — on PostgreSQL, no Elasticsearch needed. One flag: Java's official tracing module is OpenTracing-only; OpenTelemetry needs a shim or a [community module](https://github.com/Groww-OSS/temporal-opentelemetry). Go, Python, and TypeScript have first-class OpenTelemetry interceptors.
+
+## Debugging: the Web UI earns its keep
+
+The [Web UI](https://docs.temporal.io/web-ui) is the main reason teams won't need to file tickets with the platform:
+
+- Every workflow's **full event history** — each step, input, output, and failure, browsable as a timeline and downloadable as JSON.
+- "**Where is it stuck?**" answered directly: a stack-trace view of the exact line a workflow is blocked on, and a pending-activities view showing retry counts and the last error.
+- **Fixes from the browser**: signal, cancel, terminate, and — most useful in practice — **reset**, which rewinds a workflow to an earlier step and lets it re-run from there. A provisioning run that failed halfway doesn't restart from zero.
+- **Bulk operations** driven by a search query ("terminate everything of type X started before noon").
+
+Two limits to know. Actions can be disabled per deployment via [UI config](https://docs.temporal.io/references/web-ui-configuration) — but fine-grained "who may reset what" comes from the server-side authorizer, i.e. platform work. And **saved views are stored in the browser, per person** — a team cannot share a curated "our workflows" view; naming conventions and dashboard links have to fill that gap.
+
+The [CLI](https://docs.temporal.io/cli) covers the same ground scriptably, plus batch operations with rate limiting and `workflow trace` (a live tree of a workflow and its children). For deep debugging, the [VS Code extension](https://github.com/temporalio/vscode-debugger-extension) replays a downloaded history against local code with breakpoints — stepping through what production actually did.
+
+## Scheduling: cron, minus the sharp edges
+
+[Schedules](https://docs.temporal.io/schedule) (GA) replace cron triggers: calendar and interval specs, timezones, jitter, pause/resume, backfill, and — the part cron never had — explicit **overlap policies** declaring what happens when a run is due while the previous one is still going (skip, buffer, cancel it, run anyway). Managed via CLI and visible in the UI.
+
+## Between teams: Nexus
+
+The cross-team primitive, and worth introducing properly. Without it, team A calling team B's workflow means importing B's code or B exposing a bespoke API. [Nexus](https://temporal.io/blog/temporal-nexus-now-available) (GA since March 2025) lets a team publish named operations at an **endpoint**; callers invoke them across namespaces with Temporal handling retries and long-running completion. Teams share a contract, not code, queues, or namespace access.
+
+For our provisioning case this is the natural shape for platform-owned building blocks — a "provision bare-metal via Rafay" operation published once, called by any team's workflow. Self-hosted notes: [on by default since server 1.30](https://docs.temporal.io/production-deployment/self-hosted-guide/nexus), single-cluster scope, needs the frontend's HTTP port exposed. A pleasant side effect: the endpoint registry doubles as a de-facto catalog of what teams offer each other.
 
 ## Community extensions worth knowing
 
-Index: [awesome-temporal](https://github.com/temporalio/awesome-temporal).
+(Index: [awesome-temporal](https://github.com/temporalio/awesome-temporal).)
 
-- **[temporal-operator](https://github.com/alexandrevilain/temporal-operator)** (alexandrevilain): `TemporalCluster` + `TemporalNamespace` CRDs, auto-mTLS. Lags server (≤1.28 vs 1.31), single maintainer — useful pattern, risky foundation.
-- **Terraform**: the official [provider is Temporal Cloud-only](https://github.com/temporalio/terraform-provider-temporalcloud). For self-hosted: [platacard/terraform-provider-temporal](https://github.com/platacard/terraform-provider-temporal) (active, v0.19.0 Apr 2026 — verify resource coverage) or the operator's CRDs; fallback is `temporal operator namespace` in CI.
-- **Load/sizing**: [temporalio/omes](https://github.com/temporalio/omes) (current official load generator) and [benchmark-workers](https://github.com/temporalio/benchmark-workers) (prebuilt images + Helm); maru is deprecated.
-- **Payload codecs**: built-in zlib codec (Go), [encryption](https://github.com/temporalio/samples-go/tree/main/encryption)/[compression](https://github.com/temporalio/samples-go/tree/main/snappycompress) samples in every major SDK; community [Vault-backed codec server](https://github.com/zboralski/codecserver).
-- **Interceptor samples** for a platform-standard stack: [logging](https://github.com/temporalio/samples-go/tree/main/logger-interceptor), [workflow-security](https://github.com/temporalio/samples-go/tree/main/workflow-security-interceptor) (whitelists which child workflow types may run — a multi-team governance hook).
-- **Higher-level frameworks**: [iWF](https://github.com/indeedeng/iwf) (Indeed) layers a REST state-machine model over Temporal — only relevant if teams want to avoid the native SDK model; adds a server component. Not recommended initially.
-- **Nonexistent, so plan to build or skip**: no shared-saved-views mechanism, no workflow catalog/documentation generator (closest: naming conventions + search attributes + Nexus endpoint list), no third-party alternative UI of note.
+- **[temporal-operator](https://github.com/alexandrevilain/temporal-operator)** — declarative cluster + namespace resources, auto-mTLS. Supports server ≤ 1.28 (current: 1.31), single maintainer. Borrow the patterns, don't build on it.
+- **Terraform** — the official provider is [Temporal Cloud-only](https://github.com/temporalio/terraform-provider-temporalcloud). For self-hosted namespace management: [platacard/terraform-provider-temporal](https://github.com/platacard/terraform-provider-temporal) (active; verify resource coverage) or plain `temporal operator namespace` in CI.
+- **Load testing** — [omes](https://github.com/temporalio/omes), Temporal's own generator, plus [benchmark-workers](https://github.com/temporalio/benchmark-workers) for cluster sizing.
+- **Payload codecs** — encryption/compression samples in every major SDK, and a [Vault-backed codec server](https://github.com/zboralski/codecserver). (Why codecs matter for a shared instance: next section.)
+- **Interceptors** — [logging](https://github.com/temporalio/samples-go/tree/main/logger-interceptor) and [workflow-security](https://github.com/temporalio/samples-go/tree/main/workflow-security-interceptor) (restricts which child workflow types may run) samples; raw material for a platform-standard worker stack.
+- **[iWF](https://github.com/indeedeng/iwf)** — Indeed's higher-level framework on top of Temporal. Adds its own server and model; skip unless teams reject the native SDKs.
 
-## Codec server: the one shared service to plan early
+And what **doesn't** exist, so nobody goes looking: no shared saved views, no workflow catalog or docs generator (conventions + search attributes + the Nexus endpoint list are the substitute), and no serious alternative UI — the official one is the standard.
 
-A [codec server](https://docs.temporal.io/production-deployment/data-encryption) is a small HTTP service (`/encode`, `/decode`) sharing codec logic with SDK `PayloadCodec`s. If any team encrypts or compresses payloads (they should — the platform DB stores every input/output), the shared Web UI and CLI show base64 blobs unless a codec server decodes them client-side. First-class support: per-namespace endpoint config in the UI, `--codec-endpoint` in the CLI, [samples in five languages](https://github.com/temporalio/samples-go/tree/main/codec-server). Multi-team pattern: one platform codec service routing on the `X-Namespace` header to per-team keys. The codec server sees plaintext — its authentication is the platform's job (see [multi-tenancy-gaps.md](multi-tenancy-gaps.md)).
+## One shared service to plan early: the codec server
+
+Everything a workflow touches — inputs, outputs, errors — is stored in the shared database and displayed in the shared UI. Teams handling sensitive data (machine credentials, for us) should encrypt payloads with an SDK codec. But then the UI shows base64 noise — unless a [**codec server**](https://docs.temporal.io/production-deployment/data-encryption) is running: a small HTTP service the UI and CLI call to decode payloads *in the viewer's browser session*. Data stays encrypted in the database; authorized humans still get readable debugging. Support is first-class (per-namespace endpoint config in the UI, `--codec-endpoint` in the CLI, [samples in five languages](https://github.com/temporalio/samples-go/tree/main/codec-server)). The multi-team pattern — one platform codec service routing on the namespace header to per-team keys — is platform work, detailed in [multi-tenancy-gaps.md](multi-tenancy-gaps.md).
