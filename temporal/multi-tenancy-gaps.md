@@ -54,6 +54,44 @@ So the "largest single build" framing softens: with a cooperative IdP this is a 
 
 The Web UI needs no separate authorization work — it logs users in via OIDC and forwards their token to the frontend, so the same server-side rules decide what each person sees (wiring the UI→frontend token hop is a known fiddly step — [thread](https://community.temporal.io/t/ui-jwt-authorisation-on-role-and-api-cli-using-mtls-client-certificates/12574)). Workers get their own credentials (mTLS certificates or `<namespace>:worker`-scoped JWTs), issued per team at onboarding. Since v1.31 the server stamps a tamper-proof [`Principal`](https://github.com/temporalio/temporal/releases/tag/v1.31.0) on history events — who-terminated-this audit for free.
 
+### Worked example: read-all, write-own, admin-only-delete
+
+A concrete policy makes the model tangible. Say the goal is: **everyone can read every team's workflows; an engineer can modify only their own team's; nobody can delete except admins** (who prune old workflows for performance). Engineer E1 is on team T1, E2 on T2.
+
+First, how the built-in authorizer decides. For each API call it computes the caller's effective role as `system-role OR namespace-role`, then allows if that role meets the API's required level. Roles rank Worker(1) < Reader(2) < Writer(4) < Admin(8), API levels map read-only→Reader / write→Writer / everything-else→Admin, and — the load-bearing detail — **a system-level role applies across all namespaces** ([`default_authorizer.go`](https://github.com/temporalio/temporal/blob/main/common/authorization/default_authorizer.go)). That last point is what makes "read everything" a one-line claim.
+
+The `permissions` claim each person carries:
+
+| Person | `permissions` | Effect |
+|---|---|---|
+| E1 (team T1) | `["temporal-system:read", "T1:write"]` | Read all namespaces; modify only T1 |
+| E2 (team T2) | `["temporal-system:read", "T2:write"]` | Read all namespaces; modify only T2 |
+| Platform admin | `["temporal-system:admin"]` | Everything everywhere, including delete |
+
+`temporal-system:read` sets the *system* role to Reader, which ORs into every namespace → read-all. `T2:write` grants Writer on T2 only. The modify verbs an engineer needs — `SignalWorkflowExecution`, `TerminateWorkflowExecution`, `RequestCancelWorkflowExecution`, `ResetWorkflowExecution`, `UpdateWorkflowExecution`, `StartWorkflowExecution` — are all `AccessWrite`, so Writer covers them. **Read-all and write-own are pure configuration**, no code.
+
+**The one wrinkle: "only admin can delete" is not free.** Temporal classifies `DeleteWorkflowExecution` (and `DeleteSchedule`, `DeleteWorkflowRule`) as `AccessWrite`, not admin ([`metadata.go`](https://github.com/temporalio/temporal/blob/main/common/api/metadata.go)) — so `T2:write` would let E2 *delete* T2 workflows, breaking the rule. There's no config knob to reclassify an API, which leaves two fixes:
+
+- **Custom authorizer (compiled into the server).** Wrap the default authorizer and require Admin for the delete methods regardless of their built-in level; defer everything else to the default. This is the one place the model needs a server build (`temporal.WithAuthorizer(...)`), and it supports scoped admins — `["temporal-system:read", "T2:admin"]` = read-all, delete only in T2.
+
+  ```go
+  func (a *deleteNeedsAdmin) Authorize(ctx, claims, target) (Result, error) {
+      if isDeleteAPI(target.APIName) { // DeleteWorkflowExecution, DeleteSchedule, DeleteWorkflowRule
+          if claims.System|claims.Namespaces[target.Namespace] < authorization.RoleAdmin {
+              return Result{Decision: DecisionDeny}, nil
+          }
+          return Result{Decision: DecisionAllow}, nil
+      }
+      return a.defaultAuthorizer.Authorize(ctx, claims, target)
+  }
+  ```
+
+- **Block delete at the edge (no rebuild).** A gRPC interceptor or gateway rejects the `Delete*` methods unless the JWT carries `temporal-system:admin`. This gates on method name + a claim, so it needs no request-body parsing — but it only supports cluster-wide admins, not per-namespace delete rights.
+
+Pick the custom authorizer if teams should be able to delete their own old workflows; pick the edge block if all delete authority sits with one central admin group.
+
+Two caveats. **Read-all is not read-plaintext-all**: authorization lets E1 open T2's histories, but if T2 encrypts payloads with its own codec keys, E1 sees ciphertext unless E1's session can reach those keys (a codec-server key-sharing decision — see Build 4, not RBAC). And **the natural "no delete" is retention**: Temporal auto-deletes closed workflows after each namespace's retention period, so "delete old workflows for performance" is normally a retention setting, not manual deletion — manual `DeleteWorkflowExecution` becomes a break-glass admin action, exactly what the rule above reserves. `DeleteNamespace` is already `AccessAdmin`, so namespace deletion is admin-only out of the box.
+
 ## Build 2 — the onboarding pipeline (and the quota trap inside it)
 
 There is no self-service anything in OSS Temporal, and the official Terraform provider is [Cloud-only](https://github.com/temporalio/terraform-provider-temporalcloud). Onboarding a team touches six things — script it once, run it per team:
