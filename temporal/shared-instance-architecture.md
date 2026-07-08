@@ -26,7 +26,7 @@ A single tuned PostgreSQL instance carries a few thousand workflow state transit
 
 - Cloud SQL, not AlloyDB (see footnote at the database layer).
 - Modest scale: provisioning workflows run for hours but emit few events per second.
-- Worker ownership and multi-team concerns are handled in [multi-tenancy-gaps.md](multi-tenancy-gaps.md).
+- Worker ownership and multi-team concerns are handled in [multi-tenancy-setup.md](multi-tenancy-setup.md).
 
 ## How the pieces fit
 
@@ -168,7 +168,7 @@ A fresh Temporal cluster has **no authentication**: anyone who can reach the fro
 
 **1. Mutual TLS (mTLS).** Enable it on the frontend (only holders of a client certificate connect) and between the services. Since v1.20, the server's own internal calls fail authorization unless mTLS is on, so these are enabled as a pair.
 
-**2. Authorization — configuration, not a code change.** The server ships with a default authorizer and default JSON Web Token (JWT) claim mapper. Enable them in the static config's `authorization` block: set `authorizer: "default"`, `claimMapper: "default"`, and point `jwtKeyProvider.keySourceURIs` at the identity provider's public-key (JWKS) endpoint. The built-in authorizer enforces read/write/worker/admin roles per API call, per namespace, with no custom code. A server rebuild is required only for *custom* claim logic — when the identity provider cannot emit the expected `permissions` claim of `["<namespace>:<role>"]` strings. Wiring the identity provider and per-namespace RBAC is covered in [multi-tenancy-gaps.md](multi-tenancy-gaps.md).[^gateway]
+**2. Authorization — configuration, not a code change.** The server ships with a default authorizer and default JSON Web Token (JWT) claim mapper. Enable them in the static config's `authorization` block: set `authorizer: "default"`, `claimMapper: "default"`, and point `jwtKeyProvider.keySourceURIs` at the identity provider's public-key (JWKS) endpoint. The built-in authorizer enforces read/write/worker/admin roles per API call, per namespace, with no custom code. A server rebuild is required only for *custom* claim logic — when the identity provider cannot emit the expected `permissions` claim of `["<namespace>:<role>"]` strings. Wiring the identity provider and per-namespace RBAC is covered in [multi-tenancy-setup.md](multi-tenancy-setup.md).[^gateway]
 
 **Web UI.** The chart includes the UI; enable OpenID Connect (OIDC) login with `TEMPORAL_AUTH_ENABLED=true` plus provider settings. The UI has no permissions of its own — it forwards the user's token to the frontend, so the server-side rules decide what each person sees. Configure authorization once; both the API and the UI obey it.
 
