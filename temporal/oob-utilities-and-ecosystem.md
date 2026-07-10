@@ -17,6 +17,8 @@ More than expected. A team landing on the shared instance gets, without the plat
 
 This report follows a team through the life of a workflow: write it, test it, deploy it, watch it, debug it — then what exists between teams, and what doesn't exist at all.
 
+![Temporal ecosystem landscape: what ships out-of-the-box (server, Web UI, CLI, schema tools, SDKs, Schedules/Nexus), what the community/official add-ons provide (Helm chart, Grafana dashboards, OTel exporters, Cloud SQL Auth Proxy), and what you build (gRPC API frontend, authn/authz glue, CI/CD, alerting, namespace provisioning)](diagrams/oob-utilities-and-ecosystem.png)
+
 ## Writing: seven languages, one caveat
 
 [Seven GA SDKs](https://docs.temporal.io/develop): Go, Java, TypeScript, Python, .NET, PHP, Ruby (Rust in preview). The caveat is that **new features arrive language by language** — Nexus, for example, is GA in Go/Java/Python but still preview in TypeScript and .NET. The platform should publish a small supported-language matrix rather than promising "any SDK, any feature."

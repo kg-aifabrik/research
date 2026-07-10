@@ -30,6 +30,8 @@ A single tuned PostgreSQL instance carries a few thousand workflow state transit
 
 ## How the pieces fit
 
+![Shared Temporal architecture: per-team workers and clients talk to the Temporal server's frontend/history/matching/worker services (512 history shards), backed by two Cloud SQL databases — default/history and visibility](diagrams/shared-instance-architecture.png)
+
 A Temporal cluster is **four stateless services plus one database**:
 
 | Service | Job |
